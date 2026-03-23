@@ -249,8 +249,8 @@ func findRemoteTarballByVersion(version, flavor, OS, arch string, minimal, newes
 
 	tarball, err = downloads.FindOrGuessTarballByVersionFlavorOS(version, flavor, OS, arch, minimal, newest, guessLatest)
 	if err != nil {
-		return downloads.TarballDescription{}, fmt.Errorf(fmt.Sprintf("Error getting version %s (%s-%s)[minimal: %v - newest: %v - guess: %v]: %s",
-			version, flavor, OS, minimal, newest, guessLatest, err))
+		return downloads.TarballDescription{}, fmt.Errorf("Error getting version %s (%s-%s)[minimal: %v - newest: %v - guess: %v]: %s",
+			version, flavor, OS, minimal, newest, guessLatest, err)
 	}
 	return tarball, nil
 }
