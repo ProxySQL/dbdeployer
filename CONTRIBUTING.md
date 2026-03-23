@@ -114,7 +114,7 @@ Depending on how many binaries you have and the speed of your machine, this test
 ### 4. Running the test in a Docker container
 
 This is the same test that runs automatically on GitHub when a pull request is submitted. It uses a specific Docker
-image (`datacharmer/mysql-sb-full`), which contains MySQL binaries from version 4.1.22 to 8.0.x. To run it on your
+image (`datacharmer/mysql-sb-full`) (Note: this Docker image is from the original maintainer's repository and may need to be updated), which contains MySQL binaries from version 4.1.22 to 8.0.x. To run it on your
 machine you will need a working Docker server and the ability of downloading the image from the Internet.
 
 While the previous one may occasionally fail (if you don't have all the versions available), this one **must succeed**, 
