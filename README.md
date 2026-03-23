@@ -1,12 +1,23 @@
-[The end of dbdeployer](https://datacharmer.github.io/end-of-dbdeployer/)
-
 # dbdeployer
-[DBdeployer](https://github.com/datacharmer/dbdeployer) is a tool that deploys MySQL database servers easily.
+
+[DBdeployer](https://github.com/ProxySQL/dbdeployer) is a tool that deploys MySQL database servers easily.
 This is a port of [MySQL-Sandbox](https://github.com/datacharmer/mysql-sandbox), originally written in Perl, and re-designed from the ground up in [Go](https://golang.org). See the [features comparison](https://github.com/datacharmer/dbdeployer/blob/master/docs/features.md) for more detail.
+
+## New Maintainer
+
+This project was originally created and maintained by [Giuseppe Maxia](https://github.com/datacharmer) (datacharmer). It is now actively maintained by the [ProxySQL](https://github.com/ProxySQL) team, continuing Giuseppe's excellent work while expanding the project's capabilities.
+
+**Roadmap highlights:**
+
+- ProxySQL and Orchestrator integration
+- Provider-based architecture for extensible database support
+- Eventual PostgreSQL support
+
+See the [Phase 1 milestone](https://github.com/ProxySQL/dbdeployer/milestone/1) for current progress.
 
 Documentation updated for version 1.66.0 (26-Jul-2022 10:30 UTC)
 
-![Build Status](https://github.com/datacharmer/dbdeployer/workflows/.github/workflows/all_tests.yml/badge.svg)
+![Build Status](https://github.com/ProxySQL/dbdeployer/workflows/.github/workflows/all_tests.yml/badge.svg)
 
 - [Installation](https://github.com/datacharmer/dbdeployer/wiki/installation)
     - [Manual installation](https://github.com/datacharmer/dbdeployer/wiki/installation#manual-installation)
