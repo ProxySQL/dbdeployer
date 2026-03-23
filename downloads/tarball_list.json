@@ -99,18 +99,6 @@
       "version": "5.5.53"
     },
     {
-      "name": "mysql-5.1.73-osx10.6-x86_64.tar.gz",
-      "checksum": "SHA512:9e21642d009ac736607d38b3b4dd0b566db39995dbcf1515cd73026c5362419dcf7d085407c3f89aab59bbf740e383cf6a257517ec00653ecd7382f3166bca38",
-      "OS": "Darwin",
-      "arch": "amd64",
-      "url": "https://downloads.mysql.com/archives/get/p/23/file/mysql-5.1.73-osx10.6-x86_64.tar.gz",
-      "flavor": "mysql",
-      "minimal": false,
-      "size": 81598665,
-      "short_version": "5.1",
-      "version": "5.1.73"
-    },
-    {
       "name": "mysql-5.0.96-osx10.5-x86_64.tar.gz",
       "checksum": "SHA512:a5f3959732fe8b4a9cb3b41d7c2f7d869cae38ffc844989b7c98cdbf7496e6d65ea1794819d2a6aea8dd13340252a8c553dcdfbc904415ecd13adb493aa5ae68",
       "OS": "Darwin",
@@ -279,18 +267,6 @@
       "version": "5.5.61"
     },
     {
-      "name": "mysql-5.1.73-linux-x86_64-glibc23.tar.gz",
-      "checksum": "SHA512:045cc42a1078aae77d2ba9d9e35d69df79feb33de3dc112095e669d5b298ac24ba963ac071ab7a0d3cbe917c68624c184e4d7c69c76dbf43c4df32cb2e4da1b2",
-      "OS": "Linux",
-      "arch": "amd64",
-      "url": "https://downloads.mysql.com/archives/get/p/23/file/mysql-5.1.73-linux-x86_64-glibc23.tar.gz",
-      "flavor": "mysql",
-      "minimal": false,
-      "size": 133630298,
-      "short_version": "5.1",
-      "version": "5.1.73"
-    },
-    {
       "name": "mysql-5.0.96.tar.xz",
       "checksum": "SHA512:c39621e43778cc971dc979a065b283864edcb15eb3aced59b5a596dbb56936a6f78feb141d5fb1e0213f130092cff1d93613c0b2beee8b8531796a745ad2bf4b",
       "OS": "Linux",
@@ -301,18 +277,6 @@
       "size": 5464684,
       "short_version": "5.0",
       "version": "5.0.96"
-    },
-    {
-      "name": "mysql-5.1.72.tar.xz",
-      "checksum": "SHA512:6fc8ad76a831fc22f9b7bffed8fb4eb4575a122cebca8f5bab52dbe6454372b2f5681eb125141c2b1b5c547496e8d96686c83bdf3c4fdc390bd3614cd1060b9c",
-      "OS": "Linux",
-      "arch": "amd64",
-      "url": "https://raw.githubusercontent.com/datacharmer/mysql-docker-minimal/master/dbdata/mysql-5.1.72.tar.xz",
-      "flavor": "mysql",
-      "minimal": true,
-      "size": 10390324,
-      "short_version": "5.1",
-      "version": "5.1.72"
     },
     {
       "name": "mysql-5.5.61.tar.xz",
