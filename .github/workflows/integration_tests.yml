@@ -86,4 +86,4 @@ jobs:
         if: always()
         run: |
           ./dbdeployer delete all --skip-confirm 2>/dev/null || true
-          pkill -9 mysqld 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
