@@ -61,21 +61,21 @@ var downloadsSettings = map[TarballType]TarballDef{
 		NameInFile:  "mysql-cluster",
 		NameInUrl:   "cluster",
 		DownloadDir: "MySQL-Cluster-VERSION",
-		Versions:    []string{"7.6", "8.0"},
+		Versions:    []string{"7.6", "8.0", "8.4", "9.0"},
 	},
 	TtMysql: {
 		Flavor:      "mysql",
 		NameInFile:  "mysql",
 		NameInUrl:   "mysql",
 		DownloadDir: "MySQL-VERSION",
-		Versions:    []string{"5.7", "8.0"},
+		Versions:    []string{"5.7", "8.0", "8.4", "9.0", "9.1", "9.2"},
 	},
 	TtShell: {
 		Flavor:      "shell",
 		NameInFile:  "mysql-shell",
 		NameInUrl:   "shell",
 		DownloadDir: "MySQL-Shell-VERSION",
-		Versions:    []string{"8.0"},
+		Versions:    []string{"8.0", "8.4", "9.0"},
 	},
 }
 
