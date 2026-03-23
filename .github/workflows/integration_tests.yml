@@ -1,0 +1,89 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    # Run nightly at 2am UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  sandbox-test:
+    name: Sandbox (${{ matrix.mysql-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mysql-version:
+          - '8.0.42'
+          - '8.4.4'
+          - '9.1.0'
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      MYSQL_VERSION: ${{ matrix.mysql-version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Cache MySQL tarball
+        uses: actions/cache@v4
+        with:
+          path: /tmp/mysql-tarball
+          key: mysql-${{ matrix.mysql-version }}-linux-x86_64-v1
+
+      - name: Download MySQL
+        run: |
+          SHORT_VER=$(echo "$MYSQL_VERSION" | grep -oP '^\d+\.\d+')
+          TARBALL="mysql-${MYSQL_VERSION}-linux-glibc2.17-x86_64.tar.xz"
+          mkdir -p /tmp/mysql-tarball
+          if [ ! -f "/tmp/mysql-tarball/$TARBALL" ]; then
+            echo "Downloading $TARBALL..."
+            curl -L -f -o "/tmp/mysql-tarball/$TARBALL" \
+              "https://dev.mysql.com/get/Downloads/MySQL-${SHORT_VER}/$TARBALL" \
+              || curl -L -f -o "/tmp/mysql-tarball/$TARBALL" \
+              "https://downloads.mysql.com/archives/get/p/23/file/$TARBALL"
+          fi
+          ls -lh "/tmp/mysql-tarball/$TARBALL"
+
+      - name: Unpack MySQL
+        run: |
+          mkdir -p "$SANDBOX_BINARY"
+          TARBALL="mysql-${MYSQL_VERSION}-linux-glibc2.17-x86_64.tar.xz"
+          ./dbdeployer unpack "/tmp/mysql-tarball/$TARBALL" \
+            --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Test single sandbox
+        run: |
+          ./dbdeployer deploy single "$MYSQL_VERSION" \
+            --sandbox-binary="$SANDBOX_BINARY"
+          ~/sandboxes/msb_*/use -e "SELECT VERSION()"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Test replication sandbox
+        run: |
+          ./dbdeployer deploy replication "$MYSQL_VERSION" \
+            --sandbox-binary="$SANDBOX_BINARY"
+          ~/sandboxes/rsandbox_*/check_slaves
+          ~/sandboxes/rsandbox_*/test_replication
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 mysqld 2>/dev/null || true
