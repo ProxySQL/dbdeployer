@@ -17,13 +17,20 @@ fi
 
 sandbox_dir=$SANDBOX_HOME/rsandbox_$(echo $version | tr '.' '_' )
 
+# Version-aware SQL commands
+sortable_version=$(echo "$version" | awk -F. '{printf "%03d%03d%03d", $1, $2, $3}')
+minimum_version_binary_log="008002000"
+minimum_version_replica="008000022"
+
+show_master_cmd="SHOW MASTER STATUS"
+if [[ "v$sortable_version" > "v$minimum_version_binary_log" ]] || [[ "v$sortable_version" == "v$minimum_version_binary_log" ]]; then
+    show_master_cmd="SHOW BINARY LOG STATUS"
+fi
+
 header "Running a simple command with the master in the sandbox." \
-   "Notice the usage of the '-e', as if we were using the 'mysql' client" 
+   "Notice the usage of the '-e', as if we were using the 'mysql' client"
 
 (set -x
-sortable_version=$(echo $version | awk -F. '{printf "%03d%03d%03d", $1, $2, $3}')
-show_master_cmd="SHOW MASTER STATUS"
-if [[ "v$sortable_version" > "v008002000" ]]; then show_master_cmd="SHOW BINARY LOG STATUS"; fi
 $sandbox_dir/m -e "$show_master_cmd"
 )
 
@@ -57,11 +64,12 @@ header "Checking the status of all slaves"
 run $sandbox_dir/check_slaves
 
 header "Running a multiple query in all slaves"
-(set -x
-if [[ "v$sortable_version" > "v008000022" ]]; then
-$sandbox_dir/use_all_slaves "STOP REPLICA; SET GLOBAL replica_parallel_workers=3; START REPLICA;show processlist "
+if [[ "v$sortable_version" > "v$minimum_version_replica" ]] || [[ "v$sortable_version" == "v$minimum_version_replica" ]]; then
+    (set -x
+    $sandbox_dir/use_all_slaves "STOP REPLICA; SET GLOBAL replica_parallel_workers=3; START REPLICA;show processlist "
+    )
 else
-$sandbox_dir/use_all_slaves "STOP SLAVE; SET GLOBAL slave_parallel_workers=3; START SLAVE;show processlist "
+    (set -x
+    $sandbox_dir/use_all_slaves "STOP SLAVE; SET GLOBAL slave_parallel_workers=3; START SLAVE;show processlist "
+    )
 fi
-)
-

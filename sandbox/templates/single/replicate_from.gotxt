@@ -159,7 +159,7 @@ master_status=/tmp/mstatus$$
 # MySQL 8.2+ renamed SHOW MASTER STATUS to SHOW BINARY LOG STATUS
 show_master_status_cmd="show master status"
 minimum_version_binary_log="008002000"
-if [[ "v$master_sortable_version" > "v$minimum_version_binary_log" ]]
+if [[ "v$master_sortable_version" > "v$minimum_version_binary_log" ]] || [[ "v$master_sortable_version" == "v$minimum_version_binary_log" ]]
 then
     show_master_status_cmd="show binary log status"
 fi
@@ -220,14 +220,12 @@ fi
 
 # MySQL 8.0.23+ renamed CHANGE MASTER TO parameters
 minimum_version_change_source="008000023"
-change_master_cmd="CHANGE MASTER TO"
 auto_position_param="master_auto_position"
 log_file_param="master_log_file"
 log_pos_param="master_log_pos"
 public_key_param="GET_MASTER_PUBLIC_KEY"
-if [[ "v$slave_sortable_version" > "v$minimum_version_change_source" ]]
+if [[ "v$slave_sortable_version" > "v$minimum_version_change_source" ]] || [[ "v$slave_sortable_version" == "v$minimum_version_change_source" ]]
 then
-    change_master_cmd="CHANGE REPLICATION SOURCE TO"
     auto_position_param="source_auto_position"
     log_file_param="source_log_file"
     log_pos_param="source_log_pos"
@@ -265,7 +263,7 @@ start_replica_cmd="start slave"
 show_replica_cmd="SHOW SLAVE STATUS"
 stop_reset_cmd="stop slave; reset slave"
 minimum_version_replica="008000022"
-if [[ "v$slave_sortable_version" > "v$minimum_version_replica" ]]
+if [[ "v$slave_sortable_version" > "v$minimum_version_replica" ]] || [[ "v$slave_sortable_version" == "v$minimum_version_replica" ]]
 then
     start_replica_cmd="start replica"
     show_replica_cmd="SHOW REPLICA STATUS"
@@ -276,7 +274,7 @@ $SBDIR/use -v -e "$show_replica_cmd\G" | grep "\(Running:\|Master_Log_Pos\|Sourc
 date > $active_replication
 echo "Connected to $master_path" >> $active_replication
 echo "#!{{.ShellPath}}" > $remove_replication
-echo "$SBDIR/use -v -e '$stop_reset_cmd'" >> $remove_replication
+echo "$SBDIR/use -v -e \"$stop_reset_cmd\"" >> $remove_replication
 echo "rm -f $active_replication" >> $remove_replication
 chmod +x $remove_replication
 
