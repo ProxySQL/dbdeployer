@@ -29,7 +29,7 @@ MASTER_RECS=$($MASTER -BN -e 'select count(*) from test.t1')
 
 master_status=master_status$$
 slave_status=slave_status$$
-$MASTER -e 'show master status\G' > $master_status
+$MASTER -e '{{.ShowMasterStatus}}\G' > $master_status
 master_binlog=$(grep 'File:' $master_status | awk '{print $2}' )
 master_pos=$(grep 'Position:' $master_status | awk '{print $2}' )
 echo "# {{.MasterLabel}} log: $master_binlog - Position: $master_pos - Rows: $MASTER_RECS"
@@ -98,7 +98,7 @@ do
         then
             sleep 3
         else
-            S_READY=$($SLAVE -BN -e "select master_pos_wait('$master_binlog', $master_pos,60)")
+            S_READY=$($SLAVE -BN -e "select {{.MasterPosWaitFunc}}('$master_binlog', $master_pos,60)")
             # master_pos_wait can return 0 or a positive number for successful replication
             # Any result that is not NULL or -1 is acceptable
             if [ "$S_READY" != "-1" -a "$S_READY" != "NULL" ]
@@ -109,10 +109,10 @@ do
         fi
 if [ -f initialize_{{.SlaveLabel}}s ]
 then
-	$SLAVE -e 'show slave status\G' > $slave_status
-	IO_RUNNING=$(grep -w Slave_IO_Running $slave_status | awk '{print $2}')
+	$SLAVE -e '{{.ShowSlaveStatus}}\G' > $slave_status
+	IO_RUNNING=$(grep -E -w "Slave_IO_Running|Replica_IO_Running" $slave_status | awk '{print $2}')
 	ok_equal $IO_RUNNING Yes "{{.SlaveLabel}} #$SLAVE_N IO thread is running"
-	SQL_RUNNING=$(grep -w Slave_IO_Running $slave_status | awk '{print $2}')
+	SQL_RUNNING=$(grep -E -w "Slave_SQL_Running|Replica_SQL_Running" $slave_status | awk '{print $2}')
 	ok_equal $SQL_RUNNING Yes "{{.SlaveLabel}} #$SLAVE_N SQL thread is running"
 	rm -f $slave_status
 fi

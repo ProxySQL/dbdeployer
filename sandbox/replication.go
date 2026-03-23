@@ -29,6 +29,47 @@ import (
 	"github.com/pkg/errors"
 )
 
+func replicationCommands(version string) map[string]string {
+	cmds := map[string]string{
+		"ShowMasterStatus":    "show master status",
+		"ShowSlaveStatus":     "show slave status",
+		"ChangeMasterTo":      "CHANGE MASTER TO",
+		"StartReplica":        "START SLAVE",
+		"StopReplica":         "STOP SLAVE",
+		"ResetReplica":        "RESET SLAVE",
+		"MasterPosWaitFunc":   "master_pos_wait",
+		"MasterHostParam":     "master_host",
+		"MasterPortParam":     "master_port",
+		"MasterUserParam":     "master_user",
+		"MasterPasswordParam": "master_password",
+	}
+
+	useReplicaStatus, _ := common.GreaterOrEqualVersion(version, globals.MinimumShowReplicaStatusVersion)
+	if useReplicaStatus {
+		cmds["ShowSlaveStatus"] = "show replica status"
+		cmds["StartReplica"] = "START REPLICA"
+		cmds["StopReplica"] = "STOP REPLICA"
+		cmds["ResetReplica"] = "RESET REPLICA"
+		cmds["MasterPosWaitFunc"] = "source_pos_wait"
+	}
+
+	useChangeSource, _ := common.GreaterOrEqualVersion(version, globals.MinimumChangeReplicationSourceVersion)
+	if useChangeSource {
+		cmds["ChangeMasterTo"] = "CHANGE REPLICATION SOURCE TO"
+		cmds["MasterHostParam"] = "source_host"
+		cmds["MasterPortParam"] = "source_port"
+		cmds["MasterUserParam"] = "source_user"
+		cmds["MasterPasswordParam"] = "source_password"
+	}
+
+	useBinaryLogStatus, _ := common.GreaterOrEqualVersion(version, globals.MinimumShowBinaryLogStatusVersion)
+	if useBinaryLogStatus {
+		cmds["ShowMasterStatus"] = "show binary log status"
+	}
+
+	return cmds
+}
+
 type Slave struct {
 	Node       int
 	Port       int
@@ -188,7 +229,12 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 	}
 	if isMinimumNativeAuthPlugin {
 		if !sandboxDef.NativeAuthPlugin {
-			sandboxDef.ChangeMasterOptions = append(sandboxDef.ChangeMasterOptions, "GET_MASTER_PUBLIC_KEY=1")
+			useNewSourceSyntax, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumChangeReplicationSourceVersion)
+			if useNewSourceSyntax {
+				sandboxDef.ChangeMasterOptions = append(sandboxDef.ChangeMasterOptions, "GET_SOURCE_PUBLIC_KEY=1")
+			} else {
+				sandboxDef.ChangeMasterOptions = append(sandboxDef.ChangeMasterOptions, "GET_MASTER_PUBLIC_KEY=1")
+			}
 		}
 	}
 	slaves := nodes - 1
@@ -199,6 +245,7 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 	timestamp := time.Now()
 
 	changeMasterExtra = setChangeMasterProperties(changeMasterExtra, sandboxDef.ChangeMasterOptions, logger)
+	replCmds := replicationCommands(sandboxDef.Version)
 	var data = common.StringMap{
 		"ShellPath":          sandboxDef.ShellPath,
 		"Copyright":          globals.ShellScriptCopyright,
@@ -216,6 +263,17 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 		"ChangeMasterExtra":  changeMasterExtra,
 		"MasterAutoPosition": masterAutoPosition,
 		"Slaves":             []common.StringMap{},
+		"ShowMasterStatus":    replCmds["ShowMasterStatus"],
+		"ShowSlaveStatus":     replCmds["ShowSlaveStatus"],
+		"ChangeMasterTo":      replCmds["ChangeMasterTo"],
+		"StartReplica":        replCmds["StartReplica"],
+		"StopReplica":         replCmds["StopReplica"],
+		"ResetReplica":        replCmds["ResetReplica"],
+		"MasterPosWaitFunc":   replCmds["MasterPosWaitFunc"],
+		"MasterHostParam":     replCmds["MasterHostParam"],
+		"MasterPortParam":     replCmds["MasterPortParam"],
+		"MasterUserParam":     replCmds["MasterUserParam"],
+		"MasterPasswordParam": replCmds["MasterPasswordParam"],
 	}
 
 	logger.Printf("Defining replication data: %v\n", stringMapToJson(data))
@@ -308,7 +366,17 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 			"ChangeMasterExtra":  changeMasterExtra,
 			"MasterAutoPosition": masterAutoPosition,
 			"RplUser":            sandboxDef.RplUser,
-			"RplPassword":        sandboxDef.RplPassword})
+			"RplPassword":        sandboxDef.RplPassword,
+			"ChangeMasterTo":      replCmds["ChangeMasterTo"],
+			"StartReplica":        replCmds["StartReplica"],
+			"ShowSlaveStatus":     replCmds["ShowSlaveStatus"],
+			"ShowMasterStatus":    replCmds["ShowMasterStatus"],
+			"MasterHostParam":     replCmds["MasterHostParam"],
+			"MasterPortParam":     replCmds["MasterPortParam"],
+			"MasterUserParam":     replCmds["MasterUserParam"],
+			"MasterPasswordParam": replCmds["MasterPasswordParam"],
+			"MasterPosWaitFunc":   replCmds["MasterPosWaitFunc"],
+		})
 		sandboxDef.LoadGrants = false
 		sandboxDef.Prompt = fmt.Sprintf("%s%d", slaveLabel, i)
 		sandboxDef.DirName = fmt.Sprintf("%s%d", nodeLabel, i)
@@ -369,6 +437,15 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 			"MasterAutoPosition": masterAutoPosition,
 			"SlaveAbbr":          slaveAbbr,
 			"SandboxDir":         sandboxDef.SandboxDir,
+			"ChangeMasterTo":      replCmds["ChangeMasterTo"],
+			"StartReplica":        replCmds["StartReplica"],
+			"ShowSlaveStatus":     replCmds["ShowSlaveStatus"],
+			"ShowMasterStatus":    replCmds["ShowMasterStatus"],
+			"MasterHostParam":     replCmds["MasterHostParam"],
+			"MasterPortParam":     replCmds["MasterPortParam"],
+			"MasterUserParam":     replCmds["MasterUserParam"],
+			"MasterPasswordParam": replCmds["MasterPasswordParam"],
+			"MasterPosWaitFunc":   replCmds["MasterPosWaitFunc"],
 		}
 		logger.Printf("Defining replication node data: %v\n", stringMapToJson(dataSlave))
 		logger.Printf("Create slave script %d\n", i)
