@@ -710,6 +710,21 @@ func createSingleSandbox(sandboxDef SandboxDef) (execList []concurrent.Execution
 		"ReportHost":           fmt.Sprintf("report-host=single-%d", sandboxDef.Port),
 		"ReportPort":           fmt.Sprintf("report-port=%d", sandboxDef.Port),
 		"HistoryDir":           sandboxDef.HistoryDir,
+		"ChangeMasterTo":       "CHANGE MASTER TO",
+		"MasterHostParam":      "master_host",
+		"MasterPortParam":      "master_port",
+		"MasterUserParam":      "master_user",
+		"MasterPasswordParam":  "master_password",
+	}
+
+	// Use version-appropriate replication syntax for connection info
+	useChangeSource, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumChangeReplicationSourceVersion)
+	if useChangeSource {
+		data["ChangeMasterTo"] = "CHANGE REPLICATION SOURCE TO"
+		data["MasterHostParam"] = "source_host"
+		data["MasterPortParam"] = "source_port"
+		data["MasterUserParam"] = "source_user"
+		data["MasterPasswordParam"] = "source_password"
 	}
 
 	if sandboxDef.TaskUser != "" {
