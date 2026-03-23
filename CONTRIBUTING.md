@@ -4,11 +4,16 @@ dbdeployer is open source, and as such contributions are welcome.
 
 The following guidelines want to help and simplify the process of contributing to dbdeployer development.
 
+## Development Setup
+
+- **Go 1.22+** is required to build and test dbdeployer.
+- **[golangci-lint](https://golangci-lint.run/)** is required for linting. Install it following the [official instructions](https://golangci-lint.run/welcome/install/) and run `golangci-lint run` before submitting a PR.
+
 ## Principles
 
-1. Contributions should follow the classic GitHub workflow, i.e. forking, cloning, then submitting a Pull Request (PR) 
+1. Contributions should follow the classic GitHub workflow, i.e. forking, cloning, then submitting a Pull Request (PR)
 with the code that you propose.
-2. Every new feature or bug fix should have an [issue](https://github.com/datacharmer/dbdeployer/issues), where the 
+2. Every new feature or bug fix should have an [issue](https://github.com/ProxySQL/dbdeployer/issues), where the
 improvement gets discussed before any code is written.
 3. If the contribution is a quick fix, such as a grammar or spelling mistake, go right ahead and submit a PR.
 4. A new feature should either have tests associated to it or state a very good reason for why not.
