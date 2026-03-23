@@ -60,7 +60,7 @@ func findErrorsInLogFile(ts *testscript.TestScript, neg bool, args []string) {
 	ts.Check(err)
 	hasError := strings.Contains(string(contents), "ERROR")
 	if neg && hasError {
-		reLines := regexp.MustCompile(`(?sg)(^.*ERROR.*)`)
+		reLines := regexp.MustCompile(`(?s)(^.*ERROR.*)`)
 		errorLines := reLines.FindAll(contents, -1)
 		ts.Fatalf("ERRORs found in %s (%s)\n", logFile, errorLines)
 	}
