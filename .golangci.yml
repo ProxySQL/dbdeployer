@@ -8,6 +8,7 @@ linters:
     - ineffassign
     - staticcheck
     - unused
+    - gosec
   disable:
     - depguard
 
