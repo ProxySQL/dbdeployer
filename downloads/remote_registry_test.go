@@ -140,6 +140,14 @@ func TestFindOrGuessTarballByVersionFlavorOS(t *testing.T) {
 	DefaultTarballRegistry.Tarballs = saveTarballCollection
 }
 
+func TestNewMySQLVersionsRecognized(t *testing.T) {
+	versions := []string{"8.4", "9.0", "9.1", "9.2"}
+	for _, v := range versions {
+		result := isAllowedForGuessing(v)
+		compare.OkEqualBool(fmt.Sprintf("version %s allowed for guessing", v), result, true, t)
+	}
+}
+
 func TestTarballRegistry(t *testing.T) {
 
 	for _, tarball := range DefaultTarballRegistry.Tarballs {

@@ -19,7 +19,7 @@ type GuessInfo struct {
 	Url     string
 }
 
-var allowedGuessVersions = []string{"5.7", "8.0"}
+var allowedGuessVersions = []string{"5.7", "8.0", "8.4", "9.0", "9.1", "9.2"}
 
 func isAllowedForGuessing(s string) bool {
 	for _, v := range allowedGuessVersions {

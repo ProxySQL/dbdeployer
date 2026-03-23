@@ -1,5 +1,5 @@
 {
-  "DbdeployerVersion": "1.70.0",
+  "DbdeployerVersion": "1.74.0",
   "Tarballs": [
     {
       "name": "tidb-master-darwin-amd64.tar.gz",
