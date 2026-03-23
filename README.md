@@ -5,13 +5,13 @@ This is a port of [MySQL-Sandbox](https://github.com/datacharmer/mysql-sandbox),
 
 ## New Maintainer
 
-This project was originally created and maintained by [Giuseppe Maxia](https://github.com/datacharmer) (datacharmer). It is now actively maintained by the [ProxySQL](https://github.com/ProxySQL) team, continuing Giuseppe's excellent work while expanding the project's capabilities.
+As of 2026, dbdeployer is actively maintained by the [ProxySQL](https://github.com/ProxySQL) team, with the blessing of the original creator [Giuseppe Maxia](https://github.com/datacharmer). We are grateful for Giuseppe's years of work on this project.
 
-**Roadmap highlights:**
-
-- ProxySQL and Orchestrator integration
-- Provider-based architecture for extensible database support
-- Eventual PostgreSQL support
+**Roadmap:**
+- Modern MySQL support (8.4 LTS, 9.x Innovation releases)
+- ProxySQL and Orchestrator integration as deployment providers
+- Provider-based architecture for extensibility
+- PostgreSQL support (long-term)
 
 See the [Phase 1 milestone](https://github.com/ProxySQL/dbdeployer/milestone/1) for current progress.
 
