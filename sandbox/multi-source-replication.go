@@ -182,6 +182,18 @@ func CreateAllMastersReplication(sandboxDef SandboxDef, origin string, nodes int
 	data["RplPassword"] = sandboxDef.RplPassword
 	data["NodeLabel"] = defaults.Defaults().NodePrefix
 	data["ChangeMasterExtra"] = setChangeMasterProperties("", sandboxDef.ChangeMasterOptions, logger)
+	replCmds := replicationCommands(sandboxDef.Version)
+	data["ShowMasterStatus"] = replCmds["ShowMasterStatus"]
+	data["ShowSlaveStatus"] = replCmds["ShowSlaveStatus"]
+	data["ChangeMasterTo"] = replCmds["ChangeMasterTo"]
+	data["StartReplica"] = replCmds["StartReplica"]
+	data["StopReplica"] = replCmds["StopReplica"]
+	data["ResetReplica"] = replCmds["ResetReplica"]
+	data["MasterPosWaitFunc"] = replCmds["MasterPosWaitFunc"]
+	data["MasterHostParam"] = replCmds["MasterHostParam"]
+	data["MasterPortParam"] = replCmds["MasterPortParam"]
+	data["MasterUserParam"] = replCmds["MasterUserParam"]
+	data["MasterPasswordParam"] = replCmds["MasterPasswordParam"]
 	logger.Printf("Writing master and slave scripts in %s\n", sandboxDef.SandboxDir)
 	for _, node := range slaveList {
 		data["Node"] = node
@@ -407,6 +419,18 @@ func CreateFanInReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 	data["NodeLabel"] = defaults.Defaults().NodePrefix
 	data["ChangeMasterExtra"] = setChangeMasterProperties("", sandboxDef.ChangeMasterOptions, logger)
 	data["MasterIp"] = masterIp
+	replCmds := replicationCommands(sandboxDef.Version)
+	data["ShowMasterStatus"] = replCmds["ShowMasterStatus"]
+	data["ShowSlaveStatus"] = replCmds["ShowSlaveStatus"]
+	data["ChangeMasterTo"] = replCmds["ChangeMasterTo"]
+	data["StartReplica"] = replCmds["StartReplica"]
+	data["StopReplica"] = replCmds["StopReplica"]
+	data["ResetReplica"] = replCmds["ResetReplica"]
+	data["MasterPosWaitFunc"] = replCmds["MasterPosWaitFunc"]
+	data["MasterHostParam"] = replCmds["MasterHostParam"]
+	data["MasterPortParam"] = replCmds["MasterPortParam"]
+	data["MasterUserParam"] = replCmds["MasterUserParam"]
+	data["MasterPasswordParam"] = replCmds["MasterPasswordParam"]
 	logger.Printf("Writing master and slave scripts in %s\n", sandboxDef.SandboxDir)
 	for _, slave := range slist {
 		data["Node"] = slave
