@@ -21,7 +21,7 @@ package sandbox
 import (
 	_ "embed"
 
-	"github.com/datacharmer/dbdeployer/globals"
+	"github.com/ProxySQL/dbdeployer/globals"
 )
 
 // Templates for multiple sandboxes

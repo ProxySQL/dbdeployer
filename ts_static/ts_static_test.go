@@ -25,8 +25,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/datacharmer/dbdeployer/cmd"
-	"github.com/datacharmer/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/cmd"
+	"github.com/ProxySQL/dbdeployer/common"
 	"github.com/rogpeppe/go-internal/testscript"
 )
 

@@ -1,4 +1,4 @@
-module github.com/datacharmer/dbdeployer
+module github.com/ProxySQL/dbdeployer
 
 go 1.22
 

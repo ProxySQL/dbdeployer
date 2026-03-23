@@ -16,10 +16,10 @@
 package cmd
 
 import (
-	"github.com/datacharmer/dbdeployer/ops"
+	"github.com/ProxySQL/dbdeployer/ops"
 	"github.com/spf13/cobra"
 
-	"github.com/datacharmer/dbdeployer/globals"
+	"github.com/ProxySQL/dbdeployer/globals"
 )
 
 func initEnvironment(cmd *cobra.Command, args []string) error {

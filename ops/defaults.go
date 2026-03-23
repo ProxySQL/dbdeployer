@@ -20,9 +20,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/datacharmer/dbdeployer/common"
-	"github.com/datacharmer/dbdeployer/globals"
-	"github.com/datacharmer/dbdeployer/rest"
+	"github.com/ProxySQL/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/globals"
+	"github.com/ProxySQL/dbdeployer/rest"
 )
 
 func ProcessBashCompletionEnabling(useRemote, runIt bool, remoteUrl, completionFile string) error {

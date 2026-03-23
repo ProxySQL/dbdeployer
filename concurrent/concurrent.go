@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/datacharmer/dbdeployer/common"
-	"github.com/datacharmer/dbdeployer/defaults"
+	"github.com/ProxySQL/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/defaults"
 )
 
 type CommonChan chan *exec.Cmd

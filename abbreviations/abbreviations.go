@@ -17,7 +17,7 @@ package abbreviations
 
 import (
 	"fmt"
-	"github.com/datacharmer/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/common"
 	"os"
 	"regexp"
 	"strings"

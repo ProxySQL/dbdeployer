@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/datacharmer/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/common"
 )
 
 type RecipeTemplate struct {

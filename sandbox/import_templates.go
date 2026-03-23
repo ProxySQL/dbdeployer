@@ -24,7 +24,7 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/datacharmer/dbdeployer/globals"
+	"github.com/ProxySQL/dbdeployer/globals"
 )
 
 var (
