@@ -17,7 +17,7 @@ builds:
 archives:
   - formats: ['tar.gz']
     name_template: >-
-      {{ .ProjectName }}-{{ .Version }}.{{- if eq .Os "darwin" }}osx{{ else }}{{ .Os }}{{ end }}
+      {{ .ProjectName }}-{{ .Version }}.{{- if eq .Os "darwin" }}osx{{ else }}{{ .Os }}{{ end }}_{{ .Arch }}
 
 checksum:
   name_template: 'checksums.txt'

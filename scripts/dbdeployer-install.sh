@@ -14,11 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# dbdeployer installer version 1.0.0 - Released 2020-12-29
+# dbdeployer installer version 2.0.0 - Updated 2026-03-24
 # Usage:
-# curl -s https://raw.githubusercontent.com/datacharmer/dbdeployer/master/scripts/dbdeployer-install.sh | bash
-# or
-# curl -L -s https://bit.ly/dbdeployer | bash
+# curl -s https://raw.githubusercontent.com/ProxySQL/dbdeployer/master/scripts/dbdeployer-install.sh | bash
 
 # Quality set for bash scripts:
 # [set -e] fails on error
@@ -31,7 +29,7 @@ set -u
 set -o pipefail
 
 # File containing latest version of dbdeployer
-version_file=https://raw.githubusercontent.com/datacharmer/dbdeployer/master/common/VERSION
+version_file=https://raw.githubusercontent.com/ProxySQL/dbdeployer/master/common/VERSION
 
 # check_exit_code checks the return code of the previous command
 # exits the script if it is non-zero
@@ -92,6 +90,7 @@ then
 fi
 
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
 
 # (STEP 4) checks the operating system
 # Only Linux and MacOS are recognized
@@ -101,29 +100,40 @@ then
     exit 1
 fi
 
+# Normalize architecture
+case "$ARCH" in
+    x86_64|amd64) ARCH=amd64 ;;
+    aarch64|arm64) ARCH=arm64 ;;
+    *)
+        echo "Architecture '$ARCH' not supported"
+        exit 1
+        ;;
+esac
+
 # While "darwin" is what the system itself returns,
 # "osx" is the identifier in dbdeployer binaries
+OS_LABEL=$OS
 if [ "$OS" == "darwin" ]
 then
-    OS=osx
+    OS_LABEL=osx
 fi
 
 # Base URL for dbdeployer downloads
-origin=https://github.com/datacharmer/dbdeployer/releases/download/v${dbdeployer_version}
+origin=https://github.com/ProxySQL/dbdeployer/releases/download/v${dbdeployer_version}
 
 # Name of the archive we are looking for
-filename=dbdeployer-${dbdeployer_version}.${OS}.tar.gz
+filename=dbdeployer-${dbdeployer_version}.${OS_LABEL}_${ARCH}.tar.gz
 
-# Name of the file containing the checksum
-checksum_file=${filename}.sha256
+# Name of the file containing the checksums
+checksum_file=checksums.txt
 
 # Name of the executable inside the archive
-ultimate_file=dbdeployer-${dbdeployer_version}.${OS}
+ultimate_file=dbdeployer
 
 # (STEP 5) Checks for already existing files.
 # If any of the files that we need to download exist already,
 # the program terminates
-for existing in $filename $checksum_file $ultimate_file 
+for existing in $filename $checksum_file
 do
     if [ -f "$existing" ]
     then
@@ -156,9 +166,9 @@ then
     exit 1
 fi
 
-# (STEP 10) probes the checksum
-shasum -c "${checksum_file}"
-check_exit_code "shasum -c $checksum_file"
+# (STEP 10) probes the checksum (extract the line for our file from checksums.txt)
+grep "$filename" "$checksum_file" | shasum -a 256 -c -
+check_exit_code "shasum -c for $filename"
 
 # (STEP 11) unpacks the archive
 tar -xzf "$filename"
@@ -176,7 +186,7 @@ chmod +x "${ultimate_file}"
 check_exit_code "chmod +x ${ultimate_file}"
 
 # (STEP 14) shows the downloaded files
-ls -lh "${ultimate_file}" "${checksum_file}" "${filename}"
+ls -lh "${ultimate_file}" "${filename}"
 target=""
 
 # local_targets are the places where a non-privileged user could store the executable
