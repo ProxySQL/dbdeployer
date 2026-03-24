@@ -118,7 +118,10 @@
     <span class="count">{{.Count}} sandbox{{if ne .Count 1}}es{{end}}</span>
   </header>
   <main>
-    <div id="sandbox-list">
+    <div id="sandbox-list"
+         hx-get="/api/sandboxes/refresh"
+         hx-trigger="every 5s"
+         hx-swap="innerHTML">
       {{template "sandbox-list.html" .}}
     </div>
   </main>

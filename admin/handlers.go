@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -60,6 +61,21 @@ func (s *Server) handleListSandboxes(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(sandboxes)
 }
 
+func (s *Server) handleRefreshSandboxList(w http.ResponseWriter, r *http.Request) {
+	sandboxes, err := GetAllSandboxes()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	data := map[string]interface{}{
+		"Sandboxes": sandboxes,
+		"Count":     len(sandboxes),
+	}
+	if err := s.templates.ExecuteTemplate(w, "sandbox-list.html", data); err != nil {
+		http.Error(w, "template error: "+err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (s *Server) handleSandboxAction(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -103,6 +119,13 @@ func (s *Server) handleSandboxAction(w http.ResponseWriter, r *http.Request) {
 	if actionErr != nil {
 		http.Error(w, actionErr.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Wait briefly for start/stop to take effect before reading status.
+	// Start scripts launch mysqld in the background; the PID file
+	// and status script need a moment to reflect the new state.
+	if action == "start" || action == "stop" {
+		time.Sleep(2 * time.Second)
 	}
 
 	// Return updated sandbox list fragment for HTMX.

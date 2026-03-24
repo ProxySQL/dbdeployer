@@ -52,6 +52,7 @@ func (s *Server) Start() error {
 
 	// API (auth required).
 	mux.HandleFunc("/api/sandboxes", s.auth.AuthMiddleware(s.handleListSandboxes))
+	mux.HandleFunc("/api/sandboxes/refresh", s.auth.AuthMiddleware(s.handleRefreshSandboxList))
 	mux.HandleFunc("/api/sandboxes/", s.auth.AuthMiddleware(s.handleSandboxAction))
 
 	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
