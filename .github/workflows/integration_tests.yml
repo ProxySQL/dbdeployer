@@ -13,7 +13,7 @@ on:
 jobs:
   sandbox-test:
     name: Sandbox (${{ matrix.mysql-version }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -35,7 +35,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1t64 libnuma1 libncurses6
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
 
       - name: Build dbdeployer
         run: go build -o dbdeployer .
