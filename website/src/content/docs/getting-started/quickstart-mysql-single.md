@@ -7,7 +7,7 @@ Get a fully functional MySQL 8.4 instance running on your laptop in under 2 minu
 
 ## Prerequisites
 
-- dbdeployer installed ([Installation guide](/getting-started/installation))
+- dbdeployer installed ([Installation guide](/dbdeployer/getting-started/installation))
 - Internet access to download the MySQL binary
 
 ## 1. Download and unpack MySQL 8.4
@@ -77,6 +77,6 @@ A browser opens with a dashboard showing your sandbox — start, stop, and destr
 
 ## What's next?
 
-- [Deploying a single sandbox](/deploying/single) — ports, passwords, options
-- [Managing sandboxes](/managing/using) — start, stop, restart
-- [Quick Start: MySQL Replication](/getting-started/quickstart-mysql-replication)
+- [Deploying a single sandbox](/dbdeployer/deploying/single) — ports, passwords, options
+- [Managing sandboxes](/dbdeployer/managing/using) — start, stop, restart
+- [Quick Start: MySQL Replication](/dbdeployer/getting-started/quickstart-mysql-replication)

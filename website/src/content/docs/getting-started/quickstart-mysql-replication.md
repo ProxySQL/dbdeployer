@@ -3,12 +3,12 @@ title: "Quick Start: MySQL Replication"
 description: "Deploy a master-slave MySQL replication topology in under 2 minutes."
 ---
 
-Deploy a three-node master/slave replication setup from a single command. Assumes you have already downloaded MySQL 8.4 (see [Quick Start: MySQL Single](/getting-started/quickstart-mysql-single)).
+Deploy a three-node master/slave replication setup from a single command. Assumes you have already downloaded MySQL 8.4 (see [Quick Start: MySQL Single](/dbdeployer/getting-started/quickstart-mysql-single)).
 
 ## Prerequisites
 
 - dbdeployer installed and MySQL 8.4 unpacked in `~/opt/mysql/`
-- If you haven't done this yet, follow step 1 from [Quick Start: MySQL Single](/getting-started/quickstart-mysql-single)
+- If you haven't done this yet, follow step 1 from [Quick Start: MySQL Single](/dbdeployer/getting-started/quickstart-mysql-single)
 
 ## 1. Deploy replication
 
@@ -82,6 +82,6 @@ The dashboard shows the master and each slave as cards with status badges and st
 
 ## What's next?
 
-- [Replication topologies](/deploying/replication) — fan-in, all-masters, semi-sync
-- [Group Replication](/deploying/group-replication) — single-primary and multi-primary
-- [Quick Start: ProxySQL Integration](/getting-started/quickstart-proxysql)
+- [Replication topologies](/dbdeployer/deploying/replication) — fan-in, all-masters, semi-sync
+- [Group Replication](/dbdeployer/deploying/group-replication) — single-primary and multi-primary
+- [Quick Start: ProxySQL Integration](/dbdeployer/getting-started/quickstart-proxysql)

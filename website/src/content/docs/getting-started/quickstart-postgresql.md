@@ -7,7 +7,7 @@ dbdeployer supports PostgreSQL sandboxes using the same workflow as MySQL. Becau
 
 ## Prerequisites
 
-- dbdeployer installed ([Installation guide](/getting-started/installation))
+- dbdeployer installed ([Installation guide](/dbdeployer/getting-started/installation))
 - `dpkg-deb` available (standard on Debian/Ubuntu)
 - `apt-get` or `apt` for downloading packages (no root needed for `apt-get download`)
 
@@ -83,5 +83,5 @@ Start, stop, and destroy sandboxes with a click — works for both MySQL and Pos
 
 ## What's next?
 
-- [PostgreSQL provider details](/providers/postgresql) — replication, options, limitations
-- [Managing sandboxes](/managing/using) — start, stop, status
+- [PostgreSQL provider details](/dbdeployer/providers/postgresql) — replication, options, limitations
+- [Managing sandboxes](/dbdeployer/managing/using) — start, stop, status

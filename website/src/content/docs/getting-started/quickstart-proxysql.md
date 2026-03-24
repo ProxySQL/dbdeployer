@@ -3,7 +3,7 @@ title: "Quick Start: ProxySQL Integration"
 description: "Deploy MySQL replication with a ProxySQL load balancer in one command."
 ---
 
-dbdeployer can deploy a ProxySQL instance alongside a replication topology, pre-configured with read/write splitting. Assumes MySQL 8.4 is already unpacked (see [Quick Start: MySQL Single](/getting-started/quickstart-mysql-single)).
+dbdeployer can deploy a ProxySQL instance alongside a replication topology, pre-configured with read/write splitting. Assumes MySQL 8.4 is already unpacked (see [Quick Start: MySQL Single](/dbdeployer/getting-started/quickstart-mysql-single)).
 
 ## Prerequisites
 
@@ -79,5 +79,5 @@ Start, stop, and destroy any component with a click.
 
 ## What's next?
 
-- [ProxySQL integration guide](/providers/proxysql) — hostgroups, query rules, custom config
-- [Replication topologies](/deploying/replication) — fan-in, all-masters, group replication
+- [ProxySQL integration guide](/dbdeployer/providers/proxysql) — hostgroups, query rules, custom config
+- [Replication topologies](/dbdeployer/deploying/replication) — fan-in, all-masters, group replication
