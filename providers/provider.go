@@ -87,3 +87,18 @@ func (r *Registry) List() []string {
 }
 
 var DefaultRegistry = NewRegistry()
+
+// ContainsString checks if a string slice contains a given value.
+func ContainsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+// CompatibleAddons maps addon names to the list of providers they work with.
+var CompatibleAddons = map[string][]string{
+	"proxysql": {"mysql", "postgresql"},
+}

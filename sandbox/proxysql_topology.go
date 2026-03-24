@@ -32,7 +32,8 @@ import (
 //   - slavePorts: MySQL slave ports (empty for single topology)
 //   - proxysqlPort: port for ProxySQL admin interface (0 = auto-assign)
 //   - host: bind address (typically "127.0.0.1")
-func DeployProxySQLForTopology(sandboxDir string, masterPort int, slavePorts []int, proxysqlPort int, host string) error {
+//   - backendProvider: database provider name (e.g. "mysql", "postgresql", or "" for mysql default)
+func DeployProxySQLForTopology(sandboxDir string, masterPort int, slavePorts []int, proxysqlPort int, host string, backendProvider string) error {
 	reg := providers.DefaultRegistry
 	p, err := reg.Get("proxysql")
 	if err != nil {
@@ -73,6 +74,7 @@ func DeployProxySQLForTopology(sandboxDir string, masterPort int, slavePorts []i
 			"monitor_user":     "msandbox",
 			"monitor_password": "msandbox",
 			"backends":         strings.Join(backendParts, ","),
+			"backend_provider": backendProvider,
 		},
 	}
 
