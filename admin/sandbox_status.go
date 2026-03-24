@@ -127,11 +127,15 @@ func GetAllSandboxes() ([]SandboxStatus, error) {
 // the exact PID file location for each MySQL version and configuration.
 func isRunning(sandboxDir string) bool {
 	// Try the sandbox's own status script first.
+	// The script outputs "<name> on" or "<name> off" but always exits 0,
+	// so we parse the output text instead of checking the exit code.
 	statusScript := filepath.Join(sandboxDir, "status")
 	if _, err := os.Stat(statusScript); err == nil {
 		cmd := exec.Command("bash", statusScript)
-		err := cmd.Run()
-		return err == nil // exit 0 = running, non-zero = stopped
+		output, err := cmd.Output()
+		if err == nil {
+			return strings.Contains(string(output), " on")
+		}
 	}
 
 	// Fallback: check common PID file locations.
