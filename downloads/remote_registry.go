@@ -263,7 +263,13 @@ func FindOrGuessTarballByVersionFlavorOS(version, flavor, OS, arch string, minim
 	}
 
 	if newestVersionList[0] == 0 {
-		return TarballDescription{}, fmt.Errorf("error detecting latest version")
+		// No registry match found. If the version is allowed for guessing,
+		// retry with --guess enabled so the download URL can be constructed
+		// from templates rather than requiring an exact registry entry.
+		if !guess && isAllowedForGuessing(version) {
+			return FindOrGuessTarballByVersionFlavorOS(version, flavor, OS, arch, minimal, newest, true)
+		}
+		return TarballDescription{}, fmt.Errorf("version %q not found in registry and cannot be guessed", version)
 	}
 	newestVersion := fmt.Sprintf("%d.%d.%d", newestVersionList[0], newestVersionList[1], newestVersionList[2])
 
