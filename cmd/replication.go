@@ -16,7 +16,11 @@
 package cmd
 
 import (
+	"fmt"
+	"path"
+
 	"github.com/ProxySQL/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/defaults"
 	"github.com/ProxySQL/dbdeployer/globals"
 	"github.com/ProxySQL/dbdeployer/providers"
 	"github.com/ProxySQL/dbdeployer/sandbox"
@@ -102,6 +106,37 @@ func replicationSandbox(cmd *cobra.Command, args []string) {
 	if err != nil {
 		common.Exitf(1, globals.ErrCreatingSandbox, err)
 	}
+
+	withProxySQL, _ := flags.GetBool("with-proxysql")
+	if withProxySQL {
+		// Determine the sandbox directory that was created
+		sandboxDir := path.Join(sd.SandboxDir, defaults.Defaults().MasterSlavePrefix+common.VersionToName(origin))
+		if sd.DirName != "" {
+			sandboxDir = path.Join(sd.SandboxDir, sd.DirName)
+		}
+
+		// Read port info from child sandbox descriptions
+		masterDesc, err := common.ReadSandboxDescription(path.Join(sandboxDir, defaults.Defaults().MasterName))
+		if err != nil {
+			common.Exitf(1, "could not read master sandbox description: %s", err)
+		}
+		masterPort := masterDesc.Port[0]
+
+		var slavePorts []int
+		for i := 1; i < nodes; i++ {
+			nodeDir := path.Join(sandboxDir, fmt.Sprintf("%s%d", defaults.Defaults().NodePrefix, i))
+			nodeDesc, err := common.ReadSandboxDescription(nodeDir)
+			if err != nil {
+				common.Exitf(1, "could not read node%d sandbox description: %s", i, err)
+			}
+			slavePorts = append(slavePorts, nodeDesc.Port[0])
+		}
+
+		err = sandbox.DeployProxySQLForTopology(sandboxDir, masterPort, slavePorts, 0, "127.0.0.1")
+		if err != nil {
+			common.Exitf(1, "ProxySQL deployment failed: %s", err)
+		}
+	}
 }
 
 var replicationCmd = &cobra.Command{
@@ -154,4 +189,5 @@ func init() {
 	replicationCmd.PersistentFlags().BoolP(globals.SuperReadOnlyLabel, "", false, "Set super-read-only for slaves")
 	replicationCmd.PersistentFlags().Bool(globals.ReplHistoryDirLabel, false, "uses the replication directory to store mysql client history")
 	setPflag(replicationCmd, globals.ChangeMasterOptions, "", "CHANGE_MASTER_OPTIONS", "", "options to add to CHANGE MASTER TO", true)
+	replicationCmd.PersistentFlags().Bool("with-proxysql", false, "Deploy ProxySQL alongside the replication sandbox")
 }
