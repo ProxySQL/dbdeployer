@@ -165,7 +165,7 @@ func TestExportImport(t *testing.T) {
 			subCommandName:      "",
 			expectedName:        "deploy",
 			expectedAncestors:   2,
-			expectedSubCommands: 4,
+			expectedSubCommands: 5,
 			expectedArgument:    "",
 		},
 		{
@@ -191,6 +191,14 @@ func TestExportImport(t *testing.T) {
 			expectedAncestors:   3,
 			expectedSubCommands: 0,
 			expectedArgument:    globals.ExportVersionDir,
+		},
+		{
+			commandName:         "deploy",
+			subCommandName:      "postgresql",
+			expectedName:        "postgresql",
+			expectedAncestors:   3,
+			expectedSubCommands: 0,
+			expectedArgument:    "",
 		},
 		{
 			commandName:         "export",
