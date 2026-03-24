@@ -330,7 +330,7 @@ cleanup
 # ---------------------------------------------------------------
 section "Multiple sandboxes coexistence"
 
-if [ -d "$SANDBOX_BINARY/$MYSQL_VERSION_2" ]; then
+if [ -n "$MYSQL_VERSION_2" ] && [ -d "$SANDBOX_BINARY/$MYSQL_VERSION_2" ]; then
     dbdeployer deploy replication $MYSQL_VERSION_1 --sandbox-binary=$SANDBOX_BINARY --with-proxysql > /dev/null 2>&1
     dbdeployer deploy replication $MYSQL_VERSION_2 --sandbox-binary=$SANDBOX_BINARY --with-proxysql > /dev/null 2>&1
 
@@ -355,7 +355,7 @@ if [ -d "$SANDBOX_BINARY/$MYSQL_VERSION_2" ]; then
         fail "cleanup" "$STALE stale processes"
     fi
 else
-    echo "  # SKIP: MySQL $MYSQL_VERSION_2 not available, skipping multi-sandbox test"
+    echo "  # SKIP: MYSQL_VERSION_2 not set or not available, skipping multi-sandbox test"
 fi
 
 # ---------------------------------------------------------------
