@@ -461,6 +461,32 @@ func singleSandbox(cmd *cobra.Command, args []string) {
 	if err != nil {
 		common.Exitf(1, globals.ErrCreatingSandbox, err)
 	}
+
+	flags := cmd.Flags()
+	withProxySQL, _ := flags.GetBool("with-proxysql")
+	if withProxySQL {
+		// Determine the sandbox directory that was created
+		origin := args[0]
+		if args[0] != sd.BasedirName {
+			origin = sd.BasedirName
+		}
+		sandboxDir := path.Join(sd.SandboxDir, defaults.Defaults().SandboxPrefix+common.VersionToName(origin))
+		if sd.DirName != "" {
+			sandboxDir = path.Join(sd.SandboxDir, sd.DirName)
+		}
+
+		// Read port info from sandbox description
+		sbDesc, err := common.ReadSandboxDescription(sandboxDir)
+		if err != nil {
+			common.Exitf(1, "could not read sandbox description: %s", err)
+		}
+		masterPort := sbDesc.Port[0]
+
+		err = sandbox.DeployProxySQLForTopology(sandboxDir, masterPort, nil, 0, "127.0.0.1")
+		if err != nil {
+			common.Exitf(1, "ProxySQL deployment failed: %s", err)
+		}
+	}
 }
 
 var singleCmd = &cobra.Command{
@@ -488,4 +514,5 @@ func init() {
 	singleCmd.PersistentFlags().Bool(globals.MasterLabel, false, "Make the server replication ready")
 	singleCmd.PersistentFlags().Int(globals.ServerIdLabel, 0, "Overwrite default server-id")
 	setPflag(singleCmd, globals.PromptLabel, "", "", globals.PromptValue, "Default prompt for the single client", false)
+	singleCmd.PersistentFlags().Bool("with-proxysql", false, "Deploy ProxySQL alongside the single sandbox")
 }
