@@ -32,11 +32,11 @@ func DeployProxySQLForTopology(sandboxDir string, masterPort int, slavePorts []i
 
 	if proxysqlPort == 0 {
 		proxysqlPort = 6032
-		// Try to find a free port
-		freePort, err := common.FindFreePort(proxysqlPort, []int{}, 1)
-		if err == nil {
-			proxysqlPort = freePort
-		}
+	}
+	// Find 2 consecutive free ports (admin + mysql) to avoid TIME_WAIT conflicts
+	freePort, err := common.FindFreePort(proxysqlPort, []int{}, 2)
+	if err == nil {
+		proxysqlPort = freePort
 	}
 
 	// Build backends: master = HG 0, slaves = HG 1

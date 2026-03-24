@@ -41,6 +41,12 @@ func deploySandboxProxySQL(cmd *cobra.Command, args []string) {
 		common.Exitf(1, "proxysql binary not found in PATH: %s", err)
 	}
 
+	// Find 2 consecutive free ports (admin + mysql)
+	freePort, portErr := common.FindFreePort(port, []int{}, 2)
+	if portErr == nil {
+		port = freePort
+	}
+
 	sandboxHome := defaults.Defaults().SandboxHome
 	sandboxDir := path.Join(sandboxHome, fmt.Sprintf("proxysql_%d", port))
 
