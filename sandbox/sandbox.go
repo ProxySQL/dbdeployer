@@ -1245,6 +1245,13 @@ func RemoveSandbox(sandboxDir, sandbox string, runConcurrently bool) (execList [
 		}
 	}
 
+	// If a proxysql sub-sandbox exists, stop it before removing the directory
+	proxysqlStop := path.Join(fullPath, "proxysql", "stop")
+	if _, statErr := os.Stat(proxysqlStop); statErr == nil {
+		common.CondPrintf("Stopping ProxySQL in %s\n", path.Join(fullPath, "proxysql"))
+		_, _ = common.RunCmd(proxysqlStop)
+	}
+
 	rmTargets := []string{fullPath, logDirectory}
 
 	for _, target := range rmTargets {
@@ -1357,6 +1364,13 @@ func RemoveCustomSandbox(sandboxDir, sandbox string, runConcurrently, useStop bo
 		if common.FileExists(defaultExecutable) {
 			_ = os.Remove(defaultExecutable)
 		}
+	}
+
+	// If a proxysql sub-sandbox exists, stop it before removing the directory
+	proxysqlStop := path.Join(fullPath, "proxysql", "stop")
+	if _, statErr := os.Stat(proxysqlStop); statErr == nil {
+		common.CondPrintf("Stopping ProxySQL in %s\n", path.Join(fullPath, "proxysql"))
+		_, _ = common.RunCmd(proxysqlStop)
 	}
 
 	rmTargets := []string{fullPath, logDirectory}
