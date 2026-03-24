@@ -98,7 +98,7 @@ jobs:
       matrix:
         short-version:
           - '8.4'
-          - '9.2'
+          - '9.5'
     env:
       GO111MODULE: on
       SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
