@@ -93,7 +93,7 @@ func (p *ProxySQLProvider) CreateSandbox(config providers.SandboxConfig) (*provi
 
 	cfgContent := GenerateConfig(proxyCfg)
 	cfgPath := filepath.Join(config.Dir, "proxysql.cnf")
-	if err := os.WriteFile(cfgPath, []byte(cfgContent), 0644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfgContent), 0600); err != nil {
 		return nil, fmt.Errorf("writing config: %w", err)
 	}
 
@@ -116,7 +116,7 @@ func (p *ProxySQLProvider) CreateSandbox(config providers.SandboxConfig) (*provi
 
 	for name, content := range scripts {
 		scriptPath := filepath.Join(config.Dir, name)
-		if err := os.WriteFile(scriptPath, []byte(content), 0755); err != nil {
+		if err := os.WriteFile(scriptPath, []byte(content), 0755); err != nil { //nolint:gosec // scripts must be executable
 			return nil, fmt.Errorf("writing script %s: %w", name, err)
 		}
 	}
@@ -129,7 +129,7 @@ func (p *ProxySQLProvider) CreateSandbox(config providers.SandboxConfig) (*provi
 }
 
 func (p *ProxySQLProvider) StartSandbox(dir string) error {
-	cmd := exec.Command("bash", filepath.Join(dir, "start"))
+	cmd := exec.Command("bash", filepath.Join(dir, "start")) //nolint:gosec // path is from trusted sandbox directory
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("start failed: %s: %w", string(output), err)
@@ -138,7 +138,7 @@ func (p *ProxySQLProvider) StartSandbox(dir string) error {
 }
 
 func (p *ProxySQLProvider) StopSandbox(dir string) error {
-	cmd := exec.Command("bash", filepath.Join(dir, "stop"))
+	cmd := exec.Command("bash", filepath.Join(dir, "stop")) //nolint:gosec // path is from trusted sandbox directory
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("stop failed: %s: %w", string(output), err)
