@@ -8,12 +8,12 @@ Deploy a three-node master/slave replication setup from a single command. Assume
 ## Prerequisites
 
 - dbdeployer installed and MySQL 8.4 unpacked in `~/opt/mysql/`
-- If you skipped the single-sandbox guide: `dbdeployer downloads get-by-version 8.4`
+- If you skipped the single-sandbox guide: `dbdeployer downloads get-by-version 8.4` then `dbdeployer unpack mysql-8.4.8-*.tar.xz`
 
 ## 1. Deploy replication
 
 ```bash
-dbdeployer deploy replication 8.4.4
+dbdeployer deploy replication 8.4.8
 ```
 
 Expected output:
