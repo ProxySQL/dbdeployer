@@ -31,10 +31,28 @@ function check_exit_code {
 
 }
 
+# Directories that require MySQL binaries (sandbox, ts, ts_static)
+# are skipped unless SANDBOX_BINARY is set and contains MySQL installations
+SKIP_SANDBOX_TESTS=""
+if [ -z "$SANDBOX_BINARY" ] || [ ! -d "$SANDBOX_BINARY" ] || [ -z "$(ls "$SANDBOX_BINARY" 2>/dev/null)" ]; then
+    SKIP_SANDBOX_TESTS="sandbox ts ts_static"
+    echo "# Skipping sandbox/ts/ts_static tests (no MySQL binaries found in SANDBOX_BINARY=$SANDBOX_BINARY)"
+fi
+
 test_dirs=$(find . -name '*_test.go' -exec dirname {} \; | tr -d './' | sort |uniq)
 
 for dir in $test_dirs
 do
+    skip=0
+    for skip_dir in $SKIP_SANDBOX_TESTS; do
+        if [ "$dir" == "$skip_dir" ]; then
+            echo "# Skipping $dir (requires MySQL binaries)"
+            skip=1
+            break
+        fi
+    done
+    [ "$skip" == "1" ] && continue
+
     cd $dir
     echo "# Testing $dir"
     go test -v -timeout 30m

@@ -40,6 +40,9 @@ func getCmdOutput(cmdText string) string {
 	// #nosec G204
 	cmd := exec.Command(command, args...)
 	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		common.Exitf(1, "# ERROR: %s", err)
+	}
 	if err = cmd.Start(); err != nil {
 		common.Exitf(1, "# ERROR: %s", err)
 	}

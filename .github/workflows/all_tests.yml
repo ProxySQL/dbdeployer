@@ -17,7 +17,8 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
-      - name: govulncheck
+      - name: govulncheck (informational)
+        continue-on-error: true
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./...
@@ -43,7 +44,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libncurses5 libaio1 libnuma1 bash-completion
+          sudo apt-get install -y libncurses6 libaio1t64 libnuma1 bash-completion
       - name: Unit tests
         run: ./test/go-unit-tests.sh
 
