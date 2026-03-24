@@ -99,6 +99,34 @@ func TestPostgreSQLProviderRegister(t *testing.T) {
 	}
 }
 
+func TestGenerateCheckReplicationScript(t *testing.T) {
+	script := GenerateCheckReplicationScript(ScriptOptions{
+		BinDir: "/opt/postgresql/16.13/bin",
+		LibDir: "/opt/postgresql/16.13/lib",
+		Port:   16613,
+	})
+	if !strings.Contains(script, "pg_stat_replication") {
+		t.Error("missing pg_stat_replication query")
+	}
+	if !strings.Contains(script, "16613") {
+		t.Error("missing primary port")
+	}
+}
+
+func TestGenerateCheckRecoveryScript(t *testing.T) {
+	ports := []int{16614, 16615}
+	script := GenerateCheckRecoveryScript(ScriptOptions{
+		BinDir: "/opt/postgresql/16.13/bin",
+		LibDir: "/opt/postgresql/16.13/lib",
+	}, ports)
+	if !strings.Contains(script, "pg_is_in_recovery") {
+		t.Error("missing pg_is_in_recovery query")
+	}
+	if !strings.Contains(script, "16614") || !strings.Contains(script, "16615") {
+		t.Error("missing replica ports")
+	}
+}
+
 func TestGenerateScripts(t *testing.T) {
 	opts := ScriptOptions{
 		SandboxDir: "/tmp/pg_sandbox",

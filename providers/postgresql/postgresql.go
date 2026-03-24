@@ -101,10 +101,6 @@ func (p *PostgreSQLProvider) StopSandbox(dir string) error {
 	return nil
 }
 
-func (p *PostgreSQLProvider) CreateReplica(primary providers.SandboxInfo, config providers.SandboxConfig) (*providers.SandboxInfo, error) {
-	return nil, fmt.Errorf("PostgreSQLProvider.CreateReplica: not yet implemented")
-}
-
 func Register(reg *providers.Registry) error {
 	return reg.Register(NewPostgreSQLProvider())
 }
