@@ -1,0 +1,364 @@
+---
+import Landing from '../layouts/Landing.astro';
+import ProviderCard from '../components/ProviderCard.astro';
+
+const base = '/dbdeployer';
+
+const providers = [
+  {
+    name: 'MySQL',
+    description: 'The original. All topologies, all flavors — MySQL, Percona Server, MariaDB, NDB Cluster, PXC, and TiDB.',
+    command: 'dbdeployer deploy replication 8.4.4',
+    docsLink: `${base}/docs/providers/mysql/`,
+    accent: '#3b82f6',
+  },
+  {
+    name: 'PostgreSQL',
+    description: 'Streaming replication, deb-based binary management. Deploy a fully wired Postgres topology with one command.',
+    command: 'dbdeployer deploy replication 16.13 --provider=postgresql',
+    docsLink: `${base}/docs/providers/postgresql/`,
+    accent: '#22c55e',
+  },
+  {
+    name: 'ProxySQL',
+    description: 'Deploy standalone or wire into any topology with --with-proxysql. Perfect for read/write split testing.',
+    command: 'dbdeployer deploy replication 8.4.4 --with-proxysql',
+    docsLink: `${base}/docs/providers/proxysql/`,
+    accent: '#f59e0b',
+  },
+];
+
+const matrix = [
+  { feature: 'Single sandbox',     mysql: true,  postgresql: true,  proxysql: false },
+  { feature: 'Multiple sandboxes', mysql: true,  postgresql: true,  proxysql: false },
+  { feature: 'Replication',        mysql: true,  postgresql: 'streaming', proxysql: false },
+  { feature: 'Group replication',  mysql: true,  postgresql: false, proxysql: false },
+  { feature: 'ProxySQL wiring',    mysql: true,  postgresql: true,  proxysql: false },
+  { feature: 'Binary source',      mysql: 'Tarballs', postgresql: '.deb extraction', proxysql: 'System binary' },
+];
+---
+
+<Landing
+  title="Providers — dbdeployer"
+  description="dbdeployer's provider architecture lets you deploy different database systems with the same CLI workflow. One tool, multiple backends."
+>
+  <!-- Hero -->
+  <section class="providers-hero">
+    <div class="providers-hero-container">
+      <div class="providers-eyebrow">Providers</div>
+      <h1 class="providers-title">One tool, multiple backends</h1>
+      <p class="providers-subtitle">
+        dbdeployer's provider architecture lets you deploy different database systems with the same CLI workflow.
+        One tool, multiple backends.
+      </p>
+    </div>
+  </section>
+
+  <!-- Comparison matrix -->
+  <section class="matrix-section">
+    <div class="matrix-container">
+      <h2 class="section-title">Provider comparison</h2>
+      <div class="table-wrapper">
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th class="matrix-th matrix-th-feature">Feature</th>
+              <th class="matrix-th">MySQL</th>
+              <th class="matrix-th">PostgreSQL</th>
+              <th class="matrix-th">ProxySQL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {matrix.map((row, i) => (
+              <tr class={i % 2 === 0 ? 'row-even' : 'row-odd'}>
+                <td class="matrix-td matrix-td-feature">{row.feature}</td>
+                <td class="matrix-td matrix-td-value">
+                  {row.mysql === true
+                    ? <span class="check" aria-label="Supported">&#10003;</span>
+                    : row.mysql === false
+                    ? <span class="dash" aria-label="Not supported">&#8212;</span>
+                    : <span class="text-value">{row.mysql}</span>}
+                </td>
+                <td class="matrix-td matrix-td-value">
+                  {row.postgresql === true
+                    ? <span class="check" aria-label="Supported">&#10003;</span>
+                    : row.postgresql === false
+                    ? <span class="dash" aria-label="Not supported">&#8212;</span>
+                    : <span class="text-value">{row.postgresql}</span>}
+                </td>
+                <td class="matrix-td matrix-td-value">
+                  {row.proxysql === true
+                    ? <span class="check" aria-label="Supported">&#10003;</span>
+                    : row.proxysql === false
+                    ? <span class="dash" aria-label="Not supported">&#8212;</span>
+                    : <span class="text-value">{row.proxysql}</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="matrix-note">
+        MariaDB and Percona Server are MySQL-compatible flavors and use the same MySQL provider.
+      </p>
+    </div>
+  </section>
+
+  <!-- Provider cards -->
+  <section class="cards-section">
+    <div class="cards-container">
+      <h2 class="section-title">Explore providers</h2>
+      <div class="cards-grid">
+        {providers.map(p => (
+          <ProviderCard
+            name={p.name}
+            description={p.description}
+            command={p.command}
+            docsLink={p.docsLink}
+            accent={p.accent}
+          />
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Coming soon teaser -->
+  <section class="teaser-section">
+    <div class="teaser-container">
+      <div class="teaser-card">
+        <div class="teaser-icon" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="teaser-title">Coming soon: Orchestrator integration</h3>
+          <p class="teaser-desc">
+            Orchestrator integration is on the roadmap — a complete failover-testable environment in one command.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+</Landing>
+
+<style>
+  /* Hero */
+  .providers-hero {
+    padding: 5rem 1.5rem 4rem;
+    text-align: center;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-accent) 8%, var(--color-bg)) 0%,
+      var(--color-bg) 100%
+    );
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .providers-hero-container {
+    max-width: var(--max-width);
+    margin: 0 auto;
+  }
+
+  .providers-eyebrow {
+    display: inline-block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-accent-light);
+    background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+    border-radius: 999px;
+    padding: 0.3rem 0.9rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .providers-title {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 800;
+    color: var(--color-text);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 1rem;
+  }
+
+  .providers-subtitle {
+    font-size: 1.1rem;
+    color: var(--color-text-muted);
+    max-width: 560px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+
+  /* Shared section title */
+  .section-title {
+    font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 2rem;
+  }
+
+  /* Matrix */
+  .matrix-section {
+    padding: var(--section-padding);
+    background-color: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .matrix-container {
+    max-width: var(--max-width);
+    margin: 0 auto;
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+  }
+
+  .matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+
+  .matrix-th {
+    background-color: color-mix(in srgb, var(--color-accent) 12%, var(--color-bg-secondary));
+    color: var(--color-text);
+    font-weight: 700;
+    padding: 0.9rem 1.25rem;
+    text-align: center;
+    border-bottom: 2px solid var(--color-border);
+    white-space: nowrap;
+  }
+
+  .matrix-th-feature {
+    text-align: left;
+  }
+
+  .matrix-td {
+    padding: 0.8rem 1.25rem;
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: middle;
+  }
+
+  .matrix-td-feature {
+    color: var(--color-text);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .matrix-td-value {
+    text-align: center;
+  }
+
+  .row-even {
+    background-color: var(--color-bg);
+  }
+
+  .row-odd {
+    background-color: color-mix(in srgb, var(--color-bg-secondary) 50%, var(--color-bg));
+  }
+
+  .matrix-table tbody tr:last-child .matrix-td {
+    border-bottom: none;
+  }
+
+  .check {
+    color: var(--color-green);
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  .dash {
+    color: var(--color-text-muted);
+    font-size: 1.2rem;
+  }
+
+  .text-value {
+    color: var(--color-text-muted);
+    font-size: 0.825rem;
+    font-family: var(--font-mono);
+  }
+
+  .matrix-note {
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+  }
+
+  /* Cards */
+  .cards-section {
+    padding: var(--section-padding);
+    background-color: var(--color-bg);
+  }
+
+  .cards-container {
+    max-width: var(--max-width);
+    margin: 0 auto;
+  }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+
+  @media (max-width: 640px) {
+    .cards-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Teaser */
+  .teaser-section {
+    padding: 3rem 1.5rem 4rem;
+    background-color: var(--color-bg-secondary);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .teaser-container {
+    max-width: var(--max-width);
+    margin: 0 auto;
+  }
+
+  .teaser-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+    background-color: color-mix(in srgb, #a855f7 8%, var(--color-bg));
+    border: 1px solid color-mix(in srgb, #a855f7 25%, var(--color-border));
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .teaser-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: var(--radius);
+    background-color: color-mix(in srgb, #a855f7 15%, transparent);
+    color: #a855f7;
+  }
+
+  .teaser-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 0.4rem;
+  }
+
+  .teaser-desc {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.65;
+  }
+</style>
