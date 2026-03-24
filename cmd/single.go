@@ -25,6 +25,7 @@ import (
 	"github.com/ProxySQL/dbdeployer/common"
 	"github.com/ProxySQL/dbdeployer/defaults"
 	"github.com/ProxySQL/dbdeployer/globals"
+	"github.com/ProxySQL/dbdeployer/providers"
 	"github.com/ProxySQL/dbdeployer/sandbox"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -444,6 +445,15 @@ func singleSandbox(cmd *cobra.Command, args []string) {
 	sd, err = fillSandboxDefinition(cmd, args, false)
 	if err != nil {
 		common.Exitf(1, "error while filling the sandbox definition: %+v", err)
+	}
+	// Validate version with provider
+	// TODO: Phase 2b — determine provider from sd.Flavor instead of hardcoding "mysql"
+	p, provErr := providers.DefaultRegistry.Get("mysql")
+	if provErr != nil {
+		common.Exitf(1, "provider error: %s", provErr)
+	}
+	if provErr = p.ValidateVersion(sd.Version); provErr != nil {
+		common.Exitf(1, "version validation failed: %s", provErr)
 	}
 	// When deploying a single sandbox, we disable concurrency
 	sd.RunConcurrently = false
