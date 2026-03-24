@@ -7,6 +7,10 @@ type mockProvider struct{ name string }
 func (m *mockProvider) Name() string                         { return m.name }
 func (m *mockProvider) ValidateVersion(version string) error { return nil }
 func (m *mockProvider) DefaultPorts() PortRange              { return PortRange{BasePort: 9999, PortsPerInstance: 1} }
+func (m *mockProvider) FindBinary(version string) (string, error) { return "/usr/bin/mock", nil }
+func (m *mockProvider) CreateSandbox(config SandboxConfig) (*SandboxInfo, error) { return &SandboxInfo{Dir: "/tmp/mock"}, nil }
+func (m *mockProvider) StartSandbox(dir string) error { return nil }
+func (m *mockProvider) StopSandbox(dir string) error  { return nil }
 
 func TestRegistryRegisterAndGet(t *testing.T) {
 	reg := NewRegistry()
