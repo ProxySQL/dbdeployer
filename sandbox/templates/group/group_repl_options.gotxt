@@ -1,12 +1,12 @@
 
 # After customization, these options are added to my.sandbox.cnf
 binlog_checksum=NONE
-log_slave_updates=ON
+{{if .UseReplicaUpdates}}log_replica_updates=ON{{else}}log_slave_updates=ON{{end}}
 plugin-load-add=group_replication.so
 group_replication=FORCE_PLUS_PERMANENT
 group_replication_start_on_boot=OFF
 group_replication_bootstrap_group=OFF
-transaction_write_set_extraction=XXHASH64
+{{if not .SkipWriteSetExtraction}}transaction_write_set_extraction=XXHASH64{{end}}
 report-host=127.0.0.1
 loose-group_replication_group_name="{{.BasePort}}-bbbb-cccc-dddd-eeeeeeeeeeee"
 loose-group-replication-local-address={{.LocalAddresses}}

@@ -244,6 +244,7 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 	data["MasterPasswordParam"] = replCmds["MasterPasswordParam"]
 	data["StartReplica"] = replCmds["StartReplica"]
 	data["StopReplica"] = replCmds["StopReplica"]
+	data["ResetMasterCmd"] = replCmds["ResetMasterCmd"]
 	connectionString := ""
 	for i := 0; i < nodes; i++ {
 		groupPort := baseGroupPort + i + 1
@@ -305,6 +306,7 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 			"ChangeMasterTo":       replCmds["ChangeMasterTo"],
 			"MasterUserParam":      replCmds["MasterUserParam"],
 			"MasterPasswordParam":  replCmds["MasterPasswordParam"],
+			"ResetMasterCmd":       replCmds["ResetMasterCmd"],
 			"MasterLabel":          masterLabel,
 			"MasterAbbr":           masterAbbr,
 			"SandboxDir":           sandboxDef.SandboxDir,
@@ -332,11 +334,18 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 		}
 
 		basePortText := fmt.Sprintf("%08d", basePort)
+
+		// Version-aware options for group replication
+		useReplicaUpdates, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumShowReplicaStatusVersion)
+		useNoWriteSetExtraction, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumNoWriteSetExtractionVersion)
+
 		replicationData := common.StringMap{
-			"BasePort":       basePortText,
-			"GroupSeeds":     connectionString,
-			"LocalAddresses": fmt.Sprintf("%s:%d", masterIp, groupPort),
-			"PrimaryMode":    singlePrimaryMode,
+			"BasePort":                  basePortText,
+			"GroupSeeds":                connectionString,
+			"LocalAddresses":            fmt.Sprintf("%s:%d", masterIp, groupPort),
+			"PrimaryMode":               singlePrimaryMode,
+			"UseReplicaUpdates":         useReplicaUpdates,
+			"SkipWriteSetExtraction":    useNoWriteSetExtraction,
 		}
 
 		replOptionsText, err := common.SafeTemplateFill("group_replication",
@@ -350,7 +359,11 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 		sandboxDef.ReplOptions = reMasterIp.ReplaceAllString(sandboxDef.ReplOptions, masterIp)
 
 		sandboxDef.ReplOptions += fmt.Sprintf("\n%s\n", SingleTemplates[globals.TmplGtidOptions57].Contents)
-		sandboxDef.ReplOptions += fmt.Sprintf("\n%s\n", SingleTemplates[globals.TmplReplCrashSafeOptions].Contents)
+		// master-info-repository and relay-log-info-repository removed in 8.4+
+		skipCrashSafeOpts, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
+		if !skipCrashSafeOpts {
+			sandboxDef.ReplOptions += fmt.Sprintf("\n%s\n", SingleTemplates[globals.TmplReplCrashSafeOptions].Contents)
+		}
 
 		// 8.0.11
 		isMinimumMySQLXDefault, err := common.HasCapability(sandboxDef.Flavor, common.MySQLXDefault, sandboxDef.Version)
@@ -397,6 +410,7 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 			"ChangeMasterTo":       replCmds["ChangeMasterTo"],
 			"MasterUserParam":      replCmds["MasterUserParam"],
 			"MasterPasswordParam":  replCmds["MasterPasswordParam"],
+			"ResetMasterCmd":       replCmds["ResetMasterCmd"],
 			"SlaveLabel":           slaveLabel,
 			"SlaveAbbr":            slaveAbbr,
 			"SandboxDir":           sandboxDef.SandboxDir,

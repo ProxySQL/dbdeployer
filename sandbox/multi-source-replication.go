@@ -113,7 +113,10 @@ func CreateAllMastersReplication(sandboxDef SandboxDef, origin string, nodes int
 	}
 
 	sandboxDef.GtidOptions = SingleTemplates[globals.TmplGtidOptions57].Contents
-	sandboxDef.ReplCrashSafeOptions = SingleTemplates[globals.TmplReplCrashSafeOptions].Contents
+	skipCrashSafeOpts, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
+	if !skipCrashSafeOpts {
+		sandboxDef.ReplCrashSafeOptions = SingleTemplates[globals.TmplReplCrashSafeOptions].Contents
+	}
 	if sandboxDef.DirName == "" {
 		sandboxDef.DirName += defaults.Defaults().AllMastersPrefix + common.VersionToName(origin)
 	}
@@ -183,17 +186,9 @@ func CreateAllMastersReplication(sandboxDef SandboxDef, origin string, nodes int
 	data["NodeLabel"] = defaults.Defaults().NodePrefix
 	data["ChangeMasterExtra"] = setChangeMasterProperties("", sandboxDef.ChangeMasterOptions, logger)
 	replCmds := replicationCommands(sandboxDef.Version)
-	data["ShowMasterStatus"] = replCmds["ShowMasterStatus"]
-	data["ShowSlaveStatus"] = replCmds["ShowSlaveStatus"]
-	data["ChangeMasterTo"] = replCmds["ChangeMasterTo"]
-	data["StartReplica"] = replCmds["StartReplica"]
-	data["StopReplica"] = replCmds["StopReplica"]
-	data["ResetReplica"] = replCmds["ResetReplica"]
-	data["MasterPosWaitFunc"] = replCmds["MasterPosWaitFunc"]
-	data["MasterHostParam"] = replCmds["MasterHostParam"]
-	data["MasterPortParam"] = replCmds["MasterPortParam"]
-	data["MasterUserParam"] = replCmds["MasterUserParam"]
-	data["MasterPasswordParam"] = replCmds["MasterPasswordParam"]
+	for k, v := range replCmds {
+		data[k] = v
+	}
 	logger.Printf("Writing master and slave scripts in %s\n", sandboxDef.SandboxDir)
 	for _, node := range slaveList {
 		data["Node"] = node
@@ -330,7 +325,10 @@ func CreateFanInReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 		slaveList = globals.SlaveListValue
 	}
 	sandboxDef.GtidOptions = SingleTemplates[globals.TmplGtidOptions57].Contents
-	sandboxDef.ReplCrashSafeOptions = SingleTemplates[globals.TmplReplCrashSafeOptions].Contents
+	skipCrashSafe2, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
+	if !skipCrashSafe2 {
+		sandboxDef.ReplCrashSafeOptions = SingleTemplates[globals.TmplReplCrashSafeOptions].Contents
+	}
 	if sandboxDef.DirName == "" {
 		sandboxDef.DirName = defaults.Defaults().FanInPrefix + common.VersionToName(origin)
 	}
@@ -420,17 +418,9 @@ func CreateFanInReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 	data["ChangeMasterExtra"] = setChangeMasterProperties("", sandboxDef.ChangeMasterOptions, logger)
 	data["MasterIp"] = masterIp
 	replCmds := replicationCommands(sandboxDef.Version)
-	data["ShowMasterStatus"] = replCmds["ShowMasterStatus"]
-	data["ShowSlaveStatus"] = replCmds["ShowSlaveStatus"]
-	data["ChangeMasterTo"] = replCmds["ChangeMasterTo"]
-	data["StartReplica"] = replCmds["StartReplica"]
-	data["StopReplica"] = replCmds["StopReplica"]
-	data["ResetReplica"] = replCmds["ResetReplica"]
-	data["MasterPosWaitFunc"] = replCmds["MasterPosWaitFunc"]
-	data["MasterHostParam"] = replCmds["MasterHostParam"]
-	data["MasterPortParam"] = replCmds["MasterPortParam"]
-	data["MasterUserParam"] = replCmds["MasterUserParam"]
-	data["MasterPasswordParam"] = replCmds["MasterPasswordParam"]
+	for k, v := range replCmds {
+		data[k] = v
+	}
 	logger.Printf("Writing master and slave scripts in %s\n", sandboxDef.SandboxDir)
 	for _, slave := range slist {
 		data["Node"] = slave

@@ -419,6 +419,8 @@ var (
 	MinimumShowReplicaStatusVersion           = NumericVersion{8, 0, 22}
 	MinimumChangeReplicationSourceVersion     = NumericVersion{8, 0, 23}
 	MinimumShowBinaryLogStatusVersion         = NumericVersion{8, 2, 0}
+	MinimumNoWriteSetExtractionVersion        = NumericVersion{8, 3, 0}
+	MinimumResetBinaryLogsVersion             = NumericVersion{8, 4, 0}
 )
 
 const (

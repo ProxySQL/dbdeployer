@@ -225,7 +225,12 @@ func CreatePxcReplication(sandboxDef SandboxDef, origin string, nodes int, maste
 		return err
 	}
 	if !skipLogSlaveUpdates {
-		sandboxDef.ReplOptions = fmt.Sprintf("%s\nlog_slave_updates=ON\n", sandboxDef.ReplOptions)
+		useReplicaUpdates, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumShowReplicaStatusVersion)
+		if useReplicaUpdates {
+			sandboxDef.ReplOptions = fmt.Sprintf("%s\nlog_replica_updates=ON\n", sandboxDef.ReplOptions)
+		} else {
+			sandboxDef.ReplOptions = fmt.Sprintf("%s\nlog_slave_updates=ON\n", sandboxDef.ReplOptions)
+		}
 	}
 	baseReplicationOptions := sandboxDef.ReplOptions
 	var groupCommunication string = "gcomm://"
@@ -322,7 +327,11 @@ func CreatePxcReplication(sandboxDef SandboxDef, origin string, nodes int, maste
 		sandboxDef.ReplOptions = baseReplicationOptions + fmt.Sprintf("\n%s\n", pxcFilledTemplate)
 
 		sandboxDef.ReplOptions += fmt.Sprintf("\n%s\n", SingleTemplates[globals.TmplGtidOptions57].Contents)
-		sandboxDef.ReplOptions += fmt.Sprintf("\n%s\n", SingleTemplates[globals.TmplReplCrashSafeOptions].Contents)
+		// master-info-repository and relay-log-info-repository removed in 8.4+
+		skipCrashSafeOpts, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
+		if !skipCrashSafeOpts {
+			sandboxDef.ReplOptions += fmt.Sprintf("\n%s\n", SingleTemplates[globals.TmplReplCrashSafeOptions].Contents)
+		}
 		// 8.0.11
 		isMinimumMySQLXDefault, err := common.HasCapability(sandboxDef.Flavor, common.MySQLXDefault, sandboxDef.Version)
 		if err != nil {
