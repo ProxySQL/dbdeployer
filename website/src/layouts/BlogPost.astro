@@ -1,0 +1,230 @@
+---
+import Landing from './Landing.astro';
+
+export interface Props {
+  title: string;
+  date: Date;
+  author: string;
+  description: string;
+  tags?: string[];
+}
+
+const { title, date, author, description, tags = [] } = Astro.props;
+
+const base = '/dbdeployer';
+
+const formattedDate = date.toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+---
+
+<Landing title={`${title} — dbdeployer blog`} description={description}>
+  <div class="blog-post-wrapper">
+    <div class="blog-post-container">
+      <a href={`${base}/blog/`} class="back-link">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Back to blog
+      </a>
+
+      <article class="blog-post">
+        <header class="blog-post-header">
+          {tags.length > 0 && (
+            <div class="blog-post-tags">
+              {tags.map((tag) => (
+                <span class="tag">{tag}</span>
+              ))}
+            </div>
+          )}
+          <h1 class="blog-post-title">{title}</h1>
+          <div class="blog-post-meta">
+            <time datetime={date.toISOString()} class="blog-post-date">{formattedDate}</time>
+            <span class="blog-post-author">by {author}</span>
+          </div>
+        </header>
+
+        <div class="blog-post-content">
+          <slot />
+        </div>
+      </article>
+
+      <div class="blog-post-footer">
+        <a href={`${base}/blog/`} class="back-link">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Back to blog
+        </a>
+      </div>
+    </div>
+  </div>
+</Landing>
+
+<style>
+  .blog-post-wrapper {
+    padding: 3rem 1.5rem 5rem;
+  }
+
+  .blog-post-container {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 2rem;
+    transition: color 0.15s ease;
+  }
+
+  .back-link:hover {
+    color: var(--color-accent-light);
+  }
+
+  .blog-post-header {
+    margin-bottom: 2.5rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .blog-post-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background-color: rgba(59, 130, 246, 0.15);
+    color: var(--color-accent-light);
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+  }
+
+  .blog-post-title {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--color-text);
+    margin-bottom: 1rem;
+  }
+
+  .blog-post-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+  }
+
+  .blog-post-date {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .blog-post-author {
+    color: var(--color-text-muted);
+  }
+
+  .blog-post-content {
+    color: var(--color-text);
+    line-height: 1.8;
+    font-size: 1.05rem;
+  }
+
+  .blog-post-content :global(h2) {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .blog-post-content :global(h3) {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .blog-post-content :global(p) {
+    margin-bottom: 1.25rem;
+  }
+
+  .blog-post-content :global(ul),
+  .blog-post-content :global(ol) {
+    padding-left: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .blog-post-content :global(li) {
+    margin-bottom: 0.4rem;
+  }
+
+  .blog-post-content :global(strong) {
+    color: var(--color-text);
+    font-weight: 600;
+  }
+
+  .blog-post-content :global(a) {
+    color: var(--color-accent-light);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .blog-post-content :global(a:hover) {
+    color: var(--color-text);
+  }
+
+  .blog-post-content :global(pre) {
+    background-color: var(--color-code-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    overflow-x: auto;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+  }
+
+  .blog-post-content :global(code) {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background-color: var(--color-code-bg);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    border: 1px solid var(--color-border);
+    color: var(--color-code-text);
+  }
+
+  .blog-post-content :global(pre code) {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+  }
+
+  .blog-post-content :global(blockquote) {
+    border-left: 3px solid var(--color-accent);
+    padding-left: 1.25rem;
+    color: var(--color-text-muted);
+    margin-bottom: 1.25rem;
+    font-style: italic;
+  }
+
+  .blog-post-footer {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-border);
+  }
+</style>

@@ -3,6 +3,12 @@ import Landing from '../layouts/Landing.astro';
 import Hero from '../components/Hero.astro';
 import FeatureGrid from '../components/FeatureGrid.astro';
 import Terminal from '../components/Terminal.astro';
+import BlogPostCard from '../components/BlogPostCard.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog'))
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  .slice(0, 2);
 ---
 
 <Landing
@@ -12,4 +18,77 @@ import Terminal from '../components/Terminal.astro';
   <Hero />
   <FeatureGrid />
   <Terminal />
+
+  {posts.length > 0 && (
+    <section class="whats-new">
+      <div class="whats-new-container">
+        <div class="whats-new-header">
+          <h2 class="whats-new-title">What's New</h2>
+          <a href="/dbdeployer/blog/" class="whats-new-all">View all posts →</a>
+        </div>
+        <div class="whats-new-grid">
+          {posts.map((post) => (
+            <BlogPostCard
+              title={post.data.title}
+              date={post.data.date}
+              author={post.data.author}
+              description={post.data.description}
+              tags={post.data.tags}
+              slug={post.id}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
 </Landing>
+
+<style>
+  .whats-new {
+    padding: var(--section-padding);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .whats-new-container {
+    max-width: var(--max-width);
+    margin: 0 auto;
+  }
+
+  .whats-new-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    gap: 1rem;
+  }
+
+  .whats-new-title {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 800;
+    color: var(--color-text);
+  }
+
+  .whats-new-all {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-accent-light);
+    white-space: nowrap;
+    transition: color 0.15s ease;
+  }
+
+  .whats-new-all:hover {
+    color: var(--color-text);
+  }
+
+  .whats-new-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1.5rem;
+  }
+
+  @media (max-width: 640px) {
+    .whats-new-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
