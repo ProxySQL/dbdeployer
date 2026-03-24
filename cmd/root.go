@@ -29,6 +29,7 @@ import (
 	"github.com/ProxySQL/dbdeployer/globals"
 	"github.com/ProxySQL/dbdeployer/providers"
 	mysqlprovider "github.com/ProxySQL/dbdeployer/providers/mysql"
+	proxysqlprovider "github.com/ProxySQL/dbdeployer/providers/proxysql"
 	"github.com/ProxySQL/dbdeployer/sandbox"
 )
 
@@ -148,6 +149,7 @@ func init() {
 	if err := mysqlprovider.Register(providers.DefaultRegistry); err != nil {
 		panic(fmt.Sprintf("failed to register MySQL provider: %v", err))
 	}
+	_ = proxysqlprovider.Register(providers.DefaultRegistry)
 	cobra.OnInitialize(checkDefaultsFile)
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.PersistentFlags().StringVar(&defaults.CustomConfigurationFile, globals.ConfigLabel, defaults.ConfigurationFile, "configuration file")
