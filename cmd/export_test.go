@@ -165,7 +165,7 @@ func TestExportImport(t *testing.T) {
 			subCommandName:      "",
 			expectedName:        "deploy",
 			expectedAncestors:   2,
-			expectedSubCommands: 3,
+			expectedSubCommands: 4,
 			expectedArgument:    "",
 		},
 		{
