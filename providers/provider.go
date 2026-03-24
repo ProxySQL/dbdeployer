@@ -5,14 +5,39 @@ import (
 	"sort"
 )
 
+// SandboxConfig holds provider-agnostic sandbox configuration.
+type SandboxConfig struct {
+	Version    string
+	Dir        string            // sandbox directory path
+	Port       int               // primary port
+	AdminPort  int               // admin/management port (0 if not applicable)
+	Host       string            // bind address
+	DbUser     string            // admin username
+	DbPassword string            // admin password
+	Options    map[string]string // provider-specific key-value options
+}
+
+// SandboxInfo describes a deployed sandbox instance.
+type SandboxInfo struct {
+	Dir    string
+	Port   int
+	Socket string
+	Status string // "running", "stopped"
+}
+
 // Provider is the core abstraction for deploying database infrastructure.
-// Phase 2a defines a minimal interface (Name, ValidateVersion, DefaultPorts).
-// Phase 2b will add CreateSandbox, Start, Stop, Destroy, HealthCheck when
-// ProxySQL and other providers need them.
 type Provider interface {
 	Name() string
 	ValidateVersion(version string) error
 	DefaultPorts() PortRange
+	// FindBinary returns the path to the provider's main binary, or error if not found.
+	FindBinary(version string) (string, error)
+	// CreateSandbox deploys a new sandbox instance.
+	CreateSandbox(config SandboxConfig) (*SandboxInfo, error)
+	// StartSandbox starts a stopped sandbox.
+	StartSandbox(dir string) error
+	// StopSandbox stops a running sandbox.
+	StopSandbox(dir string) error
 }
 
 type PortRange struct {

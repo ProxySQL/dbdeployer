@@ -32,6 +32,22 @@ func (p *MySQLProvider) DefaultPorts() providers.PortRange {
 	}
 }
 
+func (p *MySQLProvider) FindBinary(version string) (string, error) {
+	return "", fmt.Errorf("MySQLProvider.FindBinary: use sandbox package directly (not yet migrated)")
+}
+
+func (p *MySQLProvider) CreateSandbox(config providers.SandboxConfig) (*providers.SandboxInfo, error) {
+	return nil, fmt.Errorf("MySQLProvider.CreateSandbox: use sandbox package directly (not yet migrated)")
+}
+
+func (p *MySQLProvider) StartSandbox(dir string) error {
+	return fmt.Errorf("MySQLProvider.StartSandbox: use sandbox package directly (not yet migrated)")
+}
+
+func (p *MySQLProvider) StopSandbox(dir string) error {
+	return fmt.Errorf("MySQLProvider.StopSandbox: use sandbox package directly (not yet migrated)")
+}
+
 func Register(reg *providers.Registry) error {
 	return reg.Register(NewMySQLProvider())
 }
