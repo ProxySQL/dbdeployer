@@ -77,3 +77,42 @@ func TestRegistryList(t *testing.T) {
 		t.Errorf("expected sorted [a b], got %v", names)
 	}
 }
+
+func TestContainsString(t *testing.T) {
+	slice := []string{"single", "multiple", "replication"}
+	if !ContainsString(slice, "single") {
+		t.Error("expected single to be found")
+	}
+	if ContainsString(slice, "group") {
+		t.Error("did not expect group to be found")
+	}
+	if ContainsString(nil, "single") {
+		t.Error("did not expect match in nil slice")
+	}
+}
+
+func TestCompatibleAddons(t *testing.T) {
+	if !ContainsString(CompatibleAddons["proxysql"], "mysql") {
+		t.Error("proxysql should be compatible with mysql")
+	}
+	if !ContainsString(CompatibleAddons["proxysql"], "postgresql") {
+		t.Error("proxysql should be compatible with postgresql")
+	}
+	if ContainsString(CompatibleAddons["proxysql"], "fake") {
+		t.Error("proxysql should not be compatible with fake")
+	}
+}
+
+func TestSupportedTopologiesMySQL(t *testing.T) {
+	reg := NewRegistry()
+	mock := &mockProvider{name: "mysql-like"}
+	_ = reg.Register(mock)
+	p, _ := reg.Get("mysql-like")
+	topos := p.SupportedTopologies()
+	if !ContainsString(topos, "single") {
+		t.Error("expected single in topologies")
+	}
+	if ContainsString(topos, "group") {
+		t.Error("mock should not support group")
+	}
+}
