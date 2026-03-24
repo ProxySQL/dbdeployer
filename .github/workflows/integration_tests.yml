@@ -121,7 +121,7 @@ jobs:
       - name: Test downloads get-by-version
         run: |
           echo "=== Testing: dbdeployer downloads get-by-version $SHORT_VERSION ==="
-          ./dbdeployer downloads get-by-version "$SHORT_VERSION" --newest
+          ./dbdeployer downloads get-by-version "$SHORT_VERSION" --newest --minimal
           echo "=== Download complete ==="
           ls -lh mysql-*.tar.*
 
