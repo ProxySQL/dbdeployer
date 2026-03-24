@@ -42,4 +42,4 @@ ProxySQL is configured with `pgsql_servers` pointing to your primary (hostgroup 
 
 ## How It Works
 
-Under the hood, the PostgreSQL provider uses `initdb` for initialization, `pg_ctl` for lifecycle management, and `pg_basebackup` for replica creation. Check out the [PostgreSQL provider docs](/dbdeployer/docs/providers/postgresql/) for the full reference.
+Under the hood, the PostgreSQL provider uses `initdb` for initialization, `pg_ctl` for lifecycle management, and `pg_basebackup` for replica creation. Check out the [PostgreSQL provider docs](/dbdeployer/providers/postgresql/) for the full reference.
