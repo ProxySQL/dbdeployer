@@ -35,7 +35,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5
+          sudo apt-get install -y libaio1t64 libnuma1 libncurses6
 
       - name: Build dbdeployer
         run: go build -o dbdeployer .

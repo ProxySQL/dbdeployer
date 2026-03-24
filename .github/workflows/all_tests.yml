@@ -43,7 +43,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libncurses5 libaio1 libnuma1 bash-completion
+          sudo apt-get install -y libncurses6 libaio1t64 libnuma1 bash-completion
       - name: Unit tests
         run: ./test/go-unit-tests.sh
 

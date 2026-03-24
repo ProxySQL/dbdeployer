@@ -15,6 +15,11 @@ linters:
 linters-settings:
   errcheck:
     check-type-assertions: false
+    exclude-functions:
+      - (*github.com/nightlyone/lockfile.Lockfile).Unlock
+  gosec:
+    excludes:
+      - G115  # integer overflow int64->uint64 on file sizes passed to humanize.Bytes — safe
 
 issues:
   exclude-use-default: true
