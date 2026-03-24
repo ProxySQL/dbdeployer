@@ -37,10 +37,14 @@ jobs:
 
       - name: Install ProxySQL
         run: |
+          # Download deb and extract binary without installing the package
+          PROXYSQL_VERSION="3.0.6"
           wget -nv -O /tmp/proxysql.deb \
-            "https://github.com/sysown/proxysql/releases/download/v2.7.3/proxysql_2.7.3-ubuntu22_amd64.deb"
-          sudo dpkg -i /tmp/proxysql.deb || sudo apt-get install -f -y
-          sudo systemctl stop proxysql 2>/dev/null || true
+            "https://github.com/sysown/proxysql/releases/download/v${PROXYSQL_VERSION}/proxysql_${PROXYSQL_VERSION}-ubuntu22_amd64.deb"
+          mkdir -p /tmp/proxysql-extract
+          dpkg-deb -x /tmp/proxysql.deb /tmp/proxysql-extract
+          sudo cp /tmp/proxysql-extract/usr/bin/proxysql /usr/local/bin/proxysql
+          sudo chmod +x /usr/local/bin/proxysql
           which proxysql
 
       - name: Build dbdeployer
