@@ -1,0 +1,20 @@
+{
+  "name": "website",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@astrojs/sitemap": "^3.7.1",
+    "@astrojs/starlight": "^0.38.2",
+    "astro": "^6.0.8"
+  }
+}
