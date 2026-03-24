@@ -1,0 +1,50 @@
+package proxysql
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestGenerateConfigBasic(t *testing.T) {
+	cfg := ProxySQLConfig{
+		AdminHost: "127.0.0.1", AdminPort: 6032,
+		AdminUser: "admin", AdminPassword: "admin",
+		MySQLPort: 6033, DataDir: "/tmp/test",
+		MonitorUser: "msandbox", MonitorPass: "msandbox",
+	}
+	result := GenerateConfig(cfg)
+	checks := []string{
+		`admin_credentials="admin:admin"`,
+		`interfaces="127.0.0.1:6033"`,
+		`monitor_username="msandbox"`,
+		`mysql_ifaces="127.0.0.1:6032"`,
+	}
+	for _, check := range checks {
+		if !strings.Contains(result, check) {
+			t.Errorf("missing %q in config output", check)
+		}
+	}
+}
+
+func TestGenerateConfigWithBackends(t *testing.T) {
+	cfg := ProxySQLConfig{
+		AdminHost: "127.0.0.1", AdminPort: 6032,
+		AdminUser: "admin", AdminPassword: "admin",
+		MySQLPort: 6033, DataDir: "/tmp/test",
+		MonitorUser: "msandbox", MonitorPass: "msandbox",
+		Backends: []BackendServer{
+			{Host: "127.0.0.1", Port: 3306, Hostgroup: 0, MaxConns: 100},
+			{Host: "127.0.0.1", Port: 3307, Hostgroup: 1, MaxConns: 100},
+		},
+	}
+	result := GenerateConfig(cfg)
+	if !strings.Contains(result, "mysql_servers=") {
+		t.Error("missing mysql_servers section")
+	}
+	if !strings.Contains(result, "port=3306") {
+		t.Error("missing first backend")
+	}
+	if !strings.Contains(result, "hostgroup=1") {
+		t.Error("missing reader hostgroup")
+	}
+}
