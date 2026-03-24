@@ -80,15 +80,16 @@ func (p *ProxySQLProvider) CreateSandbox(config providers.SandboxConfig) (*provi
 	}
 
 	proxyCfg := ProxySQLConfig{
-		AdminHost:     host,
-		AdminPort:     adminPort,
-		AdminUser:     adminUser,
-		AdminPassword: adminPassword,
-		MySQLPort:     mysqlPort,
-		DataDir:       dataDir,
-		MonitorUser:   monitorUser,
-		MonitorPass:   monitorPass,
-		Backends:      parseBackends(config.Options),
+		AdminHost:       host,
+		AdminPort:       adminPort,
+		AdminUser:       adminUser,
+		AdminPassword:   adminPassword,
+		MySQLPort:       mysqlPort,
+		DataDir:         dataDir,
+		MonitorUser:     monitorUser,
+		MonitorPass:     monitorPass,
+		Backends:        parseBackends(config.Options),
+		BackendProvider: config.Options["backend_provider"],
 	}
 
 	cfgContent := GenerateConfig(proxyCfg)
@@ -110,8 +111,13 @@ func (p *ProxySQLProvider) CreateSandbox(config providers.SandboxConfig) (*provi
 			pidFile),
 		"use": fmt.Sprintf("#!/bin/bash\nmysql -h %s -P %d -u %s -p%s --prompt 'ProxySQL Admin> ' \"$@\"\n",
 			host, adminPort, adminUser, adminPassword),
-		"use_proxy": fmt.Sprintf("#!/bin/bash\nmysql -h %s -P %d -u %s -p%s --prompt 'ProxySQL> ' \"$@\"\n",
-			host, mysqlPort, monitorUser, monitorPass),
+	}
+	if config.Options["backend_provider"] == "postgresql" {
+		scripts["use_proxy"] = fmt.Sprintf("#!/bin/bash\npsql -h %s -p %d -U %s \"$@\"\n",
+			host, mysqlPort, monitorUser)
+	} else {
+		scripts["use_proxy"] = fmt.Sprintf("#!/bin/bash\nmysql -h %s -P %d -u %s -p%s --prompt 'ProxySQL> ' \"$@\"\n",
+			host, mysqlPort, monitorUser, monitorPass)
 	}
 
 	for name, content := range scripts {
