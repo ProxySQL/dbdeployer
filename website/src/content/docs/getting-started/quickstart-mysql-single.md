@@ -10,23 +10,26 @@ Get a fully functional MySQL 8.4 instance running on your laptop in under 2 minu
 - dbdeployer installed ([Installation guide](/getting-started/installation))
 - Internet access to download the MySQL binary
 
-## 1. Download MySQL 8.4
+## 1. Download and unpack MySQL 8.4
+
+**Option A** — Use dbdeployer's built-in download:
 
 ```bash
 dbdeployer downloads get-by-version 8.4
-```
-
-This downloads the MySQL 8.4 tarball to the current directory (e.g. `mysql-8.4.8-macos15-arm64.tar.gz`).
-
-## 2. Unpack the tarball
-
-```bash
 dbdeployer unpack mysql-8.4.8-*.tar.xz
 ```
 
-This extracts the MySQL binaries into `~/opt/mysql/8.4.8/`. Use the actual filename from step 1.
+The first command downloads the tarball to the current directory. The second extracts the binaries into `~/opt/mysql/8.4.8/`. Use the actual filename shown by the download.
 
-## 3. Deploy a single sandbox
+**Option B** — Download manually from [dev.mysql.com](https://dev.mysql.com/downloads/mysql/8.4.html):
+
+```bash
+# Example for Linux x86_64:
+curl -LO https://dev.mysql.com/get/Downloads/MySQL-8.4/mysql-8.4.8-linux-glibc2.17-x86_64.tar.xz
+dbdeployer unpack mysql-8.4.8-linux-glibc2.17-x86_64.tar.xz
+```
+
+## 2. Deploy a single sandbox
 
 ```bash
 dbdeployer deploy single 8.4.8
@@ -40,7 +43,7 @@ Database installed in $HOME/sandboxes/msb_8_4_8
 
 The sandbox starts automatically.
 
-## 4. Connect and run a query
+## 3. Connect and run a query
 
 ```bash
 ~/sandboxes/msb_8_4_8/use
@@ -54,7 +57,7 @@ SHOW DATABASES;
 EXIT;
 ```
 
-## 5. Clean up
+## 4. Clean up
 
 ```bash
 dbdeployer delete msb_8_4_8
@@ -62,7 +65,7 @@ dbdeployer delete msb_8_4_8
 
 This stops the server and removes all sandbox files. Your MySQL binary in `~/opt/mysql/` is untouched.
 
-## 6. Try the web UI
+## 5. Try the web UI
 
 Prefer a visual dashboard? Launch the admin UI:
 

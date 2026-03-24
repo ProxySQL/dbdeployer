@@ -8,7 +8,7 @@ Deploy a three-node master/slave replication setup from a single command. Assume
 ## Prerequisites
 
 - dbdeployer installed and MySQL 8.4 unpacked in `~/opt/mysql/`
-- If you skipped the single-sandbox guide: `dbdeployer downloads get-by-version 8.4` then `dbdeployer unpack mysql-8.4.8-*.tar.xz`
+- If you haven't done this yet, follow step 1 from [Quick Start: MySQL Single](/getting-started/quickstart-mysql-single)
 
 ## 1. Deploy replication
 

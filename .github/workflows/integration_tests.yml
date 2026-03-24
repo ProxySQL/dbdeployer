@@ -87,3 +87,63 @@ jobs:
         run: |
           ./dbdeployer delete all --skip-confirm 2>/dev/null || true
           pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
+  # Test the "downloads get-by-version" + "unpack" flow that users follow
+  # from the quickstart guide. This catches registry gaps and download issues.
+  downloads-test:
+    name: Downloads get-by-version (${{ matrix.short-version }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        short-version:
+          - '8.4'
+          - '9.2'
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      SHORT_VERSION: ${{ matrix.short-version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Test downloads get-by-version
+        run: |
+          echo "=== Testing: dbdeployer downloads get-by-version $SHORT_VERSION ==="
+          ./dbdeployer downloads get-by-version "$SHORT_VERSION"
+          echo "=== Download complete ==="
+          ls -lh mysql-*.tar.*
+
+      - name: Test unpack
+        run: |
+          TARBALL=$(ls mysql-*.tar.* | head -1)
+          echo "=== Unpacking: $TARBALL ==="
+          mkdir -p "$SANDBOX_BINARY"
+          ./dbdeployer unpack "$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+          echo "=== Available versions ==="
+          ./dbdeployer versions --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Test deploy from downloaded binary
+        run: |
+          VERSION=$(./dbdeployer versions --sandbox-binary="$SANDBOX_BINARY" | grep -oP '\d+\.\d+\.\d+' | head -1)
+          echo "=== Deploying: $VERSION ==="
+          ./dbdeployer deploy single "$VERSION" --sandbox-binary="$SANDBOX_BINARY"
+          ~/sandboxes/msb_*/use -e "SELECT VERSION()"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
