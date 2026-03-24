@@ -48,6 +48,14 @@ func (p *MySQLProvider) StopSandbox(dir string) error {
 	return fmt.Errorf("MySQLProvider.StopSandbox: use sandbox package directly (not yet migrated)")
 }
 
+func (p *MySQLProvider) SupportedTopologies() []string {
+	return []string{"single", "multiple", "replication", "group", "fan-in", "all-masters", "ndb", "pxc"}
+}
+
+func (p *MySQLProvider) CreateReplica(primary providers.SandboxInfo, config providers.SandboxConfig) (*providers.SandboxInfo, error) {
+	return nil, providers.ErrNotSupported
+}
+
 func Register(reg *providers.Registry) error {
 	return reg.Register(NewMySQLProvider())
 }

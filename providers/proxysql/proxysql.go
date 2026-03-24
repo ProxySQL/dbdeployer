@@ -146,6 +146,14 @@ func (p *ProxySQLProvider) StopSandbox(dir string) error {
 	return nil
 }
 
+func (p *ProxySQLProvider) SupportedTopologies() []string {
+	return []string{"single"}
+}
+
+func (p *ProxySQLProvider) CreateReplica(primary providers.SandboxInfo, config providers.SandboxConfig) (*providers.SandboxInfo, error) {
+	return nil, providers.ErrNotSupported
+}
+
 func Register(reg *providers.Registry) error {
 	return reg.Register(NewProxySQLProvider())
 }

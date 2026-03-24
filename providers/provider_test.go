@@ -11,6 +11,28 @@ func (m *mockProvider) FindBinary(version string) (string, error) { return "/usr
 func (m *mockProvider) CreateSandbox(config SandboxConfig) (*SandboxInfo, error) { return &SandboxInfo{Dir: "/tmp/mock"}, nil }
 func (m *mockProvider) StartSandbox(dir string) error { return nil }
 func (m *mockProvider) StopSandbox(dir string) error  { return nil }
+func (m *mockProvider) SupportedTopologies() []string {
+	return []string{"single", "multiple"}
+}
+func (m *mockProvider) CreateReplica(primary SandboxInfo, config SandboxConfig) (*SandboxInfo, error) {
+	return nil, ErrNotSupported
+}
+
+func TestErrNotSupported(t *testing.T) {
+	mock := &mockProvider{name: "test"}
+	_, err := mock.CreateReplica(SandboxInfo{}, SandboxConfig{})
+	if err != ErrNotSupported {
+		t.Errorf("expected ErrNotSupported, got %v", err)
+	}
+}
+
+func TestSupportedTopologies(t *testing.T) {
+	mock := &mockProvider{name: "test"}
+	topos := mock.SupportedTopologies()
+	if len(topos) != 2 || topos[0] != "single" {
+		t.Errorf("unexpected topologies: %v", topos)
+	}
+}
 
 func TestRegistryRegisterAndGet(t *testing.T) {
 	reg := NewRegistry()
