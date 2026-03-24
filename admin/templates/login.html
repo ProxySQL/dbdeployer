@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dbdeployer admin — login</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 2rem 2.5rem;
+      width: 100%;
+      max-width: 380px;
+    }
+    h1 {
+      font-size: 1.25rem;
+      color: #e6edf3;
+      margin-bottom: 0.25rem;
+    }
+    p.subtitle {
+      font-size: 0.85rem;
+      color: #8b949e;
+      margin-bottom: 1.5rem;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: #8b949e;
+      margin-bottom: 0.4rem;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #c9d1d9;
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #388bfd;
+    }
+    button {
+      width: 100%;
+      padding: 0.55rem;
+      background: #238636;
+      border: 1px solid #2ea043;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    button:hover { background: #2ea043; }
+    .hint {
+      margin-top: 1rem;
+      font-size: 0.78rem;
+      color: #6e7681;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>dbdeployer admin</h1>
+    <p class="subtitle">Enter your one-time access token</p>
+    <form method="GET" action="/login">
+      <label for="token">Access token</label>
+      <input type="text" id="token" name="token" placeholder="paste token here" autofocus>
+      <button type="submit">Sign in</button>
+    </form>
+    <p class="hint">The token was printed to the terminal when you started dbdeployer admin ui.</p>
+  </div>
+</body>
+</html>

@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/ProxySQL/dbdeployer/admin"
 	"github.com/ProxySQL/dbdeployer/defaults"
 	"os"
 	"path"
@@ -518,6 +519,23 @@ func SandboxNames(n int) cobra.PositionalArgs {
 	}
 }
 
+var adminUiCmd = &cobra.Command{
+	Use:   "ui",
+	Short: "Start the admin web UI",
+	Long: `Starts a local web server with a dashboard for managing deployed sandboxes.
+Opens a browser with a one-time authentication token.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		port, _ := cmd.Flags().GetInt("port")
+		server, err := admin.NewServer(port)
+		if err != nil {
+			common.Exitf(1, "Failed to start admin server: %s", err)
+		}
+		if err := server.Start(); err != nil {
+			common.Exitf(1, "Server error: %s", err)
+		}
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(adminCmd)
 	adminCmd.AddCommand(adminLockCmd)
@@ -526,6 +544,7 @@ func init() {
 	adminCmd.AddCommand(adminCapabilitiesCmd)
 	adminCmd.AddCommand(adminSetDefaultCmd)
 	adminCmd.AddCommand(adminRemoveDefaultCmd)
+	adminCmd.AddCommand(adminUiCmd)
 	adminUpgradeCmd.Flags().BoolP(globals.VerboseLabel, "", false, "Shows upgrade operations")
 	adminUpgradeCmd.Flags().BoolP(globals.DryRunLabel, "", false, "Shows upgrade operations, but don't execute them")
 
@@ -533,4 +552,6 @@ func init() {
 		defaults.Defaults().DefaultSandboxExecutable, "Name of the executable to run commands in the default sandbox")
 	adminRemoveDefaultCmd.PersistentFlags().StringP(globals.DefaultSandboxExecutable, "",
 		defaults.Defaults().DefaultSandboxExecutable, "Name of the executable to run commands in the default sandbox")
+
+	adminUiCmd.Flags().Int("port", 9090, "Port for the admin web UI")
 }
