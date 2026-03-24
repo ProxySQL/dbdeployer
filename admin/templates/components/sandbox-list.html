@@ -32,19 +32,19 @@
       {{end}}
       <div class="actions">
         <button class="btn btn-start"
-          hx-post="/api/sandboxes/{{.Name}}/start"
+          hx-post="/api/sandboxes/{{.Name | urlquery}}/start"
           hx-target="#sandbox-list"
           hx-swap="innerHTML">
           Start
         </button>
         <button class="btn btn-stop"
-          hx-post="/api/sandboxes/{{.Name}}/stop"
+          hx-post="/api/sandboxes/{{.Name | urlquery}}/stop"
           hx-target="#sandbox-list"
           hx-swap="innerHTML">
           Stop
         </button>
         <button class="btn btn-destroy"
-          hx-post="/api/sandboxes/{{.Name}}/destroy"
+          hx-post="/api/sandboxes/{{.Name | urlquery}}/destroy"
           hx-target="#sandbox-list"
           hx-swap="innerHTML"
           hx-confirm="Destroy sandbox {{.Name}}? This cannot be undone.">

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/ProxySQL/dbdeployer/common"
 	"github.com/ProxySQL/dbdeployer/defaults"
@@ -146,6 +147,6 @@ func isRunning(sandboxDir string) bool {
 	if err != nil {
 		return false
 	}
-	err = proc.Signal(os.Signal(nil))
+	err = proc.Signal(syscall.Signal(0))
 	return err == nil
 }

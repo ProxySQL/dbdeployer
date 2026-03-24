@@ -68,31 +68,41 @@ func (s *Server) handleSandboxAction(w http.ResponseWriter, r *http.Request) {
 	// Parse: /api/sandboxes/<name>/<action>
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/sandboxes/"), "/")
 	if len(parts) != 2 {
-		http.Error(w, "Bad request", http.StatusBadRequest)
+		http.Error(w, "Invalid path format. Expected /api/sandboxes/<name>/<action>", http.StatusBadRequest)
 		return
 	}
 	name, action := parts[0], parts[1]
 
-	var err error
+	// Reject names that could escape the sandbox directory.
+	if name == "" || strings.ContainsAny(name, "/\\") || name == "." || name == ".." {
+		http.Error(w, "Invalid sandbox name", http.StatusBadRequest)
+		return
+	}
+
+	var actionErr error
 	switch action {
 	case "start":
-		err = ExecuteSandboxScript(name, "start")
+		actionErr = ExecuteSandboxScript(name, "start")
 	case "stop":
-		err = ExecuteSandboxScript(name, "stop")
+		actionErr = ExecuteSandboxScript(name, "stop")
 	case "destroy":
-		err = DestroySandbox(name)
+		actionErr = DestroySandbox(name)
 	default:
 		http.Error(w, "Unknown action", http.StatusBadRequest)
 		return
 	}
 
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if actionErr != nil {
+		http.Error(w, actionErr.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Return updated sandbox list fragment for HTMX.
-	sandboxes, _ := GetAllSandboxes()
+	sandboxes, err := GetAllSandboxes()
+	if err != nil {
+		http.Error(w, "Action succeeded but failed to refresh: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 	data := map[string]interface{}{
 		"Sandboxes": sandboxes,
 		"Count":     len(sandboxes),

@@ -41,7 +41,7 @@ func (a *AuthManager) CreateSession() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	sessionID := generateOTP()
-	a.sessions[sessionID] = time.Now()
+	a.sessions[sessionID] = time.Now().Add(1 * time.Hour)
 	return sessionID
 }
 
@@ -52,8 +52,8 @@ func (a *AuthManager) ValidateSession(r *http.Request) bool {
 	}
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	_, ok := a.sessions[cookie.Value]
-	return ok
+	expiry, ok := a.sessions[cookie.Value]
+	return ok && time.Now().Before(expiry)
 }
 
 func (a *AuthManager) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -68,6 +68,8 @@ func (a *AuthManager) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 func generateOTP() string {
 	b := make([]byte, 16)
-	_, _ = rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand.Read failed: " + err.Error())
+	}
 	return hex.EncodeToString(b)
 }

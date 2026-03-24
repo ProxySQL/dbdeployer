@@ -35,8 +35,10 @@ func ExecuteSandboxScript(sandboxName string, script string) error {
 func DestroySandbox(sandboxName string) error {
 	sbDir := sandboxDirFor(sandboxName)
 
-	// Try stop (ignore errors — sandbox may already be stopped).
-	_ = ExecuteSandboxScript(sandboxName, "stop")
+	// Try stop (log warning if fails — sandbox may already be stopped).
+	if err := ExecuteSandboxScript(sandboxName, "stop"); err != nil {
+		fmt.Printf("Warning: failed to stop sandbox %s during destruction: %v\n", sandboxName, err)
+	}
 
 	// Remove directory.
 	if err := os.RemoveAll(sbDir); err != nil {
