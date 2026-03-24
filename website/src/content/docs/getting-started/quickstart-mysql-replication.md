@@ -70,6 +70,16 @@ SELECT * FROM t;
 dbdeployer delete rsandbox_8_4_4
 ```
 
+## 5. Manage from the web UI
+
+See your entire replication topology visually:
+
+```bash
+dbdeployer admin ui
+```
+
+The dashboard shows the master and each slave as cards with status badges and start/stop/destroy controls.
+
 ## What's next?
 
 - [Replication topologies](/deploying/replication) — fan-in, all-masters, semi-sync

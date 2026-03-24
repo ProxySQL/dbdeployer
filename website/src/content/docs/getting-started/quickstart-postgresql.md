@@ -71,6 +71,16 @@ SELECT version();
 dbdeployer delete pg_sandbox_16613
 ```
 
+## 6. Manage from the web UI
+
+Launch the visual dashboard to see your PostgreSQL sandbox:
+
+```bash
+dbdeployer admin ui
+```
+
+Start, stop, and destroy sandboxes with a click — works for both MySQL and PostgreSQL.
+
 ## What's next?
 
 - [PostgreSQL provider details](/providers/postgresql) — replication, options, limitations
