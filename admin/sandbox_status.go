@@ -3,6 +3,7 @@ package admin
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -121,32 +122,37 @@ func GetAllSandboxes() ([]SandboxStatus, error) {
 	return result, nil
 }
 
-// isRunning checks whether a sandbox is running by looking for a live PID file.
+// isRunning checks whether a sandbox is running by executing its status script.
+// This is more reliable than PID file checking because the status script knows
+// the exact PID file location for each MySQL version and configuration.
 func isRunning(sandboxDir string) bool {
-	pidFile := filepath.Join(sandboxDir, "data", "mysql.pid")
-	if _, err := os.Stat(pidFile); err != nil {
-		// Try alternate pid file names.
-		pidFile = filepath.Join(sandboxDir, "data", "mysqld.pid")
-		if _, err := os.Stat(pidFile); err != nil {
-			return false
+	// Try the sandbox's own status script first.
+	statusScript := filepath.Join(sandboxDir, "status")
+	if _, err := os.Stat(statusScript); err == nil {
+		cmd := exec.Command("bash", statusScript)
+		err := cmd.Run()
+		return err == nil // exit 0 = running, non-zero = stopped
+	}
+
+	// Fallback: check common PID file locations.
+	for _, pidName := range []string{"data/mysql.pid", "data/mysqld.pid"} {
+		pidFile := filepath.Join(sandboxDir, pidName)
+		data, err := os.ReadFile(pidFile)
+		if err != nil {
+			continue
+		}
+		pidStr := strings.TrimSpace(string(data))
+		pid, err := strconv.Atoi(pidStr)
+		if err != nil || pid <= 0 {
+			continue
+		}
+		proc, err := os.FindProcess(pid)
+		if err != nil {
+			continue
+		}
+		if proc.Signal(syscall.Signal(0)) == nil {
+			return true
 		}
 	}
-
-	data, err := os.ReadFile(pidFile)
-	if err != nil {
-		return false
-	}
-	pidStr := strings.TrimSpace(string(data))
-	pid, err := strconv.Atoi(pidStr)
-	if err != nil || pid <= 0 {
-		return false
-	}
-
-	// Check if the process exists by sending signal 0.
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-	err = proc.Signal(syscall.Signal(0))
-	return err == nil
+	return false
 }

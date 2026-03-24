@@ -3,6 +3,7 @@ package admin
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -71,7 +72,14 @@ func (s *Server) handleSandboxAction(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid path format. Expected /api/sandboxes/<name>/<action>", http.StatusBadRequest)
 		return
 	}
-	name, action := parts[0], parts[1]
+	rawName, action := parts[0], parts[1]
+
+	// URL-decode the sandbox name (it was urlquery-encoded in the template).
+	name, err := url.PathUnescape(rawName)
+	if err != nil {
+		http.Error(w, "Invalid sandbox name encoding", http.StatusBadRequest)
+		return
+	}
 
 	// Reject names that could escape the sandbox directory.
 	if name == "" || strings.ContainsAny(name, "/\\") || name == "." || name == ".." {
