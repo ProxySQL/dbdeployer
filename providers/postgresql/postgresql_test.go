@@ -1,6 +1,7 @@
 package postgresql
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ProxySQL/dbdeployer/providers"
@@ -95,5 +96,43 @@ func TestPostgreSQLProviderRegister(t *testing.T) {
 	}
 	if p.Name() != "postgresql" {
 		t.Errorf("expected 'postgresql', got %q", p.Name())
+	}
+}
+
+func TestGenerateScripts(t *testing.T) {
+	opts := ScriptOptions{
+		SandboxDir: "/tmp/pg_sandbox",
+		DataDir:    "/tmp/pg_sandbox/data",
+		BinDir:     "/opt/postgresql/16.13/bin",
+		LibDir:     "/opt/postgresql/16.13/lib",
+		Port:       16613,
+		LogFile:    "/tmp/pg_sandbox/postgresql.log",
+	}
+	scripts := GenerateScripts(opts)
+
+	expectedScripts := []string{"start", "stop", "status", "restart", "use", "clear"}
+	for _, name := range expectedScripts {
+		if _, ok := scripts[name]; !ok {
+			t.Errorf("missing script %q", name)
+		}
+	}
+
+	start := scripts["start"]
+	if !strings.Contains(start, "pg_ctl") {
+		t.Error("start script missing pg_ctl")
+	}
+	if !strings.Contains(start, "LD_LIBRARY_PATH") {
+		t.Error("start script missing LD_LIBRARY_PATH")
+	}
+	if !strings.Contains(start, "unset PGDATA") {
+		t.Error("start script missing PGDATA unset")
+	}
+
+	use := scripts["use"]
+	if !strings.Contains(use, "psql") {
+		t.Error("use script missing psql")
+	}
+	if !strings.Contains(use, "16613") {
+		t.Error("use script missing port")
 	}
 }

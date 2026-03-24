@@ -101,11 +101,6 @@ func (p *PostgreSQLProvider) StopSandbox(dir string) error {
 	return nil
 }
 
-// Stubs for CreateSandbox and CreateReplica — implemented in later tasks
-func (p *PostgreSQLProvider) CreateSandbox(config providers.SandboxConfig) (*providers.SandboxInfo, error) {
-	return nil, fmt.Errorf("PostgreSQLProvider.CreateSandbox: not yet implemented")
-}
-
 func (p *PostgreSQLProvider) CreateReplica(primary providers.SandboxInfo, config providers.SandboxConfig) (*providers.SandboxInfo, error) {
 	return nil, fmt.Errorf("PostgreSQLProvider.CreateReplica: not yet implemented")
 }
