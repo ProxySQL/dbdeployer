@@ -1,0 +1,185 @@
+---
+const features = [
+  {
+    icon: 'topology',
+    title: 'Any Topology',
+    description:
+      'Deploy single instances, primary/replica replication, group replication (single-primary and multi-primary), fan-in, and all-masters topologies with a single command.',
+    accent: '#3b82f6',
+  },
+  {
+    icon: 'database',
+    title: 'Multiple Databases',
+    description:
+      'Supports MySQL, PostgreSQL, Percona Server, MariaDB, Percona XtraDB Cluster, and more. Use the same workflow regardless of flavor.',
+    accent: '#22c55e',
+  },
+  {
+    icon: 'proxysql',
+    title: 'ProxySQL Integration',
+    description:
+      'Deploy a read/write split stack with ProxySQL in front of a replication topology in one command. Perfect for integration testing.',
+    accent: '#f59e0b',
+  },
+  {
+    icon: 'userspace',
+    title: 'No Root, No Docker',
+    description:
+      'Runs entirely in userspace. No sudo, no containers, no package managers. Each sandbox is a self-contained directory with start/stop scripts.',
+    accent: '#a855f7',
+  },
+];
+---
+
+<section class="features">
+  <div class="features-container">
+    <div class="features-header">
+      <h2 class="features-title">Everything you need for database testing</h2>
+      <p class="features-subtitle">
+        dbdeployer handles the complexity so you can focus on your application.
+      </p>
+    </div>
+
+    <div class="features-grid">
+      {features.map(f => (
+        <div class="feature-card" style={`--accent: ${f.accent}`}>
+          <div class="feature-icon">
+            {f.icon === 'topology' && (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <circle cx="12" cy="5" r="2"/>
+                <circle cx="5" cy="19" r="2"/>
+                <circle cx="19" cy="19" r="2"/>
+                <path d="M12 7v4M12 11l-5 6M12 11l5 6"/>
+              </svg>
+            )}
+            {f.icon === 'database' && (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/>
+                <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>
+              </svg>
+            )}
+            {f.icon === 'proxysql' && (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <rect x="2" y="3" width="20" height="6" rx="1"/>
+                <rect x="2" y="15" width="9" height="6" rx="1"/>
+                <rect x="13" y="15" width="9" height="6" rx="1"/>
+                <path d="M7 9v6M17 9v6"/>
+              </svg>
+            )}
+            {f.icon === 'userspace' && (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="m9 12 2 2 4-4"/>
+              </svg>
+            )}
+          </div>
+          <h3 class="feature-title">{f.title}</h3>
+          <p class="feature-desc">{f.description}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .features {
+    padding: var(--section-padding);
+    background-color: var(--color-bg-secondary);
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .features-container {
+    max-width: var(--max-width);
+    margin: 0 auto;
+  }
+
+  .features-header {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+
+  .features-title {
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 0.75rem;
+  }
+
+  .features-subtitle {
+    color: var(--color-text-muted);
+    font-size: 1.05rem;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .feature-card {
+    background-color: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1.75rem;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .feature-card:hover {
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--color-border));
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .feature-card:hover::before {
+    opacity: 1;
+  }
+
+  .feature-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius);
+    background-color: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+
+  .feature-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 0.5rem;
+  }
+
+  .feature-desc {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.65;
+  }
+
+  @media (max-width: 640px) {
+    .features-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
