@@ -18,6 +18,7 @@ package cmd
 import (
 	"github.com/ProxySQL/dbdeployer/common"
 	"github.com/ProxySQL/dbdeployer/globals"
+	"github.com/ProxySQL/dbdeployer/providers"
 	"github.com/ProxySQL/dbdeployer/sandbox"
 	"github.com/spf13/cobra"
 )
@@ -28,6 +29,15 @@ func replicationSandbox(cmd *cobra.Command, args []string) {
 	common.CheckOrigin(args)
 	sd, err := fillSandboxDefinition(cmd, args, false)
 	common.ErrCheckExitf(err, 1, "error filling sandbox definition : %s", err)
+	// Validate version with provider
+	// TODO: Phase 2b — determine provider from sd.Flavor instead of hardcoding "mysql"
+	p, provErr := providers.DefaultRegistry.Get("mysql")
+	if provErr != nil {
+		common.Exitf(1, "provider error: %s", provErr)
+	}
+	if provErr = p.ValidateVersion(sd.Version); provErr != nil {
+		common.Exitf(1, "version validation failed: %s", provErr)
+	}
 	if sd.Flavor == common.TiDbFlavor {
 		common.Exitf(1, "flavor '%s' is not suitable to create replication sandboxes", common.TiDbFlavor)
 	}
