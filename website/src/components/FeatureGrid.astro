@@ -18,7 +18,7 @@ const features = [
     icon: 'proxysql',
     title: 'ProxySQL Integration',
     description:
-      'Deploy a read/write split stack with ProxySQL in front of a replication topology in one command. Perfect for integration testing.',
+      'Deploy a read/write split stack with <a href="https://proxysql.com" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline; text-underline-offset: 2px;">ProxySQL</a> in front of a replication topology in one command. Perfect for integration testing.',
     accent: '#f59e0b',
   },
   {
@@ -75,7 +75,7 @@ const features = [
             )}
           </div>
           <h3 class="feature-title">{f.title}</h3>
-          <p class="feature-desc">{f.description}</p>
+          <p class="feature-desc" set:html={f.description}></p>
         </div>
       ))}
     </div>
