@@ -21,8 +21,8 @@ import (
 	"path"
 	"time"
 
-	"github.com/datacharmer/dbdeployer/common"
-	"github.com/datacharmer/dbdeployer/globals"
+	"github.com/ProxySQL/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/globals"
 )
 
 type DbdeployerDefaults struct {

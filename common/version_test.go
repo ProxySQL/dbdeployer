@@ -18,8 +18,8 @@ package common
 import (
 	"testing"
 
-	"github.com/datacharmer/dbdeployer/compare"
-	"github.com/datacharmer/dbdeployer/globals"
+	"github.com/ProxySQL/dbdeployer/compare"
+	"github.com/ProxySQL/dbdeployer/globals"
 )
 
 type versionPort struct {

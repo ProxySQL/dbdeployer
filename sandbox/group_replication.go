@@ -22,10 +22,10 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/datacharmer/dbdeployer/common"
-	"github.com/datacharmer/dbdeployer/concurrent"
-	"github.com/datacharmer/dbdeployer/defaults"
-	"github.com/datacharmer/dbdeployer/globals"
+	"github.com/ProxySQL/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/concurrent"
+	"github.com/ProxySQL/dbdeployer/defaults"
+	"github.com/ProxySQL/dbdeployer/globals"
 	"github.com/dustin/go-humanize/english"
 	"github.com/pkg/errors"
 )
@@ -238,6 +238,12 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 		"StopNodeList":      stopNodeList,
 		"Nodes":             []common.StringMap{},
 	}
+	replCmds := replicationCommands(sandboxDef.Version)
+	data["ChangeMasterTo"] = replCmds["ChangeMasterTo"]
+	data["MasterUserParam"] = replCmds["MasterUserParam"]
+	data["MasterPasswordParam"] = replCmds["MasterPasswordParam"]
+	data["StartReplica"] = replCmds["StartReplica"]
+	data["StopReplica"] = replCmds["StopReplica"]
 	connectionString := ""
 	for i := 0; i < nodes; i++ {
 		groupPort := baseGroupPort + i + 1
@@ -285,22 +291,25 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 		groupPort := baseGroupPort + i
 		sandboxDef.Port = basePort + i
 		data["Nodes"] = append(data["Nodes"].([]common.StringMap), common.StringMap{
-			"ShellPath":         sandboxDef.ShellPath,
-			"Copyright":         globals.ShellScriptCopyright,
-			"AppVersion":        common.VersionDef,
-			"DateTime":          timestamp.Format(time.UnixDate),
-			"Node":              i,
-			"NodePort":          sandboxDef.Port,
-			"MasterIp":          masterIp,
-			"NodeLabel":         nodeLabel,
-			"SlaveLabel":        slaveLabel,
-			"SlaveAbbr":         slaveAbbr,
-			"ChangeMasterExtra": changeMasterExtra,
-			"MasterLabel":       masterLabel,
-			"MasterAbbr":        masterAbbr,
-			"SandboxDir":        sandboxDef.SandboxDir,
-			"StopNodeList":      stopNodeList,
-			"RplUser":           sandboxDef.RplUser,
+			"ShellPath":            sandboxDef.ShellPath,
+			"Copyright":            globals.ShellScriptCopyright,
+			"AppVersion":           common.VersionDef,
+			"DateTime":             timestamp.Format(time.UnixDate),
+			"Node":                 i,
+			"NodePort":             sandboxDef.Port,
+			"MasterIp":             masterIp,
+			"NodeLabel":            nodeLabel,
+			"SlaveLabel":           slaveLabel,
+			"SlaveAbbr":            slaveAbbr,
+			"ChangeMasterExtra":    changeMasterExtra,
+			"ChangeMasterTo":       replCmds["ChangeMasterTo"],
+			"MasterUserParam":      replCmds["MasterUserParam"],
+			"MasterPasswordParam":  replCmds["MasterPasswordParam"],
+			"MasterLabel":          masterLabel,
+			"MasterAbbr":           masterAbbr,
+			"SandboxDir":           sandboxDef.SandboxDir,
+			"StopNodeList":         stopNodeList,
+			"RplUser":              sandboxDef.RplUser,
 			"RplPassword":       sandboxDef.RplPassword})
 
 		sandboxDef.DirName = fmt.Sprintf("%s%d", nodeLabel, i)
@@ -375,19 +384,22 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 		}
 		execLists = append(execLists, execList...)
 		var dataNode = common.StringMap{
-			"ShellPath":         sandboxDef.ShellPath,
-			"Copyright":         globals.ShellScriptCopyright,
-			"AppVersion":        common.VersionDef,
-			"DateTime":          timestamp.Format(time.UnixDate),
-			"Node":              i,
-			"NodePort":          sandboxDef.Port,
-			"NodeLabel":         nodeLabel,
-			"MasterLabel":       masterLabel,
-			"MasterAbbr":        masterAbbr,
-			"ChangeMasterExtra": changeMasterExtra,
-			"SlaveLabel":        slaveLabel,
-			"SlaveAbbr":         slaveAbbr,
-			"SandboxDir":        sandboxDef.SandboxDir,
+			"ShellPath":            sandboxDef.ShellPath,
+			"Copyright":            globals.ShellScriptCopyright,
+			"AppVersion":           common.VersionDef,
+			"DateTime":             timestamp.Format(time.UnixDate),
+			"Node":                 i,
+			"NodePort":             sandboxDef.Port,
+			"NodeLabel":            nodeLabel,
+			"MasterLabel":          masterLabel,
+			"MasterAbbr":           masterAbbr,
+			"ChangeMasterExtra":    changeMasterExtra,
+			"ChangeMasterTo":       replCmds["ChangeMasterTo"],
+			"MasterUserParam":      replCmds["MasterUserParam"],
+			"MasterPasswordParam":  replCmds["MasterPasswordParam"],
+			"SlaveLabel":           slaveLabel,
+			"SlaveAbbr":            slaveAbbr,
+			"SandboxDir":           sandboxDef.SandboxDir,
 		}
 		logger.Printf("Create node script for node %d\n", i)
 		err = writeScript(logger, MultipleTemplates, fmt.Sprintf("n%d", i), globals.TmplNode, sandboxDef.SandboxDir, dataNode, true)

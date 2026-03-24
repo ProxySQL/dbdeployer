@@ -17,8 +17,8 @@ package common
 
 import (
 	"fmt"
-	"github.com/datacharmer/dbdeployer/compare"
-	"github.com/datacharmer/dbdeployer/globals"
+	"github.com/ProxySQL/dbdeployer/compare"
+	"github.com/ProxySQL/dbdeployer/globals"
 	"os"
 	"strings"
 	"testing"

@@ -23,9 +23,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/datacharmer/dbdeployer/common"
-	"github.com/datacharmer/dbdeployer/defaults"
-	"github.com/datacharmer/dbdeployer/globals"
+	"github.com/ProxySQL/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/defaults"
+	"github.com/ProxySQL/dbdeployer/globals"
 )
 
 type TemplateDesc struct {

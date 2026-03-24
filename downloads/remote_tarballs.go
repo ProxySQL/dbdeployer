@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/datacharmer/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/common"
 	"jaytaylor.com/html2text"
 )
 

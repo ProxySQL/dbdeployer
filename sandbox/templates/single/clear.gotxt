@@ -17,10 +17,15 @@ then
         echo "set sql_mode=ansi_quotes;drop database \"$D\"" | ./use
     done
     VERSION={{.Version}}
+    sortable_version=$(echo "$VERSION" | awk -F. '{printf "%03d%03d%03d", $1, $2, $3}')
     is_slave=$(ls data | grep relay)
     if [ -n "$is_slave" ]
     then
-        ./use -e "stop slave; reset slave;"
+        if [[ "v$sortable_version" > "v008000022" ]] || [[ "v$sortable_version" == "v008000022" ]]; then
+            ./use -e "stop replica; reset replica;"
+        else
+            ./use -e "stop slave; reset slave;"
+        fi
     fi
     if [[ "$VERSION" > "5.1" ]]
     then

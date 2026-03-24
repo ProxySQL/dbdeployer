@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/datacharmer/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/common"
 )
 
 func getCmdOutput(cmdText string) string {

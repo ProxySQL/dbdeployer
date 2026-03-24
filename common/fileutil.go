@@ -37,7 +37,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/datacharmer/dbdeployer/globals"
+	"github.com/ProxySQL/dbdeployer/globals"
 )
 
 type SandboxUser struct {

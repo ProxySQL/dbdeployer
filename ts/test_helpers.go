@@ -18,7 +18,7 @@ package ts
 import (
 	"regexp"
 
-	"github.com/datacharmer/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/common"
 	"github.com/rogpeppe/go-internal/testscript"
 	"golang.org/x/exp/constraints"
 )

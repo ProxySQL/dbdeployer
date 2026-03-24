@@ -18,7 +18,7 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/datacharmer/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/common"
 	"os"
 )
 

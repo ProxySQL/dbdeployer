@@ -20,13 +20,13 @@ import (
 	"regexp"
 
 	"github.com/alexeyco/simpletable"
-	"github.com/datacharmer/dbdeployer/ops"
+	"github.com/ProxySQL/dbdeployer/ops"
 
-	"github.com/datacharmer/dbdeployer/globals"
+	"github.com/ProxySQL/dbdeployer/globals"
 	"github.com/spf13/cobra"
 
-	"github.com/datacharmer/dbdeployer/common"
-	"github.com/datacharmer/dbdeployer/defaults"
+	"github.com/ProxySQL/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/defaults"
 )
 
 func showDefaults(cmd *cobra.Command, args []string) {
