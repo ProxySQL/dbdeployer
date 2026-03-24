@@ -37,6 +37,7 @@ func replicationCommands(version string) map[string]string {
 		"StartReplica":        "START SLAVE",
 		"StopReplica":         "STOP SLAVE",
 		"ResetReplica":        "RESET SLAVE",
+		"ResetMasterCmd":      "reset master",
 		"MasterPosWaitFunc":   "master_pos_wait",
 		"MasterHostParam":     "master_host",
 		"MasterPortParam":     "master_port",
@@ -65,6 +66,11 @@ func replicationCommands(version string) map[string]string {
 	useBinaryLogStatus, _ := common.GreaterOrEqualVersion(version, globals.MinimumShowBinaryLogStatusVersion)
 	if useBinaryLogStatus {
 		cmds["ShowMasterStatus"] = "show binary log status"
+	}
+
+	useResetBinaryLogs, _ := common.GreaterOrEqualVersion(version, globals.MinimumResetBinaryLogsVersion)
+	if useResetBinaryLogs {
+		cmds["ResetMasterCmd"] = "RESET BINARY LOGS AND GTIDS"
 	}
 
 	return cmds
@@ -269,6 +275,7 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 		"StartReplica":        replCmds["StartReplica"],
 		"StopReplica":         replCmds["StopReplica"],
 		"ResetReplica":        replCmds["ResetReplica"],
+		"ResetMasterCmd":      replCmds["ResetMasterCmd"],
 		"MasterPosWaitFunc":   replCmds["MasterPosWaitFunc"],
 		"MasterHostParam":     replCmds["MasterHostParam"],
 		"MasterPortParam":     replCmds["MasterPortParam"],
@@ -376,6 +383,7 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 			"MasterUserParam":     replCmds["MasterUserParam"],
 			"MasterPasswordParam": replCmds["MasterPasswordParam"],
 			"MasterPosWaitFunc":   replCmds["MasterPosWaitFunc"],
+			"ResetMasterCmd":      replCmds["ResetMasterCmd"],
 		})
 		sandboxDef.LoadGrants = false
 		sandboxDef.Prompt = fmt.Sprintf("%s%d", slaveLabel, i)
@@ -446,6 +454,7 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 			"MasterUserParam":     replCmds["MasterUserParam"],
 			"MasterPasswordParam": replCmds["MasterPasswordParam"],
 			"MasterPosWaitFunc":   replCmds["MasterPosWaitFunc"],
+			"ResetMasterCmd":      replCmds["ResetMasterCmd"],
 		}
 		logger.Printf("Defining replication node data: %v\n", stringMapToJson(dataSlave))
 		logger.Printf("Create slave script %d\n", i)

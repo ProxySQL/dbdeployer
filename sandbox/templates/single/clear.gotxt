@@ -43,7 +43,12 @@ fi
 is_master=$(ls data | grep 'mysql-bin')
 if [ -n "$is_master" ]
 then
-    ./use -e 'reset master'
+    minimum_version_reset_binary_logs="008004000"
+    if [[ "v$sortable_version" > "v$minimum_version_reset_binary_logs" ]] || [[ "v$sortable_version" == "v$minimum_version_reset_binary_logs" ]]; then
+        ./use -e 'RESET BINARY LOGS AND GTIDS'
+    else
+        ./use -e 'reset master'
+    fi
 fi
 
 ./stop

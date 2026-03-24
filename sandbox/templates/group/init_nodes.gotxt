@@ -8,7 +8,7 @@ multi_sb={{.SandboxDir}}
 {{end}}
 [ -z "$SLEEP_TIME" ] && SLEEP_TIME=1
 {{range .Nodes}}
-    user_cmd='reset master;'
+    user_cmd='{{.ResetMasterCmd}};'
     user_cmd="$user_cmd {{.ChangeMasterTo}} {{.MasterUserParam}}='rsandbox', {{.MasterPasswordParam}}='rsandbox' {{.ChangeMasterExtra}} FOR CHANNEL 'group_replication_recovery';"
 	echo "# Node {{.Node}} # $user_cmd"
     $multi_sb/{{.NodeLabel}}{{.Node}}/use -u root -e "$user_cmd"
