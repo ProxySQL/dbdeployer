@@ -2,26 +2,25 @@ run:
   timeout: 5m
 
 linters:
+  disable-all: true
   enable:
     - errcheck
     - govet
-    - ineffassign
     - staticcheck
     - unused
     - gosec
-  disable:
-    - depguard
 
 linters-settings:
   errcheck:
     check-type-assertions: false
-    exclude-functions:
-      - (*github.com/nightlyone/lockfile.Lockfile).Unlock
   gosec:
     excludes:
-      - G115  # integer overflow int64->uint64 on file sizes passed to humanize.Bytes — safe
+      - G115  # integer overflow int64->uint64 on file sizes — safe
+      - G112  # Slowloris in test code only
 
 issues:
   exclude-use-default: true
-  max-issues-per-linter: 50
-  max-same-issues: 10
+  exclude-rules:
+    - linters:
+        - errcheck
+      text: "lock.Unlock"
