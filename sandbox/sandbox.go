@@ -712,6 +712,14 @@ func createSingleSandbox(sandboxDef SandboxDef) (execList []concurrent.Execution
 		"HistoryDir":           sandboxDef.HistoryDir,
 	}
 
+	// Use version-appropriate replication syntax for connection info
+	replCmds := replicationCommands(sandboxDef.Version)
+	data["ChangeMasterTo"] = replCmds["ChangeMasterTo"]
+	data["MasterHostParam"] = replCmds["MasterHostParam"]
+	data["MasterPortParam"] = replCmds["MasterPortParam"]
+	data["MasterUserParam"] = replCmds["MasterUserParam"]
+	data["MasterPasswordParam"] = replCmds["MasterPasswordParam"]
+
 	if sandboxDef.TaskUser != "" {
 		if sandboxDef.TaskUserRole == "" {
 			return emptyExecutionList, fmt.Errorf("task user defined but task role is empty")
