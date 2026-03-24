@@ -1,0 +1,251 @@
+---
+---
+
+<section class="terminal-section">
+  <div class="terminal-container">
+    <div class="terminal-header-text">
+      <h2 class="terminal-title">See it in action</h2>
+      <p class="terminal-subtitle">
+        Deploy a full MySQL 8.4 replication topology in one command,
+        then connect to the primary and run queries.
+      </p>
+    </div>
+
+    <div class="terminal-window">
+      <!-- Window chrome -->
+      <div class="terminal-chrome">
+        <div class="terminal-dots">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+        </div>
+        <span class="terminal-title-bar">bash</span>
+      </div>
+
+      <!-- Terminal body -->
+      <div class="terminal-body" role="region" aria-label="Terminal demo">
+        <div class="terminal-line">
+          <span class="t-prompt">$</span>
+          <span class="t-cmd"> dbdeployer deploy replication 8.4.4</span>
+        </div>
+        <div class="terminal-line t-output">
+          <span class="t-success">✓</span> Primary deployed <span class="t-muted">(port:</span> <span class="t-port">8404</span><span class="t-muted">)</span>
+        </div>
+        <div class="terminal-line t-output">
+          <span class="t-success">✓</span> Replica 1 deployed <span class="t-muted">(port:</span> <span class="t-port">8405</span><span class="t-muted">)</span>
+        </div>
+        <div class="terminal-line t-output">
+          <span class="t-success">✓</span> Replica 2 deployed <span class="t-muted">(port:</span> <span class="t-port">8406</span><span class="t-muted">)</span>
+        </div>
+        <div class="terminal-line t-spacer"></div>
+        <div class="terminal-line">
+          <span class="t-prompt">$</span>
+          <span class="t-cmd"> ~/sandboxes/rsandbox_8_4_4/m</span>
+          <span class="t-comment">  # connect to primary</span>
+        </div>
+        <div class="terminal-line">
+          <span class="t-mysql-prompt">mysql&gt;</span>
+          <span class="t-sql"> SELECT @@version;</span>
+        </div>
+        <div class="terminal-line t-output">
+          <pre class="t-table">+-----------+
+| @@version |
++-----------+
+| 8.4.4     |
++-----------+
+1 row in set (0.00 sec)</pre>
+        </div>
+        <div class="terminal-line t-spacer"></div>
+        <div class="terminal-line">
+          <span class="t-prompt">$</span>
+          <span class="t-cmd"> ~/sandboxes/rsandbox_8_4_4/check_slaves</span>
+        </div>
+        <div class="terminal-line t-output">
+          <span class="t-success">✓</span> <span class="t-muted">node1: Slave running — Seconds_Behind_Master: 0</span>
+        </div>
+        <div class="terminal-line t-output">
+          <span class="t-success">✓</span> <span class="t-muted">node2: Slave running — Seconds_Behind_Master: 0</span>
+        </div>
+        <div class="terminal-cursor" aria-hidden="true"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .terminal-section {
+    padding: var(--section-padding);
+    background-color: var(--color-bg);
+  }
+
+  .terminal-container {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 3.5rem;
+    align-items: center;
+  }
+
+  .terminal-header-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .terminal-title {
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: 1.25;
+  }
+
+  .terminal-subtitle {
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  /* Terminal window */
+  .terminal-window {
+    background-color: var(--color-code-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,0.04);
+  }
+
+  .terminal-chrome {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background-color: #1a2234;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .terminal-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .dot-red    { background-color: #ff5f57; }
+  .dot-yellow { background-color: #febc2e; }
+  .dot-green  { background-color: #28c840; }
+
+  .terminal-title-bar {
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    flex: 1;
+    text-align: center;
+  }
+
+  .terminal-body {
+    padding: 1.25rem 1.5rem 1.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.83rem;
+    line-height: 1.6;
+  }
+
+  .terminal-line {
+    display: flex;
+    align-items: baseline;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+
+  .t-spacer {
+    height: 0.75rem;
+  }
+
+  .t-output {
+    padding-left: 1.2rem;
+    color: var(--color-text-muted);
+  }
+
+  .t-prompt {
+    color: var(--color-green);
+    font-weight: 700;
+    user-select: none;
+  }
+
+  .t-mysql-prompt {
+    color: #f59e0b;
+    font-weight: 600;
+    user-select: none;
+  }
+
+  .t-cmd {
+    color: var(--color-text);
+  }
+
+  .t-sql {
+    color: #93c5fd;
+  }
+
+  .t-comment {
+    color: #475569;
+    margin-left: 0.25rem;
+    font-style: italic;
+  }
+
+  .t-success {
+    color: var(--color-green);
+    margin-right: 0.4rem;
+  }
+
+  .t-port {
+    color: #f59e0b;
+  }
+
+  .t-muted {
+    color: var(--color-text-muted);
+  }
+
+  .t-table {
+    font-family: var(--font-mono);
+    font-size: 0.83rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0.25rem 0;
+    white-space: pre;
+  }
+
+  .terminal-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 1em;
+    background-color: var(--color-accent-light);
+    animation: blink 1.2s step-end infinite;
+    vertical-align: text-bottom;
+    margin-left: 2px;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+  }
+
+  @media (max-width: 800px) {
+    .terminal-container {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .terminal-body {
+      font-size: 0.72rem;
+      padding: 1rem;
+    }
+  }
+</style>

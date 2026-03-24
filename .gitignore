@@ -10,3 +10,7 @@ test/sort_versions.linux
 dbdeployer-*.osx*
 dbdeployer-*.linux*
 ts/testdata/
+.worktrees/
+website/node_modules/
+website/dist/
+website/.astro/
