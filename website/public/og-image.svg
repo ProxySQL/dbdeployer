@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0d1117"/>
+  <rect x="0" y="0" width="1200" height="4" fill="#00d4aa"/>
+  <text x="600" y="260" font-family="monospace, sans-serif" font-size="80" font-weight="bold" fill="#00d4aa" text-anchor="middle">dbdeployer</text>
+  <text x="600" y="350" font-family="monospace, sans-serif" font-size="32" fill="#8b949e" text-anchor="middle">Deploy MySQL sandboxes in seconds</text>
+  <text x="600" y="420" font-family="monospace, sans-serif" font-size="24" fill="#58a6ff" text-anchor="middle">github.com/datacharmer/dbdeployer</text>
+</svg>
