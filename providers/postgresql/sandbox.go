@@ -28,8 +28,12 @@ func (p *PostgreSQLProvider) CreateSandbox(config providers.SandboxConfig) (*pro
 	}
 
 	// Run initdb
+	// Use -L to point to our extracted share directory. Deb-packaged initdb
+	// looks for share data relative to its compiled --prefix (/usr), which
+	// won't match our extracted layout at ~/opt/postgresql/<version>/share/.
+	shareDir := filepath.Join(basedir, "share")
 	initdbPath := filepath.Join(binDir, "initdb")
-	initCmd := exec.Command(initdbPath, "-D", dataDir, "--auth=trust", "--username=postgres")
+	initCmd := exec.Command(initdbPath, "-D", dataDir, "--auth=trust", "--username=postgres", "-L", shareDir)
 	initCmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", libDir))
 	if output, err := initCmd.CombinedOutput(); err != nil {
 		os.RemoveAll(config.Dir) // cleanup on failure
