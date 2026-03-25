@@ -1,30 +1,115 @@
 # dbdeployer
 
-[DBdeployer](https://github.com/ProxySQL/dbdeployer) is a tool that deploys MySQL database servers easily.
-This is a port of [MySQL-Sandbox](https://github.com/datacharmer/mysql-sandbox), originally written in Perl, and re-designed from the ground up in [Go](https://golang.org). See the [features comparison](https://github.com/ProxySQL/dbdeployer/blob/master/docs/features.md) for more detail.
+**Deploy MySQL & PostgreSQL sandboxes in seconds.**
 
-## New Maintainer
+[dbdeployer](https://github.com/ProxySQL/dbdeployer) deploys database servers locally for development and testing — single instances, replication topologies, and full stacks with [ProxySQL](https://proxysql.com). No root, no Docker, no hassle.
 
-As of 2026, dbdeployer is actively maintained by the [ProxySQL](https://github.com/ProxySQL) team, with the blessing of the original creator [Giuseppe Maxia](https://github.com/datacharmer). We are grateful for Giuseppe's years of work on this project.
+Originally a Go rewrite of [MySQL-Sandbox](https://github.com/datacharmer/mysql-sandbox), now maintained by the [ProxySQL](https://github.com/ProxySQL) team.
 
-**Roadmap:**
-- Modern MySQL support (8.4 LTS, 9.x Innovation releases)
-- ProxySQL and Orchestrator integration as deployment providers
-- Provider-based architecture for extensibility
-- PostgreSQL support (long-term)
+**[Website](https://proxysql.github.io/dbdeployer/)** · **[Quick Start](#quick-start)** · **[Documentation](https://proxysql.github.io/dbdeployer/getting-started/installation/)**
 
-See the [Phase 1 milestone](https://github.com/ProxySQL/dbdeployer/milestone/1) for current progress.
+![CI](https://github.com/ProxySQL/dbdeployer/actions/workflows/all_tests.yml/badge.svg)
+![Integration](https://github.com/ProxySQL/dbdeployer/actions/workflows/integration_tests.yml/badge.svg)
 
-Documentation updated for version 1.74.0 (23-Mar-2026)
+## Install
 
-![Build Status](https://github.com/ProxySQL/dbdeployer/workflows/.github/workflows/all_tests.yml/badge.svg)
+```bash
+curl -s https://raw.githubusercontent.com/ProxySQL/dbdeployer/master/scripts/dbdeployer-install.sh | bash
+```
+
+## Quick Start
+
+### MySQL
+
+```bash
+# Download and unpack MySQL 8.4
+dbdeployer downloads get-by-version 8.4 --newest --minimal
+dbdeployer unpack mysql-8.4.8-*.tar.xz
+
+# Deploy a single sandbox
+dbdeployer deploy single 8.4.8
+~/sandboxes/msb_8_4_8/use -e "SELECT VERSION();"
+
+# Deploy replication (1 master + 2 slaves)
+dbdeployer deploy replication 8.4.8
+~/sandboxes/rsandbox_8_4_8/check_slaves
+
+# Deploy replication + ProxySQL (read/write split)
+dbdeployer deploy replication 8.4.8 --with-proxysql
+~/sandboxes/rsandbox_8_4_8/proxysql/use_proxy
+```
+
+### PostgreSQL
+
+```bash
+# Install PostgreSQL and set up binaries
+sudo apt-get install postgresql-16 postgresql-client-16
+sudo systemctl stop postgresql
+PG_VER=$(dpkg -s postgresql-16 | grep '^Version:' | sed 's/Version: //' | cut -d'-' -f1)
+mkdir -p ~/opt/postgresql/${PG_VER}/{bin,lib,share}
+cp -a /usr/lib/postgresql/16/bin/. ~/opt/postgresql/${PG_VER}/bin/
+cp -a /usr/lib/postgresql/16/lib/. ~/opt/postgresql/${PG_VER}/lib/
+cp -a /usr/share/postgresql/16/. ~/opt/postgresql/${PG_VER}/share/
+
+# Deploy a single sandbox
+dbdeployer deploy postgresql $PG_VER
+~/sandboxes/pg_sandbox_*/use -c "SELECT version();"
+
+# Deploy streaming replication
+dbdeployer deploy replication $PG_VER --provider=postgresql
+```
+
+### Web Admin UI
+
+```bash
+# Launch a visual dashboard to manage all your sandboxes
+dbdeployer admin ui
+```
+
+## Supported Databases
+
+| Provider | Single | Replication | Group Replication | ProxySQL Wiring |
+|----------|:------:|:-----------:|:-----------------:|:---------------:|
+| **MySQL** (8.0, 8.4, 9.x) | ✓ | ✓ | ✓ | ✓ |
+| **PostgreSQL** (12+) | ✓ | ✓ (streaming) | — | ✓ |
+| **ProxySQL** | ✓ | — | — | — |
+| Percona Server | ✓ | ✓ | ✓ | ✓ |
+| MariaDB | ✓ | ✓ | — | ✓ |
+| NDB Cluster | ✓ | ✓ | — | — |
+| Percona XtraDB Cluster | ✓ | ✓ | — | — |
+
+## Key Features
+
+- **Any topology** — single, replication, group replication, fan-in, all-masters
+- **Multiple databases** — MySQL, PostgreSQL, Percona, MariaDB via provider architecture
+- **ProxySQL integration** — `--with-proxysql` wires read/write split into any topology
+- **Web admin UI** — `dbdeployer admin ui` for visual sandbox management
+- **No root, no Docker** — runs entirely in userspace with self-contained directories
+- **Modern MySQL** — full support for 8.4 LTS and 9.x Innovation releases
+
+## Documentation
+
+Full documentation is available at **[proxysql.github.io/dbdeployer](https://proxysql.github.io/dbdeployer/)**.
+
+### Quick Start Guides
+
+- [MySQL Single Sandbox](https://proxysql.github.io/dbdeployer/getting-started/quickstart-mysql-single/) — deploy, connect, clean up
+- [MySQL Replication](https://proxysql.github.io/dbdeployer/getting-started/quickstart-mysql-replication/) — master + slaves in one command
+- [PostgreSQL](https://proxysql.github.io/dbdeployer/getting-started/quickstart-postgresql/) — deb extraction, single + replication
+- [ProxySQL Integration](https://proxysql.github.io/dbdeployer/getting-started/quickstart-proxysql/) — read/write split testing
+
+### Provider Guides
+
+- [MySQL Provider](https://proxysql.github.io/dbdeployer/providers/mysql/) — tarballs, flavors, all topologies
+- [PostgreSQL Provider](https://proxysql.github.io/dbdeployer/providers/postgresql/) — deb binaries, streaming replication, limitations
+- [ProxySQL Provider](https://proxysql.github.io/dbdeployer/providers/proxysql/) — standalone and topology-integrated deployment
+- [Provider Comparison](https://proxysql.github.io/dbdeployer/providers/) — capabilities matrix
+
+### Reference
 
 - [Installation](docs/wiki/installation.md)
-    - [Manual installation]((docs/wiki/installation.md#manual-installation)
-    - [Installation via script]((docs/wiki/installation.md#installation-via-script)
 - [Prerequisites](docs/wiki/prerequisites.md)
 - [Initializing the environment](docs/wiki/initializing-the-environment.md)
-- [Updating dbdeployer](docs/wiki/updating-dbdeployer.md)
 - [Main operations](docs/wiki/main-operations.md)
     - [Overview]((docs/wiki/main-operations.md#overview)
     - [Unpack]((docs/wiki/main-operations.md#unpack)
@@ -81,5 +166,8 @@ Documentation updated for version 1.74.0 (23-Mar-2026)
 - [Command line completion](docs/wiki/command-line-completion.md)
 - [Using dbdeployer source for other projects](docs/wiki/using-dbdeployer-source-for-other-projects.md)
 - [Exporting dbdeployer structure](docs/wiki/exporting-dbdeployer-structure.md)
-- [Semantic versioning](docs/wiki/semantic-versioning.md)
-- [Do not edit](docs/wiki/do-not-edit.md)
+## Maintainer
+
+Maintained by the [ProxySQL](https://proxysql.com) team since 2026, with the blessing of original creator [Giuseppe Maxia](https://github.com/datacharmer).
+
+Licensed under the [Apache License 2.0](LICENSE).
