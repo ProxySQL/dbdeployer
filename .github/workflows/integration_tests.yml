@@ -88,6 +88,116 @@ jobs:
           ./dbdeployer delete all --skip-confirm 2>/dev/null || true
           pkill -9 -u "$USER" mysqld 2>/dev/null || true
 
+  # Test PostgreSQL provider: deb extraction, single sandbox, replication,
+  # cross-database validation.
+  postgresql-test:
+    name: PostgreSQL ${{ matrix.pg-version }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        pg-version: ['16']
+    env:
+      GO111MODULE: on
+      PG_VERSION: ${{ matrix.pg-version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Add PostgreSQL apt repo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl ca-certificates
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Cache PostgreSQL debs
+        uses: actions/cache@v4
+        with:
+          path: /tmp/pg-debs
+          key: pg-${{ matrix.pg-version }}-debs-v1
+
+      - name: Download PostgreSQL debs
+        run: |
+          mkdir -p /tmp/pg-debs
+          cd /tmp/pg-debs
+          if [ ! -f postgresql-${PG_VERSION}_*.deb ]; then
+            apt-get download postgresql-${PG_VERSION} postgresql-client-${PG_VERSION}
+          fi
+          ls -lh *.deb
+
+      - name: Test unpack --provider=postgresql
+        run: |
+          echo "=== Unpacking PostgreSQL debs ==="
+          ./dbdeployer unpack --provider=postgresql /tmp/pg-debs/postgresql-${PG_VERSION}_*.deb /tmp/pg-debs/postgresql-client-${PG_VERSION}_*.deb
+          echo "=== Checking binaries ==="
+          ls ~/opt/postgresql/*/bin/
+
+      - name: Test deploy postgresql (single)
+        run: |
+          PG_FULL=$(ls ~/opt/postgresql/ | head -1)
+          echo "=== Deploying PostgreSQL $PG_FULL single ==="
+          ./dbdeployer deploy postgresql "$PG_FULL"
+          echo "=== Connecting ==="
+          ~/sandboxes/pg_sandbox_*/use -c "SELECT version();"
+          echo "=== Status ==="
+          ~/sandboxes/pg_sandbox_*/status
+          echo "=== Stop + Start ==="
+          ~/sandboxes/pg_sandbox_*/stop
+          ~/sandboxes/pg_sandbox_*/start
+          sleep 2
+          ~/sandboxes/pg_sandbox_*/use -c "SELECT 1;"
+          echo "=== Cleanup ==="
+          ~/sandboxes/pg_sandbox_*/stop
+          rm -rf ~/sandboxes/pg_sandbox_*
+
+      - name: Test deploy replication --provider=postgresql
+        run: |
+          PG_FULL=$(ls ~/opt/postgresql/ | head -1)
+          echo "=== Deploying PostgreSQL $PG_FULL replication ==="
+          ./dbdeployer deploy replication "$PG_FULL" --provider=postgresql --nodes=3
+          echo "=== Checking topology dir ==="
+          ls ~/sandboxes/postgresql_repl_*/
+          echo "=== Check replication ==="
+          bash ~/sandboxes/postgresql_repl_*/check_replication || true
+          echo "=== Check recovery ==="
+          bash ~/sandboxes/postgresql_repl_*/check_recovery || true
+          echo "=== Primary: write test ==="
+          ~/sandboxes/postgresql_repl_*/primary/use -c "CREATE TABLE test_repl(id serial, val text); INSERT INTO test_repl(val) VALUES ('hello');"
+          sleep 2
+          echo "=== Replica 1: read test ==="
+          ~/sandboxes/postgresql_repl_*/replica1/use -c "SELECT * FROM test_repl;"
+          echo "=== Replica 2: read test ==="
+          ~/sandboxes/postgresql_repl_*/replica2/use -c "SELECT * FROM test_repl;"
+
+      - name: Test cross-database validation
+        run: |
+          PG_FULL=$(ls ~/opt/postgresql/ | head -1)
+          echo "=== Test: --flavor with --provider=postgresql should fail ==="
+          if ./dbdeployer deploy single "$PG_FULL" --provider=postgresql --flavor=ndb 2>&1; then
+            echo "ERROR: should have failed"
+            exit 1
+          else
+            echo "OK: correctly rejected --flavor with --provider=postgresql"
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: |
+          for dir in ~/sandboxes/pg_sandbox_* ~/sandboxes/postgresql_*; do
+            [ -d "$dir" ] && bash "$dir/stop" 2>/dev/null || true
+            rm -rf "$dir"
+          done 2>/dev/null || true
+          pkill -9 -u "$USER" postgres 2>/dev/null || true
+
   # Test the "downloads get-by-version" + "unpack" flow that users follow
   # from the quickstart guide. This catches registry gaps and download issues.
   downloads-test:

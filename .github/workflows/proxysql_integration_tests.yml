@@ -83,3 +83,67 @@ jobs:
           ./dbdeployer delete all --skip-confirm 2>/dev/null || true
           pkill -9 -u "$USER" proxysql 2>/dev/null || true
           pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
+  # Test ProxySQL + PostgreSQL wiring
+  proxysql-postgresql:
+    name: ProxySQL + PostgreSQL
+    runs-on: ubuntu-22.04
+    env:
+      GO111MODULE: on
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Add PostgreSQL apt repo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl ca-certificates
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+
+      - name: Install ProxySQL
+        run: |
+          PROXYSQL_VERSION="3.0.6"
+          wget -nv -O /tmp/proxysql.deb \
+            "https://github.com/sysown/proxysql/releases/download/v${PROXYSQL_VERSION}/proxysql_${PROXYSQL_VERSION}-ubuntu22_amd64.deb"
+          mkdir -p /tmp/proxysql-extract
+          dpkg-deb -x /tmp/proxysql.deb /tmp/proxysql-extract
+          sudo cp /tmp/proxysql-extract/usr/bin/proxysql /usr/local/bin/proxysql
+          sudo chmod +x /usr/local/bin/proxysql
+          which proxysql
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Download and unpack PostgreSQL debs
+        run: |
+          mkdir -p /tmp/pg-debs && cd /tmp/pg-debs
+          apt-get download postgresql-16 postgresql-client-16
+          cd -
+          ./dbdeployer unpack --provider=postgresql /tmp/pg-debs/postgresql-16_*.deb /tmp/pg-debs/postgresql-client-16_*.deb
+
+      - name: Test replication with --with-proxysql
+        run: |
+          PG_FULL=$(ls ~/opt/postgresql/ | head -1)
+          echo "=== Deploying PostgreSQL $PG_FULL replication + ProxySQL ==="
+          ./dbdeployer deploy replication "$PG_FULL" --provider=postgresql --with-proxysql
+          echo "=== Check ProxySQL is running ==="
+          ~/sandboxes/postgresql_repl_*/proxysql/status
+          echo "=== Connect through ProxySQL ==="
+          ~/sandboxes/postgresql_repl_*/proxysql/use_proxy -c "SELECT 1;"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          for dir in ~/sandboxes/postgresql_*; do
+            [ -d "$dir/proxysql" ] && bash "$dir/proxysql/stop" 2>/dev/null || true
+            [ -d "$dir" ] && bash "$dir/stop" 2>/dev/null || true
+            rm -rf "$dir"
+          done 2>/dev/null || true
+          pkill -9 -u "$USER" proxysql 2>/dev/null || true
+          pkill -9 -u "$USER" postgres 2>/dev/null || true
