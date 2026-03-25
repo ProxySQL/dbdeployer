@@ -125,13 +125,13 @@ jobs:
           sudo apt-get install -y postgresql-${PG_VERSION} postgresql-client-${PG_VERSION}
           # Stop the system service — we'll manage our own instances
           sudo systemctl stop postgresql || true
-          # Copy binaries into dbdeployer's expected layout
-          PG_FULL=$(pg_config --version | grep -oP '\d+\.\d+')
-          mkdir -p ~/opt/postgresql/${PG_FULL}/bin ~/opt/postgresql/${PG_FULL}/lib ~/opt/postgresql/${PG_FULL}/share
-          sudo cp /usr/lib/postgresql/${PG_VERSION}/bin/* ~/opt/postgresql/${PG_FULL}/bin/
-          sudo cp -a /usr/lib/postgresql/${PG_VERSION}/lib/* ~/opt/postgresql/${PG_FULL}/lib/
-          sudo cp -a /usr/share/postgresql/${PG_VERSION}/* ~/opt/postgresql/${PG_FULL}/share/
-          echo "=== PostgreSQL ${PG_FULL} binaries ready ==="
+          # Get full version and copy binaries into dbdeployer's expected layout
+          PG_FULL=$(dpkg -s postgresql-${PG_VERSION} | grep '^Version:' | grep -oP '\d+\.\d+')
+          echo "PostgreSQL version: ${PG_FULL}"
+          mkdir -p ~/opt/postgresql/${PG_FULL}/{bin,lib,share}
+          cp /usr/lib/postgresql/${PG_VERSION}/bin/* ~/opt/postgresql/${PG_FULL}/bin/
+          cp -r /usr/lib/postgresql/${PG_VERSION}/lib/. ~/opt/postgresql/${PG_FULL}/lib/
+          cp -r /usr/share/postgresql/${PG_VERSION}/. ~/opt/postgresql/${PG_FULL}/share/
           ls ~/opt/postgresql/${PG_FULL}/bin/
 
       - name: Test deploy postgresql (single)
