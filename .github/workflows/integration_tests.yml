@@ -119,27 +119,20 @@ jobs:
       - name: Build dbdeployer
         run: go build -o dbdeployer .
 
-      - name: Cache PostgreSQL debs
-        uses: actions/cache@v4
-        with:
-          path: /tmp/pg-debs
-          key: pg-${{ matrix.pg-version }}-debs-v1
-
-      - name: Download PostgreSQL debs
+      - name: Install PostgreSQL and set up binaries
         run: |
-          mkdir -p /tmp/pg-debs
-          cd /tmp/pg-debs
-          if [ ! -f postgresql-${PG_VERSION}_*.deb ]; then
-            apt-get download postgresql-${PG_VERSION} postgresql-client-${PG_VERSION}
-          fi
-          ls -lh *.deb
-
-      - name: Test unpack --provider=postgresql
-        run: |
-          echo "=== Unpacking PostgreSQL debs ==="
-          ./dbdeployer unpack --provider=postgresql /tmp/pg-debs/postgresql-${PG_VERSION}_*.deb /tmp/pg-debs/postgresql-client-${PG_VERSION}_*.deb
-          echo "=== Checking binaries ==="
-          ls ~/opt/postgresql/*/bin/
+          # Install PostgreSQL to get properly configured binaries
+          sudo apt-get install -y postgresql-${PG_VERSION} postgresql-client-${PG_VERSION}
+          # Stop the system service — we'll manage our own instances
+          sudo systemctl stop postgresql || true
+          # Copy binaries into dbdeployer's expected layout
+          PG_FULL=$(pg_config --version | grep -oP '\d+\.\d+')
+          mkdir -p ~/opt/postgresql/${PG_FULL}/bin ~/opt/postgresql/${PG_FULL}/lib ~/opt/postgresql/${PG_FULL}/share
+          sudo cp /usr/lib/postgresql/${PG_VERSION}/bin/* ~/opt/postgresql/${PG_FULL}/bin/
+          sudo cp -a /usr/lib/postgresql/${PG_VERSION}/lib/* ~/opt/postgresql/${PG_FULL}/lib/
+          sudo cp -a /usr/share/postgresql/${PG_VERSION}/* ~/opt/postgresql/${PG_FULL}/share/
+          echo "=== PostgreSQL ${PG_FULL} binaries ready ==="
+          ls ~/opt/postgresql/${PG_FULL}/bin/
 
       - name: Test deploy postgresql (single)
         run: |

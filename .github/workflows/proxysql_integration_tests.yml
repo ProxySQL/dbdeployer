@@ -120,12 +120,15 @@ jobs:
       - name: Build dbdeployer
         run: go build -o dbdeployer .
 
-      - name: Download and unpack PostgreSQL debs
+      - name: Install PostgreSQL and set up binaries
         run: |
-          mkdir -p /tmp/pg-debs && cd /tmp/pg-debs
-          apt-get download postgresql-16 postgresql-client-16
-          cd -
-          ./dbdeployer unpack --provider=postgresql /tmp/pg-debs/postgresql-16_*.deb /tmp/pg-debs/postgresql-client-16_*.deb
+          sudo apt-get install -y postgresql-16 postgresql-client-16
+          sudo systemctl stop postgresql || true
+          PG_FULL=$(pg_config --version | grep -oP '\d+\.\d+')
+          mkdir -p ~/opt/postgresql/${PG_FULL}/bin ~/opt/postgresql/${PG_FULL}/lib ~/opt/postgresql/${PG_FULL}/share
+          sudo cp /usr/lib/postgresql/16/bin/* ~/opt/postgresql/${PG_FULL}/bin/
+          sudo cp -a /usr/lib/postgresql/16/lib/* ~/opt/postgresql/${PG_FULL}/lib/
+          sudo cp -a /usr/share/postgresql/16/* ~/opt/postgresql/${PG_FULL}/share/
 
       - name: Test replication with --with-proxysql
         run: |
