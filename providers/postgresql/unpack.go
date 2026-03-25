@@ -85,7 +85,7 @@ func UnpackDebs(serverDeb, clientDeb, targetDir string) error {
 		if _, err := os.Stat(c.src); os.IsNotExist(err) {
 			continue
 		}
-		cmd := exec.Command("cp", "-a", c.src+"/.", c.dst+"/")
+		cmd := exec.Command("cp", "-a", c.src+"/.", c.dst+"/") //nolint:gosec // paths are from controlled deb extraction
 		if output, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("copying %s to %s: %s: %w", c.src, c.dst, string(output), err)
 		}
@@ -99,7 +99,7 @@ func UnpackDebs(serverDeb, clientDeb, targetDir string) error {
 	if err := os.MkdirAll(pgShareCompat, 0755); err != nil {
 		return fmt.Errorf("creating compat share dir: %w", err)
 	}
-	compatCmd := exec.Command("cp", "-a", srcShare+"/.", pgShareCompat+"/")
+	compatCmd := exec.Command("cp", "-a", srcShare+"/.", pgShareCompat+"/") //nolint:gosec // paths are from controlled deb extraction
 	if output, err := compatCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("copying share to compat path: %s: %w", string(output), err)
 	}

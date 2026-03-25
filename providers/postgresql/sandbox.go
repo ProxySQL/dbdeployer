@@ -50,7 +50,7 @@ func (p *PostgreSQLProvider) CreateSandbox(config providers.SandboxConfig) (*pro
 		Replication:     replication,
 	})
 	confPath := filepath.Join(dataDir, "postgresql.conf")
-	if err := os.WriteFile(confPath, []byte(pgConf), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(pgConf), 0600); err != nil {
 		os.RemoveAll(config.Dir)
 		return nil, fmt.Errorf("writing postgresql.conf: %w", err)
 	}
@@ -58,7 +58,7 @@ func (p *PostgreSQLProvider) CreateSandbox(config providers.SandboxConfig) (*pro
 	// Generate and write pg_hba.conf
 	hbaConf := GeneratePgHbaConf(replication)
 	hbaPath := filepath.Join(dataDir, "pg_hba.conf")
-	if err := os.WriteFile(hbaPath, []byte(hbaConf), 0644); err != nil {
+	if err := os.WriteFile(hbaPath, []byte(hbaConf), 0600); err != nil {
 		os.RemoveAll(config.Dir)
 		return nil, fmt.Errorf("writing pg_hba.conf: %w", err)
 	}
@@ -74,7 +74,7 @@ func (p *PostgreSQLProvider) CreateSandbox(config providers.SandboxConfig) (*pro
 	})
 	for name, content := range scripts {
 		scriptPath := filepath.Join(config.Dir, name)
-		if err := os.WriteFile(scriptPath, []byte(content), 0755); err != nil {
+		if err := os.WriteFile(scriptPath, []byte(content), 0755); err != nil { //nolint:gosec // scripts must be executable
 			os.RemoveAll(config.Dir)
 			return nil, fmt.Errorf("writing script %s: %w", name, err)
 		}
