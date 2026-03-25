@@ -91,6 +91,19 @@ func UnpackDebs(serverDeb, clientDeb, targetDir string) error {
 		}
 	}
 
+	// The postgres binary resolves share data relative to its own binary as
+	// ../share/postgresql/<major>/ (compiled-in prefix from deb packaging).
+	// Copy share files there too so both initdb (-L share/) and the postgres
+	// server binary can find timezonesets and other share data.
+	pgShareCompat := filepath.Join(dstShare, "postgresql", major)
+	if err := os.MkdirAll(pgShareCompat, 0755); err != nil {
+		return fmt.Errorf("creating compat share dir: %w", err)
+	}
+	compatCmd := exec.Command("cp", "-a", srcShare+"/.", pgShareCompat+"/")
+	if output, err := compatCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("copying share to compat path: %s: %w", string(output), err)
+	}
+
 	for _, bin := range RequiredBinaries() {
 		binPath := filepath.Join(dstBin, bin)
 		if _, err := os.Stat(binPath); err != nil {
