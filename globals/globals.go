@@ -117,6 +117,10 @@ const (
 	ShellPathLabel = "shell-path"
 	ShellPathValue = "/bin/bash"
 
+	// Provider selection
+	ProviderLabel = "provider"
+	ProviderValue = "mysql" // default provider
+
 	// Instantiated in cmd/info.go
 	EarliestLabel = "earliest"
 	LimitLabel    = "limit"

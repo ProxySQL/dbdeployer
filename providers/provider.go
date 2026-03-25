@@ -1,9 +1,12 @@
 package providers
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 )
+
+var ErrNotSupported = errors.New("operation not supported by this provider")
 
 // SandboxConfig holds provider-agnostic sandbox configuration.
 type SandboxConfig struct {
@@ -38,6 +41,10 @@ type Provider interface {
 	StartSandbox(dir string) error
 	// StopSandbox stops a running sandbox.
 	StopSandbox(dir string) error
+	// SupportedTopologies returns the list of topology names this provider supports.
+	SupportedTopologies() []string
+	// CreateReplica creates a replica sandbox joined to an existing primary.
+	CreateReplica(primary SandboxInfo, config SandboxConfig) (*SandboxInfo, error)
 }
 
 type PortRange struct {
@@ -80,3 +87,18 @@ func (r *Registry) List() []string {
 }
 
 var DefaultRegistry = NewRegistry()
+
+// ContainsString checks if a string slice contains a given value.
+func ContainsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+// CompatibleAddons maps addon names to the list of providers they work with.
+var CompatibleAddons = map[string][]string{
+	"proxysql": {"mysql", "postgresql"},
+}

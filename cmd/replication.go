@@ -17,17 +17,162 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"path"
+	"strings"
 
 	"github.com/ProxySQL/dbdeployer/common"
 	"github.com/ProxySQL/dbdeployer/defaults"
 	"github.com/ProxySQL/dbdeployer/globals"
 	"github.com/ProxySQL/dbdeployer/providers"
+	"github.com/ProxySQL/dbdeployer/providers/postgresql"
 	"github.com/ProxySQL/dbdeployer/sandbox"
 	"github.com/spf13/cobra"
 )
 
+func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName string) {
+	flags := cmd.Flags()
+	version := args[0]
+	nodes, _ := flags.GetInt(globals.NodesLabel)
+
+	p, err := providers.DefaultRegistry.Get(providerName)
+	if err != nil {
+		common.Exitf(1, "provider error: %s", err)
+	}
+
+	flavor, _ := flags.GetString(globals.FlavorLabel)
+	if flavor != "" {
+		common.Exitf(1, "--flavor is only valid with --provider=mysql")
+	}
+
+	if !providers.ContainsString(p.SupportedTopologies(), "replication") {
+		common.Exitf(1, "provider %q does not support topology \"replication\"\nSupported topologies: %s",
+			providerName, strings.Join(p.SupportedTopologies(), ", "))
+	}
+
+	if err := p.ValidateVersion(version); err != nil {
+		common.Exitf(1, "version validation failed: %s", err)
+	}
+
+	if _, err := p.FindBinary(version); err != nil {
+		common.Exitf(1, "binaries not found: %s", err)
+	}
+
+	basePort := p.DefaultPorts().BasePort
+	if providerName == "postgresql" {
+		basePort, _ = postgresql.VersionToPort(version)
+	}
+
+	sandboxHome := defaults.Defaults().SandboxHome
+	topologyDir := path.Join(sandboxHome, fmt.Sprintf("%s_repl_%d", providerName, basePort))
+	if common.DirExists(topologyDir) {
+		common.Exitf(1, "sandbox directory %s already exists", topologyDir)
+	}
+	os.MkdirAll(topologyDir, 0755)
+
+	primaryPort := basePort
+
+	// Create and start primary with replication options
+	primaryDir := path.Join(topologyDir, "primary")
+	primaryConfig := providers.SandboxConfig{
+		Version: version,
+		Dir:     primaryDir,
+		Port:    primaryPort,
+		Host:    "127.0.0.1",
+		DbUser:  "postgres",
+		Options: map[string]string{"replication": "true"},
+	}
+
+	if _, err := p.CreateSandbox(primaryConfig); err != nil {
+		common.Exitf(1, "error creating primary: %s", err)
+	}
+
+	skipStart, _ := flags.GetBool(globals.SkipStartLabel)
+	if !skipStart {
+		if err := p.StartSandbox(primaryDir); err != nil {
+			common.Exitf(1, "error starting primary: %s", err)
+		}
+	}
+
+	fmt.Printf("  Primary deployed in %s (port: %d)\n", primaryDir, primaryPort)
+
+	primaryInfo := providers.SandboxInfo{Dir: primaryDir, Port: primaryPort, Status: "running"}
+
+	// Create replicas sequentially
+	var replicaPorts []int
+	for i := 1; i <= nodes-1; i++ {
+		replicaPort := primaryPort + i
+		freePort, err := common.FindFreePort(replicaPort, []int{}, 1)
+		if err == nil {
+			replicaPort = freePort
+		}
+
+		replicaDir := path.Join(topologyDir, fmt.Sprintf("replica%d", i))
+		replicaConfig := providers.SandboxConfig{
+			Version: version,
+			Dir:     replicaDir,
+			Port:    replicaPort,
+			Host:    "127.0.0.1",
+			DbUser:  "postgres",
+			Options: map[string]string{},
+		}
+
+		if _, err := p.CreateReplica(primaryInfo, replicaConfig); err != nil {
+			// Cleanup on failure
+			p.StopSandbox(primaryDir)
+			for j := 1; j < i; j++ {
+				p.StopSandbox(path.Join(topologyDir, fmt.Sprintf("replica%d", j)))
+			}
+			common.Exitf(1, "error creating replica %d: %s", i, err)
+		}
+
+		replicaPorts = append(replicaPorts, replicaPort)
+		fmt.Printf("  Replica %d deployed in %s (port: %d)\n", i, replicaDir, replicaPort)
+	}
+
+	// Generate monitoring scripts
+	home, _ := os.UserHomeDir()
+	basedir := path.Join(home, "opt", "postgresql", version)
+	binDir := path.Join(basedir, "bin")
+	libDir := path.Join(basedir, "lib")
+
+	scriptOpts := postgresql.ScriptOptions{
+		BinDir: binDir,
+		LibDir: libDir,
+		Port:   primaryPort,
+	}
+
+	checkReplScript := postgresql.GenerateCheckReplicationScript(scriptOpts)
+	os.WriteFile(path.Join(topologyDir, "check_replication"), []byte(checkReplScript), 0755)
+
+	checkRecovScript := postgresql.GenerateCheckRecoveryScript(scriptOpts, replicaPorts)
+	os.WriteFile(path.Join(topologyDir, "check_recovery"), []byte(checkRecovScript), 0755)
+
+	// Handle --with-proxysql
+	withProxySQL, _ := flags.GetBool("with-proxysql")
+	if withProxySQL {
+		if !providers.ContainsString(providers.CompatibleAddons["proxysql"], providerName) {
+			common.Exitf(1, "--with-proxysql is not compatible with provider %q", providerName)
+		}
+		err := sandbox.DeployProxySQLForTopology(topologyDir, primaryPort, replicaPorts, 0, "127.0.0.1", providerName)
+		if err != nil {
+			common.Exitf(1, "ProxySQL deployment failed: %s", err)
+		}
+	}
+
+	fmt.Printf("%s replication sandbox (1 primary + %d replicas) deployed in %s\n",
+		providerName, nodes-1, topologyDir)
+}
+
 func replicationSandbox(cmd *cobra.Command, args []string) {
+	flags := cmd.Flags()
+	providerName, _ := flags.GetString(globals.ProviderLabel)
+
+	if providerName != "mysql" {
+		deployReplicationNonMySQL(cmd, args, providerName)
+		return
+	}
+
 	var sd sandbox.SandboxDef
 	var semisync bool
 	common.CheckOrigin(args)
@@ -46,7 +191,6 @@ func replicationSandbox(cmd *cobra.Command, args []string) {
 		common.Exitf(1, "flavor '%s' is not suitable to create replication sandboxes", common.TiDbFlavor)
 	}
 	sd.ReplOptions = sandbox.SingleTemplates[globals.TmplReplicationOptions].Contents
-	flags := cmd.Flags()
 	semisync, _ = flags.GetBool(globals.SemiSyncLabel)
 	ndbNodes, _ := flags.GetInt(globals.NdbNodesLabel)
 	nodes, _ := flags.GetInt(globals.NodesLabel)
@@ -132,7 +276,7 @@ func replicationSandbox(cmd *cobra.Command, args []string) {
 			slavePorts = append(slavePorts, nodeDesc.Port[0])
 		}
 
-		err = sandbox.DeployProxySQLForTopology(sandboxDir, masterPort, slavePorts, 0, "127.0.0.1")
+		err = sandbox.DeployProxySQLForTopology(sandboxDir, masterPort, slavePorts, 0, "127.0.0.1", "")
 		if err != nil {
 			common.Exitf(1, "ProxySQL deployment failed: %s", err)
 		}
@@ -190,4 +334,5 @@ func init() {
 	replicationCmd.PersistentFlags().Bool(globals.ReplHistoryDirLabel, false, "uses the replication directory to store mysql client history")
 	setPflag(replicationCmd, globals.ChangeMasterOptions, "", "CHANGE_MASTER_OPTIONS", "", "options to add to CHANGE MASTER TO", true)
 	replicationCmd.PersistentFlags().Bool("with-proxysql", false, "Deploy ProxySQL alongside the replication sandbox")
+	replicationCmd.PersistentFlags().String(globals.ProviderLabel, globals.ProviderValue, "Database provider (mysql, postgresql)")
 }

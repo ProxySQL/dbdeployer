@@ -16,17 +16,106 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
+	"path"
+	"strings"
+
 	"github.com/ProxySQL/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/defaults"
 	"github.com/ProxySQL/dbdeployer/globals"
 	"github.com/ProxySQL/dbdeployer/providers"
+	"github.com/ProxySQL/dbdeployer/providers/postgresql"
 	"github.com/ProxySQL/dbdeployer/sandbox"
 	"github.com/spf13/cobra"
 )
 
+func deployMultipleNonMySQL(cmd *cobra.Command, args []string, providerName string) {
+	flags := cmd.Flags()
+	version := args[0]
+	nodes, _ := flags.GetInt(globals.NodesLabel)
+
+	p, err := providers.DefaultRegistry.Get(providerName)
+	if err != nil {
+		common.Exitf(1, "provider error: %s", err)
+	}
+
+	flavor, _ := flags.GetString(globals.FlavorLabel)
+	if flavor != "" {
+		common.Exitf(1, "--flavor is only valid with --provider=mysql")
+	}
+
+	if !providers.ContainsString(p.SupportedTopologies(), "multiple") {
+		common.Exitf(1, "provider %q does not support topology \"multiple\"\nSupported topologies: %s",
+			providerName, strings.Join(p.SupportedTopologies(), ", "))
+	}
+
+	if err := p.ValidateVersion(version); err != nil {
+		common.Exitf(1, "version validation failed: %s", err)
+	}
+
+	if _, err := p.FindBinary(version); err != nil {
+		common.Exitf(1, "binaries not found: %s", err)
+	}
+
+	basePort := p.DefaultPorts().BasePort
+	if providerName == "postgresql" {
+		basePort, _ = postgresql.VersionToPort(version)
+	}
+
+	sandboxHome := defaults.Defaults().SandboxHome
+	topologyDir := path.Join(sandboxHome, fmt.Sprintf("%s_multi_%d", providerName, basePort))
+	if common.DirExists(topologyDir) {
+		common.Exitf(1, "sandbox directory %s already exists", topologyDir)
+	}
+	os.MkdirAll(topologyDir, 0755)
+
+	skipStart, _ := flags.GetBool(globals.SkipStartLabel)
+
+	for i := 1; i <= nodes; i++ {
+		port := basePort + i
+		freePort, err := common.FindFreePort(port, []int{}, 1)
+		if err == nil {
+			port = freePort
+		}
+
+		nodeDir := path.Join(topologyDir, fmt.Sprintf("node%d", i))
+		config := providers.SandboxConfig{
+			Version: version,
+			Dir:     nodeDir,
+			Port:    port,
+			Host:    "127.0.0.1",
+			DbUser:  "postgres",
+			Options: map[string]string{},
+		}
+
+		if _, err := p.CreateSandbox(config); err != nil {
+			common.Exitf(1, "error creating node %d: %s", i, err)
+		}
+
+		if !skipStart {
+			if err := p.StartSandbox(nodeDir); err != nil {
+				common.Exitf(1, "error starting node %d: %s", i, err)
+			}
+		}
+
+		fmt.Printf("  Node %d deployed in %s (port: %d)\n", i, nodeDir, port)
+	}
+
+	fmt.Printf("%s multiple sandbox (%d nodes) deployed in %s\n", providerName, nodes, topologyDir)
+}
+
 func multipleSandbox(cmd *cobra.Command, args []string) {
+	flags := cmd.Flags()
+	providerName, _ := flags.GetString(globals.ProviderLabel)
+
+	if providerName != "mysql" {
+		deployMultipleNonMySQL(cmd, args, providerName)
+		return
+	}
+
 	var sd sandbox.SandboxDef
 	common.CheckOrigin(args)
-	flags := cmd.Flags()
 	sd, err := fillSandboxDefinition(cmd, args, false)
 	common.ErrCheckExitf(err, 1, "error filling sandbox definition")
 	// Validate version with provider
@@ -69,4 +158,5 @@ Use the "unpack" command to get the tarball into the right directory.
 func init() {
 	deployCmd.AddCommand(multipleCmd)
 	multipleCmd.PersistentFlags().IntP(globals.NodesLabel, "n", globals.NodesValue, "How many nodes will be installed")
+	multipleCmd.PersistentFlags().String(globals.ProviderLabel, globals.ProviderValue, "Database provider (mysql, postgresql)")
 }

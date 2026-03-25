@@ -26,6 +26,7 @@ import (
 	"github.com/ProxySQL/dbdeployer/defaults"
 	"github.com/ProxySQL/dbdeployer/globals"
 	"github.com/ProxySQL/dbdeployer/providers"
+	"github.com/ProxySQL/dbdeployer/providers/postgresql"
 	"github.com/ProxySQL/dbdeployer/sandbox"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -438,7 +439,96 @@ func fillSandboxDefinition(cmd *cobra.Command, args []string, usingImport bool) 
 	return sd, nil
 }
 
+func deploySingleNonMySQL(cmd *cobra.Command, args []string, providerName string) {
+	flags := cmd.Flags()
+	version := args[0]
+
+	p, err := providers.DefaultRegistry.Get(providerName)
+	if err != nil {
+		common.Exitf(1, "provider error: %s", err)
+	}
+
+	// Flavor validation
+	flavor, _ := flags.GetString(globals.FlavorLabel)
+	if flavor != "" {
+		common.Exitf(1, "--flavor is only valid with --provider=mysql")
+	}
+
+	// Topology validation
+	if !providers.ContainsString(p.SupportedTopologies(), "single") {
+		common.Exitf(1, "provider %q does not support topology \"single\"\nSupported topologies: %s",
+			providerName, strings.Join(p.SupportedTopologies(), ", "))
+	}
+
+	if err := p.ValidateVersion(version); err != nil {
+		common.Exitf(1, "version validation failed: %s", err)
+	}
+
+	if _, err := p.FindBinary(version); err != nil {
+		common.Exitf(1, "binaries not found: %s", err)
+	}
+
+	// Compute port
+	port := p.DefaultPorts().BasePort
+	if providerName == "postgresql" {
+		port, _ = postgresql.VersionToPort(version)
+	}
+	freePort, portErr := common.FindFreePort(port, []int{}, p.DefaultPorts().PortsPerInstance)
+	if portErr == nil {
+		port = freePort
+	}
+
+	sandboxHome := defaults.Defaults().SandboxHome
+	sandboxDir := path.Join(sandboxHome, fmt.Sprintf("%s_sandbox_%d", providerName, port))
+	if common.DirExists(sandboxDir) {
+		common.Exitf(1, "sandbox directory %s already exists", sandboxDir)
+	}
+
+	skipStart, _ := flags.GetBool(globals.SkipStartLabel)
+	config := providers.SandboxConfig{
+		Version: version,
+		Dir:     sandboxDir,
+		Port:    port,
+		Host:    "127.0.0.1",
+		DbUser:  "postgres",
+		Options: map[string]string{},
+	}
+
+	if _, err := p.CreateSandbox(config); err != nil {
+		common.Exitf(1, "error creating sandbox: %s", err)
+	}
+
+	if !skipStart {
+		if err := p.StartSandbox(sandboxDir); err != nil {
+			common.Exitf(1, "error starting sandbox: %s", err)
+		}
+	}
+
+	// Handle --with-proxysql
+	withProxySQL, _ := flags.GetBool("with-proxysql")
+	if withProxySQL {
+		if !providers.ContainsString(providers.CompatibleAddons["proxysql"], providerName) {
+			common.Exitf(1, "--with-proxysql is not compatible with provider %q", providerName)
+		}
+		err := sandbox.DeployProxySQLForTopology(sandboxDir, port, nil, 0, "127.0.0.1", providerName)
+		if err != nil {
+			common.Exitf(1, "ProxySQL deployment failed: %s", err)
+		}
+	}
+
+	fmt.Printf("%s %s sandbox deployed in %s (port: %d)\n", providerName, version, sandboxDir, port)
+}
+
 func singleSandbox(cmd *cobra.Command, args []string) {
+	flags := cmd.Flags()
+	providerName, _ := flags.GetString(globals.ProviderLabel)
+
+	// Non-MySQL providers: bypass fillSandboxDefinition entirely
+	if providerName != "mysql" {
+		deploySingleNonMySQL(cmd, args, providerName)
+		return
+	}
+
 	var sd sandbox.SandboxDef
 	var err error
 	common.CheckOrigin(args)
@@ -462,7 +552,6 @@ func singleSandbox(cmd *cobra.Command, args []string) {
 		common.Exitf(1, globals.ErrCreatingSandbox, err)
 	}
 
-	flags := cmd.Flags()
 	withProxySQL, _ := flags.GetBool("with-proxysql")
 	if withProxySQL {
 		// Determine the sandbox directory that was created
@@ -482,7 +571,7 @@ func singleSandbox(cmd *cobra.Command, args []string) {
 		}
 		masterPort := sbDesc.Port[0]
 
-		err = sandbox.DeployProxySQLForTopology(sandboxDir, masterPort, nil, 0, "127.0.0.1")
+		err = sandbox.DeployProxySQLForTopology(sandboxDir, masterPort, nil, 0, "127.0.0.1", "")
 		if err != nil {
 			common.Exitf(1, "ProxySQL deployment failed: %s", err)
 		}
@@ -515,4 +604,5 @@ func init() {
 	singleCmd.PersistentFlags().Int(globals.ServerIdLabel, 0, "Overwrite default server-id")
 	setPflag(singleCmd, globals.PromptLabel, "", "", globals.PromptValue, "Default prompt for the single client", false)
 	singleCmd.PersistentFlags().Bool("with-proxysql", false, "Deploy ProxySQL alongside the single sandbox")
+	singleCmd.PersistentFlags().String(globals.ProviderLabel, globals.ProviderValue, "Database provider (mysql, postgresql)")
 }

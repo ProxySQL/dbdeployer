@@ -17,8 +17,11 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/ProxySQL/dbdeployer/ops"
+	"github.com/ProxySQL/dbdeployer/providers/postgresql"
 	"github.com/spf13/cobra"
 
 	"github.com/ProxySQL/dbdeployer/common"
@@ -37,6 +40,31 @@ func unpackTarball(cmd *cobra.Command, args []string) {
 	flavor, _ := flags.GetString(globals.FlavorLabel)
 	dryRun, _ := flags.GetBool(globals.DryRunLabel)
 	Version, _ := flags.GetString(globals.UnpackVersionLabel)
+	providerName, _ := flags.GetString(globals.ProviderLabel)
+	if providerName == "postgresql" {
+		if len(args) < 2 {
+			common.Exitf(1, "PostgreSQL unpack requires both server and client .deb files\n"+
+				"Usage: dbdeployer unpack --provider=postgresql postgresql-16_*.deb postgresql-client-16_*.deb")
+		}
+		server, client, err := postgresql.ClassifyDebs(args)
+		if err != nil {
+			common.Exitf(1, "error classifying deb files: %s", err)
+		}
+		version := Version
+		if version == "" {
+			version, err = postgresql.ParseDebVersion(server)
+			if err != nil {
+				common.Exitf(1, "cannot detect version from filename: %s\nUse --unpack-version to specify", err)
+			}
+		}
+		home, _ := os.UserHomeDir()
+		targetDir := filepath.Join(home, "opt", "postgresql", version)
+		if err := postgresql.UnpackDebs(server, client, targetDir); err != nil {
+			common.Exitf(1, "error unpacking PostgreSQL debs: %s", err)
+		}
+		fmt.Printf("PostgreSQL %s unpacked to %s\n", version, targetDir)
+		return
+	}
 	if !common.DirExists(Basedir) {
 		common.Exit(1,
 			fmt.Sprintf(globals.ErrDirectoryNotFound, Basedir),
@@ -64,7 +92,7 @@ func unpackTarball(cmd *cobra.Command, args []string) {
 // unpackCmd represents the unpack command
 var unpackCmd = &cobra.Command{
 	Use:     "unpack MySQL-tarball",
-	Args:    cobra.ExactArgs(1),
+	Args:    cobra.MinimumNArgs(1),
 	Aliases: []string{"extract", "untar", "unzip", "inflate", "expand"},
 	Short:   "unpack a tarball into the binary directory",
 	Long: `If you want to create a sandbox from a tarball (.tar.gz or .tar.xz), you first need to unpack it
@@ -99,4 +127,5 @@ func init() {
 	unpackCmd.PersistentFlags().Bool(globals.DryRunLabel, false, "Show unpack operations, but do not run them")
 	unpackCmd.PersistentFlags().String(globals.TargetServerLabel, "", "Uses a different server to unpack a shell tarball")
 	unpackCmd.PersistentFlags().String(globals.FlavorLabel, "", "Defines the tarball flavor (MySQL, NDB, Percona Server, etc)")
+	unpackCmd.PersistentFlags().String(globals.ProviderLabel, globals.ProviderValue, "Database provider (mysql, postgresql)")
 }
