@@ -68,7 +68,9 @@ func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName s
 	if common.DirExists(topologyDir) {
 		common.Exitf(1, "sandbox directory %s already exists", topologyDir)
 	}
-	os.MkdirAll(topologyDir, 0755)
+	if err := os.MkdirAll(topologyDir, 0755); err != nil {
+		common.Exitf(1, "error creating topology directory %s: %s", topologyDir, err)
+	}
 
 	primaryPort := basePort
 
@@ -119,9 +121,9 @@ func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName s
 
 		if _, err := p.CreateReplica(primaryInfo, replicaConfig); err != nil {
 			// Cleanup on failure
-			p.StopSandbox(primaryDir)
+			_ = p.StopSandbox(primaryDir)
 			for j := 1; j < i; j++ {
-				p.StopSandbox(path.Join(topologyDir, fmt.Sprintf("replica%d", j)))
+				_ = p.StopSandbox(path.Join(topologyDir, fmt.Sprintf("replica%d", j)))
 			}
 			common.Exitf(1, "error creating replica %d: %s", i, err)
 		}
@@ -143,10 +145,14 @@ func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName s
 	}
 
 	checkReplScript := postgresql.GenerateCheckReplicationScript(scriptOpts)
-	os.WriteFile(path.Join(topologyDir, "check_replication"), []byte(checkReplScript), 0755)
+	if err := os.WriteFile(path.Join(topologyDir, "check_replication"), []byte(checkReplScript), 0755); err != nil {
+		fmt.Printf("WARNING: could not write check_replication script: %s\n", err)
+	}
 
 	checkRecovScript := postgresql.GenerateCheckRecoveryScript(scriptOpts, replicaPorts)
-	os.WriteFile(path.Join(topologyDir, "check_recovery"), []byte(checkRecovScript), 0755)
+	if err := os.WriteFile(path.Join(topologyDir, "check_recovery"), []byte(checkRecovScript), 0755); err != nil {
+		fmt.Printf("WARNING: could not write check_recovery script: %s\n", err)
+	}
 
 	// Handle --with-proxysql
 	withProxySQL, _ := flags.GetBool("with-proxysql")

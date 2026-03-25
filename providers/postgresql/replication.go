@@ -57,7 +57,7 @@ func (p *PostgreSQLProvider) CreateReplica(primary providers.SandboxInfo, config
 		}
 	}
 
-	if err := os.WriteFile(confPath, []byte(strings.Join(newLines, "\n")), 0644); err != nil {
+	if err := os.WriteFile(confPath, []byte(strings.Join(newLines, "\n")), 0600); err != nil {
 		os.RemoveAll(config.Dir)
 		return nil, fmt.Errorf("writing modified postgresql.conf: %w", err)
 	}
@@ -73,7 +73,7 @@ func (p *PostgreSQLProvider) CreateReplica(primary providers.SandboxInfo, config
 	})
 	for name, content := range scripts {
 		scriptPath := filepath.Join(config.Dir, name)
-		if err := os.WriteFile(scriptPath, []byte(content), 0755); err != nil {
+		if err := os.WriteFile(scriptPath, []byte(content), 0755); err != nil { //nolint:gosec // scripts must be executable
 			os.RemoveAll(config.Dir)
 			return nil, fmt.Errorf("writing script %s: %w", name, err)
 		}

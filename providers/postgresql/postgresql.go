@@ -84,7 +84,7 @@ func basedirFromVersion(version string) (string, error) {
 }
 
 func (p *PostgreSQLProvider) StartSandbox(dir string) error {
-	cmd := exec.Command("bash", filepath.Join(dir, "start"))
+	cmd := exec.Command("bash", filepath.Join(dir, "start")) //nolint:gosec // path is from trusted sandbox directory
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("start failed: %s: %w", string(output), err)
@@ -93,7 +93,7 @@ func (p *PostgreSQLProvider) StartSandbox(dir string) error {
 }
 
 func (p *PostgreSQLProvider) StopSandbox(dir string) error {
-	cmd := exec.Command("bash", filepath.Join(dir, "stop"))
+	cmd := exec.Command("bash", filepath.Join(dir, "stop")) //nolint:gosec // path is from trusted sandbox directory
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("stop failed: %s: %w", string(output), err)

@@ -68,7 +68,9 @@ func deployMultipleNonMySQL(cmd *cobra.Command, args []string, providerName stri
 	if common.DirExists(topologyDir) {
 		common.Exitf(1, "sandbox directory %s already exists", topologyDir)
 	}
-	os.MkdirAll(topologyDir, 0755)
+	if err := os.MkdirAll(topologyDir, 0755); err != nil {
+		common.Exitf(1, "error creating topology directory %s: %s", topologyDir, err)
+	}
 
 	skipStart, _ := flags.GetBool(globals.SkipStartLabel)
 
