@@ -126,7 +126,7 @@ jobs:
           # Stop the system service — we'll manage our own instances
           sudo systemctl stop postgresql || true
           # Get full version and copy binaries into dbdeployer's expected layout
-          PG_FULL=$(dpkg -s postgresql-${PG_VERSION} | grep '^Version:' | grep -oP '\d+\.\d+')
+          PG_FULL=$(dpkg -s postgresql-${PG_VERSION} | grep '^Version:' | sed 's/Version: //' | cut -d'-' -f1)
           echo "PostgreSQL version: ${PG_FULL}"
           mkdir -p ~/opt/postgresql/${PG_FULL}/{bin,lib,share}
           cp -a /usr/lib/postgresql/${PG_VERSION}/bin/. ~/opt/postgresql/${PG_FULL}/bin/
