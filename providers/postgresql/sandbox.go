@@ -22,12 +22,7 @@ func (p *PostgreSQLProvider) CreateSandbox(config providers.SandboxConfig) (*pro
 
 	replication := config.Options["replication"] == "true"
 
-	// Create log directory
-	if err := os.MkdirAll(logDir, 0755); err != nil {
-		return nil, fmt.Errorf("creating log directory: %w", err)
-	}
-
-	// Run initdb
+	// Run initdb (data dir must not exist or must be empty)
 	// Use -L to point to our extracted share directory. Deb-packaged initdb
 	// looks for share data relative to its compiled --prefix (/usr), which
 	// won't match our extracted layout at ~/opt/postgresql/<version>/share/.
@@ -38,6 +33,12 @@ func (p *PostgreSQLProvider) CreateSandbox(config providers.SandboxConfig) (*pro
 	if output, err := initCmd.CombinedOutput(); err != nil {
 		os.RemoveAll(config.Dir) // cleanup on failure
 		return nil, fmt.Errorf("initdb failed: %s: %w", string(output), err)
+	}
+
+	// Create log directory (after initdb, which requires empty data dir)
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		os.RemoveAll(config.Dir)
+		return nil, fmt.Errorf("creating log directory: %w", err)
 	}
 
 	// Generate and write postgresql.conf
