@@ -127,9 +127,9 @@ jobs:
           PG_FULL=$(dpkg -s postgresql-16 | grep '^Version:' | grep -oP '\d+\.\d+')
           echo "PostgreSQL version: ${PG_FULL}"
           mkdir -p ~/opt/postgresql/${PG_FULL}/{bin,lib,share}
-          cp /usr/lib/postgresql/16/bin/* ~/opt/postgresql/${PG_FULL}/bin/
-          cp -r /usr/lib/postgresql/16/lib/. ~/opt/postgresql/${PG_FULL}/lib/
-          cp -r /usr/share/postgresql/16/. ~/opt/postgresql/${PG_FULL}/share/
+          cp -a /usr/lib/postgresql/16/bin/. ~/opt/postgresql/${PG_FULL}/bin/
+          cp -a /usr/lib/postgresql/16/lib/. ~/opt/postgresql/${PG_FULL}/lib/
+          cp -a /usr/share/postgresql/16/. ~/opt/postgresql/${PG_FULL}/share/
 
       - name: Test replication with --with-proxysql
         run: |

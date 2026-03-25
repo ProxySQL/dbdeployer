@@ -129,9 +129,9 @@ jobs:
           PG_FULL=$(dpkg -s postgresql-${PG_VERSION} | grep '^Version:' | grep -oP '\d+\.\d+')
           echo "PostgreSQL version: ${PG_FULL}"
           mkdir -p ~/opt/postgresql/${PG_FULL}/{bin,lib,share}
-          cp /usr/lib/postgresql/${PG_VERSION}/bin/* ~/opt/postgresql/${PG_FULL}/bin/
-          cp -r /usr/lib/postgresql/${PG_VERSION}/lib/. ~/opt/postgresql/${PG_FULL}/lib/
-          cp -r /usr/share/postgresql/${PG_VERSION}/. ~/opt/postgresql/${PG_FULL}/share/
+          cp -a /usr/lib/postgresql/${PG_VERSION}/bin/. ~/opt/postgresql/${PG_FULL}/bin/
+          cp -a /usr/lib/postgresql/${PG_VERSION}/lib/. ~/opt/postgresql/${PG_FULL}/lib/
+          cp -a /usr/share/postgresql/${PG_VERSION}/. ~/opt/postgresql/${PG_FULL}/share/
           ls ~/opt/postgresql/${PG_FULL}/bin/
 
       - name: Test deploy postgresql (single)
