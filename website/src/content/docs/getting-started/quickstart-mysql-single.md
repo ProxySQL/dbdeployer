@@ -65,16 +65,6 @@ dbdeployer delete msb_8_4_8
 
 This stops the server and removes all sandbox files. Your MySQL binary in `~/opt/mysql/` is untouched.
 
-## 5. Try the web UI
-
-Prefer a visual dashboard? Launch the admin UI:
-
-```bash
-dbdeployer admin ui
-```
-
-A browser opens with a dashboard showing your sandbox — start, stop, and destroy it with a click.
-
 ## What's next?
 
 - [Deploying a single sandbox](/dbdeployer/deploying/single) — ports, passwords, options

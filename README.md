@@ -41,30 +41,24 @@ dbdeployer deploy replication 8.4.8 --with-proxysql
 
 ### PostgreSQL
 
+Unlike MySQL, PostgreSQL doesn't distribute pre-compiled tarballs. dbdeployer extracts binaries from `.deb` packages — no system-wide installation needed, no risk to existing PostgreSQL instances, and you can have multiple versions side by side.
+
 ```bash
-# Install PostgreSQL and set up binaries
-sudo apt-get install postgresql-16 postgresql-client-16
-sudo systemctl stop postgresql
-PG_VER=$(dpkg -s postgresql-16 | grep '^Version:' | sed 's/Version: //' | cut -d'-' -f1)
-mkdir -p ~/opt/postgresql/${PG_VER}/{bin,lib,share}
-cp -a /usr/lib/postgresql/16/bin/. ~/opt/postgresql/${PG_VER}/bin/
-cp -a /usr/lib/postgresql/16/lib/. ~/opt/postgresql/${PG_VER}/lib/
-cp -a /usr/share/postgresql/16/. ~/opt/postgresql/${PG_VER}/share/
+# Download debs (no root, no installation)
+apt-get download postgresql-16 postgresql-client-16
+
+# Extract into dbdeployer's binary layout
+dbdeployer unpack --provider=postgresql postgresql-16_*.deb postgresql-client-16_*.deb
 
 # Deploy a single sandbox
-dbdeployer deploy postgresql $PG_VER
+dbdeployer deploy postgresql 16.13
 ~/sandboxes/pg_sandbox_*/use -c "SELECT version();"
 
 # Deploy streaming replication
-dbdeployer deploy replication $PG_VER --provider=postgresql
+dbdeployer deploy replication 16.13 --provider=postgresql
 ```
 
-### Web Admin UI
-
-```bash
-# Launch a visual dashboard to manage all your sandboxes
-dbdeployer admin ui
-```
+> **Note:** The `apt-get download` command downloads `.deb` files to the current directory without installing anything. Your system is untouched. See the [PostgreSQL provider guide](https://proxysql.github.io/dbdeployer/providers/postgresql/) for details and alternative installation methods.
 
 ## Supported Databases
 
@@ -83,7 +77,6 @@ dbdeployer admin ui
 - **Any topology** — single, replication, group replication, fan-in, all-masters
 - **Multiple databases** — MySQL, PostgreSQL, Percona, MariaDB via provider architecture
 - **ProxySQL integration** — `--with-proxysql` wires read/write split into any topology
-- **Web admin UI** — `dbdeployer admin ui` for visual sandbox management
 - **No root, no Docker** — runs entirely in userspace with self-contained directories
 - **Modern MySQL** — full support for 8.4 LTS and 9.x Innovation releases
 

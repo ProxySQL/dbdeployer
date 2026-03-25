@@ -22,10 +22,10 @@ const features = [
     accent: '#f59e0b',
   },
   {
-    icon: 'webui',
-    title: 'Web Admin UI',
+    icon: 'userspace',
+    title: 'No Root, No Docker',
     description:
-      'Launch a visual dashboard with <code>dbdeployer admin ui</code>. See all your sandboxes, check status, and start/stop/destroy with a click. No more memorizing directory paths.',
+      'Runs entirely in userspace. No sudo, no containers, no package managers. Each sandbox is a self-contained directory with start/stop scripts.',
     accent: '#a855f7',
   },
 ];
@@ -67,13 +67,10 @@ const features = [
                 <path d="M7 9v6M17 9v6"/>
               </svg>
             )}
-            {f.icon === 'webui' && (
+            {f.icon === 'userspace' && (
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
-                <rect x="2" y="3" width="20" height="14" rx="2"/>
-                <path d="M2 9h20"/>
-                <path d="M8 21h8M12 17v4"/>
-                <circle cx="6" cy="6" r="0.75" fill="currentColor"/>
-                <circle cx="9" cy="6" r="0.75" fill="currentColor"/>
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="m9 12 2 2 4-4"/>
               </svg>
             )}
           </div>

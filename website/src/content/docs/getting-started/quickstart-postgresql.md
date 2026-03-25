@@ -71,15 +71,13 @@ SELECT version();
 dbdeployer delete pg_sandbox_16613
 ```
 
-## 6. Manage from the web UI
+## Why not just `apt-get install`?
 
-Launch the visual dashboard to see your PostgreSQL sandbox:
+You might wonder why we download debs instead of installing PostgreSQL normally. Three reasons:
 
-```bash
-dbdeployer admin ui
-```
-
-Start, stop, and destroy sandboxes with a click — works for both MySQL and PostgreSQL.
+1. **No root needed** — `apt-get download` works without sudo
+2. **No conflict with existing PostgreSQL** — if you already have PostgreSQL running, installing another version could disrupt it
+3. **Multiple versions** — you can have 14, 15, 16, and 17 side by side in `~/opt/postgresql/`
 
 ## What's next?
 

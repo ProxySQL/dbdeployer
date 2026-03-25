@@ -67,16 +67,6 @@ dbdeployer delete rsandbox_8_4_4
 
 This stops ProxySQL and all MySQL nodes and removes the sandbox directory.
 
-## 5. Manage from the web UI
-
-See your entire stack — MySQL nodes + ProxySQL — in one dashboard:
-
-```bash
-dbdeployer admin ui
-```
-
-Start, stop, and destroy any component with a click.
-
 ## What's next?
 
 - [ProxySQL integration guide](/dbdeployer/providers/proxysql) — hostgroups, query rules, custom config
