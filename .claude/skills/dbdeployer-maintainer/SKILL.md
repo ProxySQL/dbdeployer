@@ -11,8 +11,8 @@ Use this when the task can change behavior, provider support, verification, or r
 
 1. Frame the task and restate the expected change surface.
 2. Implement or investigate the requested change.
-3. If database behavior may have changed, invoke `/db-correctness-review` before concluding.
-4. If `/db-core-expertise` is available, invoke it for MySQL, PostgreSQL, or ProxySQL questions before concluding.
+3. If `/db-core-expertise` is available, invoke it for MySQL, PostgreSQL, or ProxySQL questions before concluding.
+4. If database behavior may have changed, invoke `/db-correctness-review`.
 5. If behavior, flags, support statements, or examples changed, invoke `/docs-reference-sync`.
 6. Before stopping, invoke `/verification-matrix` and use its strongest applicable checks.
 

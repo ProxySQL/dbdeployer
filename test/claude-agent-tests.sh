@@ -51,8 +51,37 @@ require_string .claude/rules/provider-surfaces.md README.md
 require_string .claude/rules/provider-surfaces.md CONTRIBUTING.md
 
 require_string .claude/skills/dbdeployer-maintainer/SKILL.md Changed
+require_string .claude/skills/dbdeployer-maintainer/SKILL.md Verification
+require_string .claude/skills/dbdeployer-maintainer/SKILL.md 'Edge Cases'
+require_string .claude/skills/dbdeployer-maintainer/SKILL.md 'Docs Updated'
+require_string .claude/skills/dbdeployer-maintainer/SKILL.md '/db-correctness-review'
+require_string .claude/skills/dbdeployer-maintainer/SKILL.md '/verification-matrix'
+require_string .claude/skills/dbdeployer-maintainer/SKILL.md '/docs-reference-sync'
+require_string .claude/skills/dbdeployer-maintainer/SKILL.md '/db-core-expertise'
 require_string .claude/skills/db-correctness-review/SKILL.md 'Correctness Risks'
+require_string .claude/skills/db-correctness-review/SKILL.md 'Edge Cases Checked'
+require_string .claude/skills/db-correctness-review/SKILL.md 'Recommended Follow-up'
+require_string .claude/skills/db-correctness-review/SKILL.md '/db-core-expertise'
+require_string .claude/skills/db-correctness-review/SKILL.md 'Database semantics'
+require_string .claude/skills/db-correctness-review/SKILL.md 'Lifecycle behavior'
+require_string .claude/skills/db-correctness-review/SKILL.md 'Packaging and environment assumptions'
+require_string .claude/skills/db-correctness-review/SKILL.md 'Topology and routing behavior'
+require_string .claude/skills/db-correctness-review/SKILL.md 'Operator edge cases'
 require_string .claude/skills/verification-matrix/SKILL.md 'Linux Runner Checks'
+require_string .claude/skills/verification-matrix/SKILL.md 'Local Checks'
+require_string .claude/skills/verification-matrix/SKILL.md 'Unverified Risk'
+require_string .claude/skills/verification-matrix/SKILL.md 'test/'
+require_string .claude/skills/verification-matrix/SKILL.md '.github/workflows/'
+require_string .claude/skills/verification-matrix/SKILL.md 'go test ./...'
+require_string .claude/skills/verification-matrix/SKILL.md './test/go-unit-tests.sh'
+require_string .claude/skills/verification-matrix/SKILL.md './test/claude-agent-tests.sh'
+require_string .claude/skills/verification-matrix/SKILL.md 'integration_tests.yml'
+require_string .claude/skills/verification-matrix/SKILL.md 'proxysql_integration_tests.yml'
 require_string .claude/skills/docs-reference-sync/SKILL.md 'Docs To Update'
+require_string .claude/skills/docs-reference-sync/SKILL.md 'Files Updated'
+require_string .claude/skills/docs-reference-sync/SKILL.md 'Open Caveats'
+require_string .claude/skills/docs-reference-sync/SKILL.md docs/
+require_string .claude/skills/docs-reference-sync/SKILL.md README.md
+require_string .claude/skills/docs-reference-sync/SKILL.md CONTRIBUTING.md
 
 printf 'PASS: project Claude memory, rules, and skills\n'

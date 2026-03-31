@@ -8,16 +8,19 @@ disable-model-invocation: true
 
 Map the changed surface to the strongest runnable checks.
 
+Treat `.claude/**`, `test/`, and `.github/workflows/` as verification-sensitive surfaces, not lightweight documentation-only edits.
+
 ## Local Checks
 
-- `common/`, `cmd/`, `ops/`, `providers/`, or `sandbox/` changes: run `go test ./...` and `./test/go-unit-tests.sh`.
-- `.claude/**` or `test/claude-agent/**` changes: run `./test/claude-agent-tests.sh`.
+- `common/`, `cmd/`, `ops/`, `providers/`, `sandbox/`, or `test/` changes: run `go test ./...` and `./test/go-unit-tests.sh`.
+- `.claude/**`, `test/claude-agent/**`, or `test/claude-agent-tests.sh` changes: run `./test/claude-agent-tests.sh`.
 
 ## Linux Runner Checks
 
 - MySQL download and deploy behavior: verify against `.github/workflows/integration_tests.yml`.
 - PostgreSQL provider behavior: verify against the PostgreSQL job in `.github/workflows/integration_tests.yml`.
 - ProxySQL behavior: verify against `.github/workflows/proxysql_integration_tests.yml`.
+- `.github/workflows/` changes should be cross-checked against the matching runner jobs before merging.
 
 ## Unverified Risk
 

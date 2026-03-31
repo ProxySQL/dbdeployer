@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 ## Workflow
 
-1. List the changed doc surfaces.
+1. List the changed doc surfaces, especially `docs/`, `README.md`, and `CONTRIBUTING.md`.
 2. Update the smallest truthful set of files.
 3. Prefer concrete commands and caveats over broad prose.
 4. State limitations directly.
