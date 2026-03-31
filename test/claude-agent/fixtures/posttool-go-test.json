@@ -1,0 +1,9 @@
+{
+  "session_id": "sess-posttool",
+  "cwd": "/tmp/dbdeployer",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "go test ./..."
+  }
+}
