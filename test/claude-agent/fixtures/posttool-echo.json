@@ -4,6 +4,6 @@
   "hook_event_name": "PostToolUse",
   "tool_name": "Bash",
   "tool_input": {
-    "command": "echo not-a-test"
+    "command": "echo go test ./..."
   }
 }

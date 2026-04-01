@@ -10,40 +10,90 @@ project_dir="${CLAUDE_PROJECT_DIR:-$cwd}"
 log_path="${CLAUDE_AGENT_VERIFICATION_LOG:-$project_dir/.claude/state/verification-log.jsonl}"
 changed_files="${CLAUDE_AGENT_CHANGED_FILES:-}"
 
+requires_claude_verification=0
+requires_go_verification=0
+requires_docs=0
+docs_updated=0
+saw_changed_file=0
+
+classify_changed_file() {
+  local file="$1"
+
+  [[ -z "$file" ]] && return 0
+
+  saw_changed_file=1
+
+  if [[ "$file" =~ ^(\.claude/|test/claude-agent/) ]]; then
+    requires_claude_verification=1
+  elif [[ "$file" =~ ^(common/|cmd/|ops/|providers/|sandbox/|test/|\.github/workflows/) ]]; then
+    requires_go_verification=1
+  fi
+
+  if [[ "$file" =~ ^(cmd/|providers/|sandbox/|ops/|common/) ]]; then
+    requires_docs=1
+  fi
+
+  if [[ "$file" =~ ^(docs/|README\.md|CONTRIBUTING\.md|\.claude/CLAUDE\.md|\.claude/rules/) ]]; then
+    docs_updated=1
+  fi
+}
+
+has_logged_command() {
+  local expected_command="$1"
+
+  [[ -f "$log_path" ]] || return 1
+
+  jq -s -e \
+    --arg session_id "$session_id" \
+    --arg expected_command "$expected_command" \
+    '
+      map(
+        select(
+          .session_id == $session_id and (
+            .command == $expected_command or
+            (.command | startswith($expected_command + " "))
+          )
+        )
+      ) | length > 0
+    ' "$log_path" >/dev/null 2>&1
+}
+
 if [[ "$stop_hook_active" == "true" ]]; then
   exit 0
 fi
 
-if [[ -z "$changed_files" ]]; then
-  changed_files="$(git -C "$project_dir" status --short | awk '{print $2}')"
+if [[ -n "$changed_files" ]]; then
+  while IFS= read -r file; do
+    classify_changed_file "$file"
+  done <<< "$changed_files"
+else
+  while IFS= read -r file; do
+    classify_changed_file "$file"
+  done < <(git -C "$project_dir" diff --name-only -M HEAD --)
+
+  while IFS= read -r -d '' file; do
+    classify_changed_file "$file"
+  done < <(git -C "$project_dir" ls-files --others --exclude-standard -z)
 fi
 
-if [[ -z "$changed_files" ]]; then
+if [[ "$saw_changed_file" -eq 0 ]]; then
   exit 0
 fi
 
-requires_verification=0
-requires_docs=0
-docs_updated=0
+missing_verification=()
 
-while IFS= read -r file; do
-  [[ -z "$file" ]] && continue
-  if [[ "$file" =~ ^(cmd/|providers/|sandbox/|ops/|common/|test/|\.github/workflows/|\.claude/) ]]; then
-    requires_verification=1
-  fi
-  if [[ "$file" =~ ^(cmd/|providers/|sandbox/|ops/|common/) ]]; then
-    requires_docs=1
-  fi
-  if [[ "$file" =~ ^(docs/|README\.md|CONTRIBUTING\.md|\.claude/CLAUDE\.md|\.claude/rules/) ]]; then
-    docs_updated=1
-  fi
-done <<< "$changed_files"
+if [[ "$requires_claude_verification" -eq 1 ]] && ! has_logged_command "./test/claude-agent-tests.sh"; then
+  missing_verification+=("./test/claude-agent-tests.sh")
+fi
 
-if [[ "$requires_verification" -eq 1 ]]; then
-  if [[ ! -f "$log_path" ]] || ! jq -s -e --arg session_id "$session_id" 'map(select(.session_id == $session_id)) | length > 0' "$log_path" >/dev/null 2>&1; then
-    jq -n --arg reason "Run the relevant verification before finishing. Expected at least one successful test or build command recorded for this session." '{decision: "block", reason: $reason}'
-    exit 0
-  fi
+if [[ "$requires_go_verification" -eq 1 ]] && ! has_logged_command "go test ./..." && ! has_logged_command "./test/go-unit-tests.sh"; then
+  missing_verification+=("go test ./... or ./test/go-unit-tests.sh")
+fi
+
+if [[ "${#missing_verification[@]}" -gt 0 ]]; then
+  reason_suffix="${missing_verification[*]}"
+  jq -n --arg reason "Run the required verification before finishing. Missing a successful command for: $reason_suffix." '{decision: "block", reason: $reason}'
+  exit 0
 fi
 
 if [[ "$requires_docs" -eq 1 && "$docs_updated" -eq 0 ]]; then
