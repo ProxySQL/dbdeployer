@@ -56,6 +56,14 @@ require_file .claude/hooks/block-destructive-commands.sh
 require_file .claude/hooks/record-verification-command.sh
 require_file .claude/hooks/stop-completion-gate.sh
 require_file docs/coding/claude-code-agent.md
+require_file tools/claude-skills/db-core-expertise/SKILL.md
+require_file tools/claude-skills/db-core-expertise/mysql.md
+require_file tools/claude-skills/db-core-expertise/postgresql.md
+require_file tools/claude-skills/db-core-expertise/proxysql.md
+require_file tools/claude-skills/db-core-expertise/verification-playbook.md
+require_file tools/claude-skills/db-core-expertise/docs-style.md
+require_file tools/claude-skills/db-core-expertise/scripts/smoke-test.sh
+require_file scripts/install_claude_db_skills.sh
 
 require_string .claude/CLAUDE.md dbdeployer-maintainer
 require_final_sections .claude/CLAUDE.md
@@ -105,7 +113,9 @@ require_string .claude/skills/docs-reference-sync/SKILL.md docs/
 require_string .claude/skills/docs-reference-sync/SKILL.md README.md
 require_string .claude/skills/docs-reference-sync/SKILL.md CONTRIBUTING.md
 require_string docs/coding/claude-code-agent.md ./test/claude-agent-tests.sh
+require_string docs/coding/claude-code-agent.md ./scripts/install_claude_db_skills.sh
 require_string CONTRIBUTING.md docs/coding/claude-code-agent.md
+require_string tools/claude-skills/db-core-expertise/SKILL.md db-core-expertise
 
 jq empty "$ROOT/.claude/settings.json" >/dev/null
 require_jq_true "$ROOT/.claude/settings.json" '
@@ -241,4 +251,6 @@ fallback_changed_files_output="$(
 printf '%s' "$fallback_changed_files_output" | jq -e '.decision == "block"' >/dev/null
 printf '%s' "$fallback_changed_files_output" | jq -e '.reason | contains("./test/claude-agent-tests.sh")' >/dev/null
 
-printf 'PASS: Claude repo assets, docs, and hooks\n'
+bash "$ROOT/tools/claude-skills/db-core-expertise/scripts/smoke-test.sh"
+
+printf 'PASS: Claude repo assets, docs, hooks, and reusable DB skill templates\n'

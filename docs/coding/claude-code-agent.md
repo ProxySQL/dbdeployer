@@ -30,6 +30,17 @@ These tests validate the repo-local Claude files, hook behavior, and completion 
 3. Use `/verification-matrix` before stopping so the strongest feasible checks run.
 4. Use `/docs-reference-sync` when behavior, flags, support statements, or examples change.
 
+## Reusable database expertise
+
+Install the reusable MySQL/PostgreSQL/ProxySQL reference skill with:
+
+```bash
+./scripts/install_claude_db_skills.sh
+~/.claude/skills/db-core-expertise/scripts/smoke-test.sh
+```
+
+The installed user-level skill is named `/db-core-expertise`. Use it when the task depends on DB semantics, packaging assumptions, replication edge cases, or live upstream verification.
+
 ## Completion requirements
 
 Final responses should include:
