@@ -20,6 +20,10 @@ The following guidelines want to help and simplify the process of contributing t
   go build -o dbdeployer .
   ```
 
+## Claude Code Maintainer Workflow
+
+If you use Claude Code for maintenance work in this repo, read `docs/coding/claude-code-agent.md` first. It documents the repo-local `.claude/` skills, hook behavior, and required smoke tests.
+
 ## Principles
 
 1. Contributions should follow the classic GitHub workflow, i.e. forking, cloning, then submitting a Pull Request (PR)

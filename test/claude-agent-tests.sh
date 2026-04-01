@@ -55,6 +55,7 @@ require_file .claude/settings.json
 require_file .claude/hooks/block-destructive-commands.sh
 require_file .claude/hooks/record-verification-command.sh
 require_file .claude/hooks/stop-completion-gate.sh
+require_file docs/coding/claude-code-agent.md
 
 require_string .claude/CLAUDE.md dbdeployer-maintainer
 require_final_sections .claude/CLAUDE.md
@@ -103,6 +104,8 @@ require_string .claude/skills/docs-reference-sync/SKILL.md 'Open Caveats'
 require_string .claude/skills/docs-reference-sync/SKILL.md docs/
 require_string .claude/skills/docs-reference-sync/SKILL.md README.md
 require_string .claude/skills/docs-reference-sync/SKILL.md CONTRIBUTING.md
+require_string docs/coding/claude-code-agent.md ./test/claude-agent-tests.sh
+require_string CONTRIBUTING.md docs/coding/claude-code-agent.md
 
 jq empty "$ROOT/.claude/settings.json" >/dev/null
 require_jq_true "$ROOT/.claude/settings.json" '
@@ -238,4 +241,4 @@ fallback_changed_files_output="$(
 printf '%s' "$fallback_changed_files_output" | jq -e '.decision == "block"' >/dev/null
 printf '%s' "$fallback_changed_files_output" | jq -e '.reason | contains("./test/claude-agent-tests.sh")' >/dev/null
 
-printf 'PASS: Claude hooks and tests\n'
+printf 'PASS: Claude repo assets, docs, and hooks\n'
