@@ -24,6 +24,10 @@ The following guidelines want to help and simplify the process of contributing t
 
 If you use Claude Code for maintenance work in this repo, read `docs/coding/claude-code-agent.md` first. It documents the repo-local `.claude/` skills, hook behavior, and required smoke tests.
 
+- The repo-local `.claude/` workflow is authoritative for Claude Code tasks in this repository.
+- Run `./test/claude-agent-tests.sh` when you edit `.claude/`, `docs/coding/claude-code-agent.md`, `scripts/install_claude_db_skills.sh`, or `tools/claude-skills/db-core-expertise/`.
+- If you update `tools/claude-skills/db-core-expertise/`, rerun `./scripts/install_claude_db_skills.sh` and `~/.claude/skills/db-core-expertise/scripts/smoke-test.sh` so the installed reusable skill stays in sync.
+
 ## Principles
 
 1. Contributions should follow the classic GitHub workflow, i.e. forking, cloning, then submitting a Pull Request (PR)

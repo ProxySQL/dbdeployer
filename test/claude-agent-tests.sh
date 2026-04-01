@@ -158,7 +158,17 @@ require_string .claude/skills/docs-reference-sync/SKILL.md README.md
 require_string .claude/skills/docs-reference-sync/SKILL.md CONTRIBUTING.md
 require_string docs/coding/claude-code-agent.md ./test/claude-agent-tests.sh
 require_string docs/coding/claude-code-agent.md ./scripts/install_claude_db_skills.sh
+require_string docs/coding/claude-code-agent.md 'Troubleshooting'
+require_string docs/coding/claude-code-agent.md 'verification-log.jsonl'
+require_string docs/coding/claude-code-agent.md 'Task recipes'
+require_string docs/coding/claude-code-agent.md 'Provider or CLI behavior change'
+require_string docs/coding/claude-code-agent.md 'Docs-only or reference-only change'
+require_string docs/coding/claude-code-agent.md 'Repo-local vs reusable'
+require_string docs/coding/claude-code-agent.md 'tools/claude-skills/db-core-expertise/'
+require_string docs/coding/claude-code-agent.md 'rerun the installer'
 require_string CONTRIBUTING.md docs/coding/claude-code-agent.md
+require_string CONTRIBUTING.md 'repo-local `.claude/` workflow'
+require_string CONTRIBUTING.md 'If you update `tools/claude-skills/db-core-expertise/`'
 require_string tools/claude-skills/db-core-expertise/SKILL.md db-core-expertise
 require_string tools/claude-skills/db-core-expertise/verification-playbook.md '`go test ./...` or `./test/go-unit-tests.sh`'
 require_string tools/claude-skills/db-core-expertise/verification-playbook.md 'sandbox-test'
