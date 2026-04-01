@@ -13,7 +13,9 @@ disable-model-invocation: true
 3. Prefer concrete commands and caveats over broad prose.
 4. State limitations directly.
 
-## Output
+## Supplemental Output
+
+These fields are supplemental only. They must not replace the required final response sections `Changed`, `Verification`, `Edge Cases`, and `Docs Updated` defined in `.claude/CLAUDE.md` and enforced by `test/claude-agent-tests.sh`.
 
 - Docs To Update
 - Files Updated

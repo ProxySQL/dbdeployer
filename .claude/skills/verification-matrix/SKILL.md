@@ -12,8 +12,8 @@ Treat `.claude/**`, `test/`, and `.github/workflows/` as verification-sensitive 
 
 ## Local Checks
 
-- `common/`, `cmd/`, `ops/`, `providers/`, `sandbox/`, or `test/` changes: run `go test ./...` and `./test/go-unit-tests.sh`.
-- `.claude/**`, `test/claude-agent/**`, or `test/claude-agent-tests.sh` changes: run `./test/claude-agent-tests.sh`.
+- `common/`, `cmd/`, `ops/`, `providers/`, `sandbox/`, or `test/` changes: run `go test ./...` or `./test/go-unit-tests.sh`.
+- `.claude/**`, `test/claude-agent/**`, `test/claude-agent-tests.sh`, `tools/claude-skills/db-core-expertise/**`, or `scripts/install_claude_db_skills.sh` changes: run `./test/claude-agent-tests.sh`.
 
 ## Linux Runner Checks
 

@@ -8,10 +8,12 @@ Treat these paths as verification-sensitive:
 - `test/`
 - `.github/workflows/`
 - `.claude/`
+- `tools/claude-skills/db-core-expertise/`
+- `scripts/install_claude_db_skills.sh`
 
 ## Required Checks
-- Changes under `.claude/**` must be checked with `./test/claude-agent-tests.sh`.
-- Go code changes must be checked with `go test ./...` and `./test/go-unit-tests.sh`.
+- Changes under `.claude/**`, `tools/claude-skills/db-core-expertise/**`, and `scripts/install_claude_db_skills.sh` must be checked with `./test/claude-agent-tests.sh`.
+- Go code changes must be checked with either `go test ./...` or `./test/go-unit-tests.sh`.
 - Workflow-related changes must stay aligned with the matching jobs in `.github/workflows/integration_tests.yml` and `.github/workflows/proxysql_integration_tests.yml`.
 
 ## Completion Language

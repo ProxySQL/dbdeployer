@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# DBDeployer - The MySQL Sandbox
+# Copyright © 2006-2020 Giuseppe Maxia
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -11,15 +26,31 @@ fail() {
   exit 1
 }
 
+resolve_path() {
+  local path="$1"
+  if [[ "$path" != /* ]]; then
+    path="$ROOT/$path"
+  fi
+  printf '%s\n' "$path"
+}
+
 require_file() {
   local path="$1"
+  path="$(resolve_path "$path")"
   [[ -f "$path" ]] || fail "missing $path"
 }
 
 require_string() {
   local path="$1"
   local needle="$2"
+  path="$(resolve_path "$path")"
   grep -Fq -- "$needle" "$path" || fail "$path missing substring: $needle"
+}
+
+require_script_header() {
+  local path="$1"
+  require_string "$path" "# DBDeployer - The MySQL Sandbox"
+  require_string "$path" "# Copyright"
 }
 
 assert_empty_output() {
@@ -65,12 +96,20 @@ require_file tools/claude-skills/db-core-expertise/docs-style.md
 require_file tools/claude-skills/db-core-expertise/scripts/smoke-test.sh
 require_file scripts/install_claude_db_skills.sh
 
+require_script_header .claude/hooks/block-destructive-commands.sh
+require_script_header .claude/hooks/record-verification-command.sh
+require_script_header .claude/hooks/stop-completion-gate.sh
+require_script_header scripts/install_claude_db_skills.sh
+require_script_header test/claude-agent-tests.sh
+require_script_header tools/claude-skills/db-core-expertise/scripts/smoke-test.sh
+
 require_string .claude/CLAUDE.md dbdeployer-maintainer
 require_final_sections .claude/CLAUDE.md
 
 require_string .claude/rules/testing-and-completion.md ./test/go-unit-tests.sh
 require_final_sections .claude/rules/testing-and-completion.md
 require_string .claude/rules/testing-and-completion.md 'go test ./...'
+require_string .claude/rules/testing-and-completion.md '`go test ./...` or `./test/go-unit-tests.sh`'
 require_string .claude/rules/testing-and-completion.md './test/claude-agent-tests.sh'
 
 require_string .claude/rules/provider-surfaces.md ProxySQL
@@ -104,11 +143,16 @@ require_string .claude/skills/verification-matrix/SKILL.md '.github/workflows/'
 require_string .claude/skills/verification-matrix/SKILL.md 'go test ./...'
 require_string .claude/skills/verification-matrix/SKILL.md './test/go-unit-tests.sh'
 require_string .claude/skills/verification-matrix/SKILL.md './test/claude-agent-tests.sh'
+require_string .claude/skills/verification-matrix/SKILL.md 'tools/claude-skills/db-core-expertise/**'
+require_string .claude/skills/verification-matrix/SKILL.md 'scripts/install_claude_db_skills.sh'
 require_string .claude/skills/verification-matrix/SKILL.md 'integration_tests.yml'
 require_string .claude/skills/verification-matrix/SKILL.md 'proxysql_integration_tests.yml'
 require_string .claude/skills/docs-reference-sync/SKILL.md 'Docs To Update'
 require_string .claude/skills/docs-reference-sync/SKILL.md 'Files Updated'
 require_string .claude/skills/docs-reference-sync/SKILL.md 'Open Caveats'
+require_string .claude/skills/docs-reference-sync/SKILL.md 'Supplemental Output'
+require_string .claude/skills/docs-reference-sync/SKILL.md 'must not replace'
+require_string .claude/skills/docs-reference-sync/SKILL.md '.claude/CLAUDE.md'
 require_string .claude/skills/docs-reference-sync/SKILL.md docs/
 require_string .claude/skills/docs-reference-sync/SKILL.md README.md
 require_string .claude/skills/docs-reference-sync/SKILL.md CONTRIBUTING.md
@@ -116,6 +160,13 @@ require_string docs/coding/claude-code-agent.md ./test/claude-agent-tests.sh
 require_string docs/coding/claude-code-agent.md ./scripts/install_claude_db_skills.sh
 require_string CONTRIBUTING.md docs/coding/claude-code-agent.md
 require_string tools/claude-skills/db-core-expertise/SKILL.md db-core-expertise
+require_string tools/claude-skills/db-core-expertise/verification-playbook.md '`go test ./...` or `./test/go-unit-tests.sh`'
+require_string tools/claude-skills/db-core-expertise/verification-playbook.md 'sandbox-test'
+require_string tools/claude-skills/db-core-expertise/verification-playbook.md 'postgresql-test'
+require_string tools/claude-skills/db-core-expertise/verification-playbook.md 'proxysql-test'
+require_string tools/claude-skills/db-core-expertise/verification-playbook.md 'proxysql-postgresql'
+require_string docs/superpowers/plans/2026-03-31-dbdeployer-specialized-agent-implementation.md 'Final responses must include `Changed`, `Verification`, `Edge Cases`, and `Docs Updated`.'
+require_string docs/superpowers/plans/2026-03-31-dbdeployer-specialized-agent-implementation.md 'for section in "Changed" "Verification" "Edge Cases" "Docs Updated"; do'
 
 jq empty "$ROOT/.claude/settings.json" >/dev/null
 require_jq_true "$ROOT/.claude/settings.json" '
@@ -124,7 +175,7 @@ require_jq_true "$ROOT/.claude/settings.json" '
       .matcher == "Bash" and
       (.hooks | any(
         .type == "command" and
-        .if == "Bash(git *)" and
+        .if == "Bash(*git *)" and
         .command == "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-destructive-commands.sh"
       ))
     )
@@ -152,6 +203,9 @@ require_jq_true "$ROOT/.claude/settings.json" '
 block_output="$("$ROOT/.claude/hooks/block-destructive-commands.sh" < "$FIXTURES/pretool-git-reset-hard.json")"
 printf '%s' "$block_output" | jq -e '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null
 
+env_block_output="$("$ROOT/.claude/hooks/block-destructive-commands.sh" < "$FIXTURES/pretool-env-git-reset-hard.json")"
+printf '%s' "$env_block_output" | jq -e '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null
+
 safe_output="$("$ROOT/.claude/hooks/block-destructive-commands.sh" < "$FIXTURES/pretool-git-status.json")"
 assert_empty_output "$safe_output" "safe git command allowed"
 
@@ -159,6 +213,11 @@ log_path="$TMPDIR/verification-log.jsonl"
 CLAUDE_AGENT_VERIFICATION_LOG="$log_path" CLAUDE_PROJECT_DIR="$ROOT" \
   "$ROOT/.claude/hooks/record-verification-command.sh" < "$FIXTURES/posttool-go-test.json"
 grep -Fq "go test ./..." "$log_path"
+
+log_path="$TMPDIR/verification-log-trimmed.jsonl"
+CLAUDE_AGENT_VERIFICATION_LOG="$log_path" CLAUDE_PROJECT_DIR="$ROOT" \
+  "$ROOT/.claude/hooks/record-verification-command.sh" < "$FIXTURES/posttool-go-test-leading-space.json"
+require_jq_true "$log_path" 'select(.command == "go test ./...") | true' "verification log should store trimmed commands"
 
 log_path="$TMPDIR/non-verification-log.jsonl"
 CLAUDE_AGENT_VERIFICATION_LOG="$log_path" CLAUDE_PROJECT_DIR="$ROOT" \
@@ -176,6 +235,24 @@ wrong_verification_class_output="$(
 )"
 printf '%s' "$wrong_verification_class_output" | jq -e '.decision == "block"' >/dev/null
 printf '%s' "$wrong_verification_class_output" | jq -e '.reason | contains("./test/claude-agent-tests.sh")' >/dev/null
+
+skill_verification_class_output="$(
+  CLAUDE_AGENT_CHANGED_FILES=$'tools/claude-skills/db-core-expertise/verification-playbook.md' \
+  CLAUDE_AGENT_VERIFICATION_LOG="$TMPDIR/go-only.jsonl" \
+  CLAUDE_PROJECT_DIR="$ROOT" \
+  "$ROOT/.claude/hooks/stop-completion-gate.sh" < "$FIXTURES/stop-sections-complete.json"
+)"
+printf '%s' "$skill_verification_class_output" | jq -e '.decision == "block"' >/dev/null
+printf '%s' "$skill_verification_class_output" | jq -e '.reason | contains("./test/claude-agent-tests.sh")' >/dev/null
+
+installer_verification_class_output="$(
+  CLAUDE_AGENT_CHANGED_FILES=$'scripts/install_claude_db_skills.sh' \
+  CLAUDE_AGENT_VERIFICATION_LOG="$TMPDIR/go-only.jsonl" \
+  CLAUDE_PROJECT_DIR="$ROOT" \
+  "$ROOT/.claude/hooks/stop-completion-gate.sh" < "$FIXTURES/stop-sections-complete.json"
+)"
+printf '%s' "$installer_verification_class_output" | jq -e '.decision == "block"' >/dev/null
+printf '%s' "$installer_verification_class_output" | jq -e '.reason | contains("./test/claude-agent-tests.sh")' >/dev/null
 
 missing_verification_output="$(
   CLAUDE_AGENT_CHANGED_FILES=$'providers/postgresql/provider.go' \

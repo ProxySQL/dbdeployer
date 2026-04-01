@@ -169,9 +169,9 @@ Expected: FAIL because `.claude/CLAUDE.md` and the rules files do not exist yet.
 - Treat changes in `cmd/`, `providers/`, `sandbox/`, `ops/`, `common/`, `test/`, `.github/workflows/`, and `.claude/` as verification-sensitive.
 - Run the strongest relevant checks before finishing:
   - `.claude/**` => `./test/claude-agent-tests.sh`
-  - Go code => `go test ./...` and `./test/go-unit-tests.sh`
+  - Go code => `go test ./...` or `./test/go-unit-tests.sh`
   - Provider and topology behavior => the matching jobs in `.github/workflows/integration_tests.yml` and `.github/workflows/proxysql_integration_tests.yml`
-- Final responses must include `Verification`, `Edge Cases`, and `Docs Updated`.
+- Final responses must include `Changed`, `Verification`, `Edge Cases`, and `Docs Updated`.
 - If a required check cannot run in the current environment, state the gap explicitly and do not describe the task as complete.
 ```
 
@@ -785,7 +785,7 @@ if [[ "$requires_docs" -eq 1 && "$docs_updated" -eq 0 ]]; then
   exit 0
 fi
 
-for section in "Verification" "Edge Cases" "Docs Updated"; do
+for section in "Changed" "Verification" "Edge Cases" "Docs Updated"; do
   if [[ "$message" != *"$section"* ]]; then
     jq -n --arg reason "Final response must include '$section' so completion is auditable." '{decision: "block", reason: $reason}'
     exit 0
