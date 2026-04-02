@@ -288,6 +288,13 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 		sbItem.LogDirectory = common.DirName(sandboxDef.LogFileName)
 	}
 
+	// Select version-appropriate templates for group replication init
+	initNodesTmpl := globals.TmplInitNodes
+	isMySQL84, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
+	if isMySQL84 {
+		initNodesTmpl = globals.TmplInitNodes84
+	}
+
 	for i := 1; i <= nodes; i++ {
 		groupPort := baseGroupPort + i
 		sandboxDef.Port = basePort + i
@@ -338,18 +345,24 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 		// Version-aware options for group replication
 		useReplicaUpdates, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumShowReplicaStatusVersion)
 		useNoWriteSetExtraction, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumNoWriteSetExtractionVersion)
+		// Use 8.4+ group replication options template when applicable
+		useMySQL84GroupOptions, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
 
 		replicationData := common.StringMap{
-			"BasePort":                  basePortText,
-			"GroupSeeds":                connectionString,
-			"LocalAddresses":            fmt.Sprintf("%s:%d", masterIp, groupPort),
-			"PrimaryMode":               singlePrimaryMode,
-			"UseReplicaUpdates":         useReplicaUpdates,
-			"SkipWriteSetExtraction":    useNoWriteSetExtraction,
+			"BasePort":               basePortText,
+			"GroupSeeds":             connectionString,
+			"LocalAddresses":         fmt.Sprintf("%s:%d", masterIp, groupPort),
+			"PrimaryMode":            singlePrimaryMode,
+			"UseReplicaUpdates":      useReplicaUpdates,
+			"SkipWriteSetExtraction": useNoWriteSetExtraction,
 		}
 
+		groupReplOptionsTmpl := globals.TmplGroupReplOptions
+		if useMySQL84GroupOptions {
+			groupReplOptionsTmpl = globals.TmplGroupReplOptions84
+		}
 		replOptionsText, err := common.SafeTemplateFill("group_replication",
-			GroupTemplates[globals.TmplGroupReplOptions].Contents, replicationData)
+			GroupTemplates[groupReplOptionsTmpl].Contents, replicationData)
 		if err != nil {
 			return err
 		}
@@ -360,8 +373,10 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 
 		sandboxDef.ReplOptions += fmt.Sprintf("\n%s\n", SingleTemplates[globals.TmplGtidOptions57].Contents)
 		// master-info-repository and relay-log-info-repository removed in 8.4+
-		skipCrashSafeOpts, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
-		if !skipCrashSafeOpts {
+		if useMySQL84GroupOptions {
+			// relay-log-recovery is still valid; use the 8.4-specific template
+			sandboxDef.ReplOptions += fmt.Sprintf("\n%s\n", SingleTemplates[globals.TmplReplCrashSafeOptions84].Contents)
+		} else {
 			sandboxDef.ReplOptions += fmt.Sprintf("\n%s\n", SingleTemplates[globals.TmplReplCrashSafeOptions].Contents)
 		}
 
@@ -487,7 +502,7 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 		data:       data,
 		sandboxDir: sandboxDef.SandboxDir,
 		scripts: []ScriptDef{
-			{globals.ScriptInitializeNodes, globals.TmplInitNodes, true},
+			{globals.ScriptInitializeNodes, initNodesTmpl, true},
 			{globals.ScriptCheckNodes, globals.TmplCheckNodes, true},
 		},
 	}

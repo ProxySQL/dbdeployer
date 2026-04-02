@@ -224,8 +224,14 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 	changeMasterExtra := ""
 	masterAutoPosition := ""
 	if sandboxDef.GtidOptions != "" {
-		masterAutoPosition += ", MASTER_AUTO_POSITION=1"
-		logger.Printf("Adding MASTER_AUTO_POSITION to slaves setup\n")
+		useSourceAutoPosition, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumChangeReplicationSourceVersion)
+		if useSourceAutoPosition {
+			masterAutoPosition = ", SOURCE_AUTO_POSITION=1"
+			logger.Printf("Adding SOURCE_AUTO_POSITION to slaves setup\n")
+		} else {
+			masterAutoPosition = ", MASTER_AUTO_POSITION=1"
+			logger.Printf("Adding MASTER_AUTO_POSITION to slaves setup\n")
+		}
 	}
 	// 8.0.11
 	// isMinimumNativeAuthPlugin, err := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumNativeAuthPluginVersion)
@@ -497,6 +503,13 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 	execAllSlaves := "exec_all_" + slavePlural
 	execAllMasters := "exec_all_" + masterPlural
 
+	// Select the appropriate init_slaves template based on MySQL version
+	initSlavesTemplate := globals.TmplInitSlaves
+	useNewSourceSyntax, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumChangeReplicationSourceVersion)
+	if useNewSourceSyntax {
+		initSlavesTemplate = globals.TmplInitSlaves84
+	}
+
 	sb := ScriptBatch{
 		tc:         ReplicationTemplates,
 		logger:     logger,
@@ -515,7 +528,7 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 			{globals.ScriptMetadataAll, globals.TmplMetadataAll, true},
 			{useAllSlaves, globals.TmplUseAllSlaves, true},
 			{useAllMasters, globals.TmplUseAllMasters, true},
-			{initializeSlaves, globals.TmplInitSlaves, true},
+			{initializeSlaves, initSlavesTemplate, true},
 			{checkSlaves, globals.TmplCheckSlaves, true},
 			{masterAbbr, globals.TmplMaster, true},
 			{execAllSlaves, globals.TmplExecAllSlaves, true},

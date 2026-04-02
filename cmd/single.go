@@ -400,7 +400,13 @@ func fillSandboxDefinition(cmd *cobra.Command, args []string, usingImport bool) 
 		common.ErrCheckExitf(err, 1, globals.ErrWhileComparingVersions)
 		if isMinimumGtid {
 			sd.GtidOptions = sandbox.SingleTemplates[templateName].Contents
-			sd.ReplCrashSafeOptions = sandbox.SingleTemplates[globals.TmplReplCrashSafeOptions].Contents
+			// Use 8.4+ crash-safe options template (no deprecated master-info-repository)
+			crashSafeTmpl := globals.TmplReplCrashSafeOptions
+			isMySQL84, _ := common.GreaterOrEqualVersion(sd.Version, globals.MinimumResetBinaryLogsVersion)
+			if isMySQL84 {
+				crashSafeTmpl = globals.TmplReplCrashSafeOptions84
+			}
+			sd.ReplCrashSafeOptions = sandbox.SingleTemplates[crashSafeTmpl].Contents
 			sd.ReplOptions = sandbox.SingleTemplates[globals.TmplReplicationOptions].Contents
 			if sd.ServerId == 0 {
 				sd.PortAsServerId = true
@@ -418,7 +424,13 @@ func fillSandboxDefinition(cmd *cobra.Command, args []string, usingImport bool) 
 		isMinimumCrashSafe, err := common.HasCapability(sd.Flavor, common.CrashSafe, sd.Version)
 		common.ErrCheckExitf(err, 1, globals.ErrWhileComparingVersions)
 		if isMinimumCrashSafe {
-			sd.ReplCrashSafeOptions = sandbox.SingleTemplates[globals.TmplReplCrashSafeOptions].Contents
+			// Use 8.4+ crash-safe options template (no deprecated master-info-repository)
+			crashSafeTmpl := globals.TmplReplCrashSafeOptions
+			isMySQL84, _ := common.GreaterOrEqualVersion(sd.Version, globals.MinimumResetBinaryLogsVersion)
+			if isMySQL84 {
+				crashSafeTmpl = globals.TmplReplCrashSafeOptions84
+			}
+			sd.ReplCrashSafeOptions = sandbox.SingleTemplates[crashSafeTmpl].Contents
 		} else {
 			common.Exitf(1, globals.ErrOptionRequiresVersion, globals.ReplCrashSafeLabel, common.IntSliceToDottedString(globals.MinimumCrashSafeVersion))
 		}

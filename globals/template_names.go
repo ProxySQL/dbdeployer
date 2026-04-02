@@ -165,7 +165,13 @@ const (
 	TmplTidbMyCnf      = "tidb_my_cnf"
 
 	// group
-	TmplInitNodes        = "init_nodes"
-	TmplCheckNodes       = "check_nodes"
-	TmplGroupReplOptions = "group_repl_options"
+	TmplInitNodes          = "init_nodes"
+	TmplCheckNodes         = "check_nodes"
+	TmplGroupReplOptions   = "group_repl_options"
+	TmplInitNodes84        = "init_nodes84"
+	TmplGroupReplOptions84 = "group_repl_options84"
+
+	// MySQL 8.4+ specific templates
+	TmplInitSlaves84          = "init_slaves_84"
+	TmplReplCrashSafeOptions84 = "repl_crash_safe_options84"
 )

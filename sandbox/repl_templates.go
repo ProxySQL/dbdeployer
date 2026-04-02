@@ -30,6 +30,9 @@ var (
 	//go:embed templates/replication/init_slaves.gotxt
 	initSlavesTemplate string
 
+	//go:embed templates/replication/init_slaves_84.gotxt
+	initSlaves84Template string
+
 	//go:embed templates/replication/semi_sync_start.gotxt
 	semiSyncStartTemplate string
 
@@ -134,6 +137,11 @@ var (
 			Description: "Initialize slaves after deployment",
 			Notes:       "Can also be run after calling './clear_all'",
 			Contents:    initSlavesTemplate,
+		},
+		globals.TmplInitSlaves84: TemplateDesc{
+			Description: "Initialize slaves after deployment (MySQL 8.4+ syntax)",
+			Notes:       "Uses CHANGE REPLICATION SOURCE TO and SOURCE_AUTO_POSITION",
+			Contents:    initSlaves84Template,
 		},
 		globals.TmplSemiSyncStart: TemplateDesc{
 			Description: "Starts semi synch replication ",

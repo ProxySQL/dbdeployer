@@ -30,17 +30,28 @@ var (
 	//go:embed templates/group/init_nodes.gotxt
 	initNodesTemplate string
 
+	//go:embed templates/group/init_nodes84.gotxt
+	initNodes84Template string
+
 	//go:embed templates/group/check_nodes.gotxt
 	checkNodesTemplate string
 
 	//go:embed templates/group/group_repl_options.gotxt
 	groupReplOptionsTemplate string
 
+	//go:embed templates/group/group_repl_options84.gotxt
+	groupReplOptions84Template string
+
 	GroupTemplates = TemplateCollection{
 		globals.TmplInitNodes: TemplateDesc{
 			Description: "Initialize group replication after deployment",
 			Notes:       "",
 			Contents:    initNodesTemplate,
+		},
+		globals.TmplInitNodes84: TemplateDesc{
+			Description: "Initialize group replication after deployment (MySQL 8.4+ syntax)",
+			Notes:       "Uses CHANGE REPLICATION SOURCE TO syntax",
+			Contents:    initNodes84Template,
 		},
 		globals.TmplCheckNodes: TemplateDesc{
 			Description: "Checks the status of group replication",
@@ -51,6 +62,11 @@ var (
 			Description: "replication options for Group replication node",
 			Notes:       "",
 			Contents:    groupReplOptionsTemplate,
+		},
+		globals.TmplGroupReplOptions84: TemplateDesc{
+			Description: "replication options for Group replication node (MySQL 8.4+)",
+			Notes:       "Excludes transaction_write_set_extraction removed in 8.4",
+			Contents:    groupReplOptions84Template,
 		},
 	}
 )
