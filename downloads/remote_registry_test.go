@@ -216,3 +216,105 @@ func TestMergeCollection(t *testing.T) {
 		})
 	}
 }
+
+func TestParseTarballUrlInfo(t *testing.T) {
+	tests := []struct {
+		name        string
+		url         string
+		wantName    string
+		wantVersion string
+		wantShort   string
+		wantOS      string
+		wantArch    string
+		wantFlavor  string
+		wantMinimal bool
+		wantErr     bool
+	}{
+		{
+			name:        "mysql-linux-amd64",
+			url:         "https://cdn.mysql.com/Downloads/MySQL-8.4/mysql-8.4.8-linux-glibc2.17-x86_64.tar.xz",
+			wantName:    "mysql-8.4.8-linux-glibc2.17-x86_64.tar.xz",
+			wantVersion: "8.4.8",
+			wantShort:   "8.4",
+			wantOS:      "Linux",
+			wantArch:    "amd64",
+			wantFlavor:  "mysql",
+			wantMinimal: false,
+		},
+		{
+			name:        "mysql-linux-amd64-minimal",
+			url:         "https://cdn.mysql.com/Downloads/MySQL-8.4/mysql-8.4.8-linux-glibc2.17-x86_64-minimal.tar.xz",
+			wantName:    "mysql-8.4.8-linux-glibc2.17-x86_64-minimal.tar.xz",
+			wantVersion: "8.4.8",
+			wantShort:   "8.4",
+			wantOS:      "Linux",
+			wantArch:    "amd64",
+			wantFlavor:  "mysql",
+			wantMinimal: true,
+		},
+		{
+			name:        "mysql-macos-arm64",
+			url:         "https://cdn.mysql.com/Downloads/MySQL-8.4/mysql-8.4.8-macos15-arm64.tar.gz",
+			wantName:    "mysql-8.4.8-macos15-arm64.tar.gz",
+			wantVersion: "8.4.8",
+			wantShort:   "8.4",
+			wantOS:      "Darwin",
+			wantArch:    "arm64",
+			wantFlavor:  "mysql",
+			wantMinimal: false,
+		},
+		{
+			name:        "percona-linux-amd64-minimal",
+			url:         "https://downloads.percona.com/downloads/Percona-Server-8.0/Percona-Server-8.0.35-27/binary/tarball/Percona-Server-8.0.35-27-Linux.x86_64.glibc2.17-minimal.tar.gz",
+			wantName:    "Percona-Server-8.0.35-27-Linux.x86_64.glibc2.17-minimal.tar.gz",
+			wantVersion: "8.0.35",
+			wantShort:   "8.0",
+			wantOS:      "Linux",
+			wantArch:    "amd64",
+			wantFlavor:  "percona",
+			wantMinimal: true,
+		},
+		{
+			name:    "invalid-no-version",
+			url:     "https://example.com/some-tarball-without-version.tar.gz",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseTarballUrlInfo(tt.url)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseTarballUrlInfo() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr {
+				return
+			}
+			if got.Name != tt.wantName {
+				t.Errorf("Name = %q, want %q", got.Name, tt.wantName)
+			}
+			if got.Version != tt.wantVersion {
+				t.Errorf("Version = %q, want %q", got.Version, tt.wantVersion)
+			}
+			if got.ShortVersion != tt.wantShort {
+				t.Errorf("ShortVersion = %q, want %q", got.ShortVersion, tt.wantShort)
+			}
+			if got.OperatingSystem != tt.wantOS {
+				t.Errorf("OperatingSystem = %q, want %q", got.OperatingSystem, tt.wantOS)
+			}
+			if got.Arch != tt.wantArch {
+				t.Errorf("Arch = %q, want %q", got.Arch, tt.wantArch)
+			}
+			if got.Flavor != tt.wantFlavor {
+				t.Errorf("Flavor = %q, want %q", got.Flavor, tt.wantFlavor)
+			}
+			if got.Minimal != tt.wantMinimal {
+				t.Errorf("Minimal = %v, want %v", got.Minimal, tt.wantMinimal)
+			}
+			if got.Url != tt.url {
+				t.Errorf("Url = %q, want %q", got.Url, tt.url)
+			}
+		})
+	}
+}

@@ -567,6 +567,95 @@ func checkRemoteUrl(remoteUrl string) (int64, error) {
 	return size, nil
 }
 
+// CheckRemoteUrl validates that a URL is accessible and returns its content size.
+// It uses an HTTP HEAD request first; if that fails (some servers don't support HEAD),
+// it falls back to a GET request.
+func CheckRemoteUrl(remoteUrl string) (int64, error) {
+	// Try HEAD first to avoid downloading the file
+	// #nosec G107
+	resp, err := http.Head(remoteUrl)
+	if err == nil {
+		defer func(Body io.ReadCloser) {
+			_ = Body.Close()
+		}(resp.Body)
+		if resp.StatusCode == http.StatusOK {
+			var size int64
+			for key := range resp.Header {
+				if strings.EqualFold(key, "Content-Length") && len(resp.Header[key]) > 0 {
+					size, _ = strconv.ParseInt(resp.Header[key][0], 10, 0)
+				}
+			}
+			return size, nil
+		}
+	}
+	// Fall back to GET if HEAD failed or returned non-200
+	return checkRemoteUrl(remoteUrl)
+}
+
+// ParseTarballUrlInfo parses a tarball URL/filename and returns a partially-filled
+// TarballDescription with auto-detected fields. The caller should override any
+// fields that were incorrectly detected.
+func ParseTarballUrlInfo(tarballUrl string) (TarballDescription, error) {
+	fileName := common.BaseName(tarballUrl)
+	if fileName == "" {
+		return TarballDescription{}, fmt.Errorf("could not determine filename from URL: %s", tarballUrl)
+	}
+
+	flavor, version, shortVersion, err := common.FindTarballInfo(fileName)
+	if err != nil {
+		return TarballDescription{}, fmt.Errorf("could not parse version from filename %q: %s", fileName, err)
+	}
+
+	OS, arch := detectOSArchFromFilename(fileName)
+	minimal := strings.Contains(strings.ToLower(fileName), "minimal")
+
+	return TarballDescription{
+		Name:         fileName,
+		Url:          tarballUrl,
+		Flavor:       flavor,
+		Version:      version,
+		ShortVersion: shortVersion,
+		OperatingSystem: OS,
+		Arch:         arch,
+		Minimal:      minimal,
+	}, nil
+}
+
+// detectOSArchFromFilename attempts to detect the OS and architecture from a tarball filename.
+// It handles common MySQL/Percona/MariaDB naming conventions.
+func detectOSArchFromFilename(fileName string) (OS, arch string) {
+	lower := strings.ToLower(fileName)
+
+	// Detect OS
+	switch {
+	case strings.Contains(lower, "linux") || strings.Contains(lower, "glibc"):
+		OS = "Linux"
+	case strings.Contains(lower, "macos") || strings.Contains(lower, "osx") || strings.Contains(lower, "darwin"):
+		OS = "Darwin"
+	case strings.Contains(lower, "windows") || strings.Contains(lower, "winx64"):
+		OS = "Windows"
+	default:
+		OS = runtime.GOOS
+		if OS == "darwin" {
+			OS = "Darwin"
+		} else if OS == "linux" {
+			OS = "Linux"
+		}
+	}
+
+	// Detect architecture
+	switch {
+	case strings.Contains(lower, "arm64") || strings.Contains(lower, "aarch64"):
+		arch = "arm64"
+	case strings.Contains(lower, "x86_64") || strings.Contains(lower, "x86-64") || strings.Contains(lower, "amd64"):
+		arch = "amd64"
+	default:
+		arch = runtime.GOARCH
+	}
+
+	return OS, arch
+}
+
 func CheckTarballList(tarballList []TarballDescription) error {
 	uniqueNames := make(map[string]bool)
 	uniqueCombinations := make(map[string]bool)
