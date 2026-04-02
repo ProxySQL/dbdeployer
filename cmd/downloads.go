@@ -596,6 +596,117 @@ func addTarballToCollectionFromStdin(cmd *cobra.Command, args []string) {
 	ops.DisplayTarball(tarballDesc)
 }
 
+func addTarballToCollectionFromUrl(cmd *cobra.Command, args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("command 'add-url' requires a URL")
+	}
+	tarballUrl := args[0]
+	if !common.IsUrl(tarballUrl) {
+		return fmt.Errorf("argument %q does not look like a valid URL (must start with http:// or https://)", tarballUrl)
+	}
+
+	flags := cmd.Flags()
+	overrideOS, _ := flags.GetString(globals.OSLabel)
+	overrideArch, _ := flags.GetString(globals.ArchLabel)
+	overrideFlavor, _ := flags.GetString(globals.FlavorLabel)
+	overrideVersion, _ := flags.GetString(globals.VersionLabel)
+	overrideShortVersion, _ := flags.GetString(globals.ShortVersionLabel)
+	overrideMinimal, _ := flags.GetBool(globals.MinimalLabel)
+	overwrite, _ := flags.GetBool(globals.OverwriteLabel)
+	skipVerify, _ := flags.GetBool(globals.SkipVerifyUrlLabel)
+
+	// Parse the filename from the URL
+	tarballDesc, err := downloads.ParseTarballUrlInfo(tarballUrl)
+	if err != nil {
+		return fmt.Errorf("error parsing tarball URL: %s\n"+
+			"Use --version, --OS, --arch, --flavor flags to provide metadata manually", err)
+	}
+
+	// Apply any user overrides
+	if overrideOS != "" {
+		tarballDesc.OperatingSystem = overrideOS
+	}
+	if overrideArch != "" {
+		tarballDesc.Arch = overrideArch
+	}
+	if overrideFlavor != "" {
+		tarballDesc.Flavor = overrideFlavor
+	}
+	if overrideVersion != "" {
+		tarballDesc.Version = overrideVersion
+	}
+	if overrideShortVersion != "" {
+		tarballDesc.ShortVersion = overrideShortVersion
+	}
+	if overrideMinimal {
+		tarballDesc.Minimal = true
+	}
+
+	// Validate required fields
+	if tarballDesc.Version == "" {
+		return fmt.Errorf("could not detect version from filename; use --version to specify it")
+	}
+	if tarballDesc.ShortVersion == "" {
+		return fmt.Errorf("could not detect short version from filename; use --short-version to specify it")
+	}
+	if tarballDesc.OperatingSystem == "" {
+		return fmt.Errorf("could not detect OS from filename; use --OS to specify it")
+	}
+	if tarballDesc.Arch == "" {
+		return fmt.Errorf("could not detect architecture from filename; use --arch to specify it")
+	}
+	if tarballDesc.Flavor == "" {
+		return fmt.Errorf("could not detect flavor from filename; use --flavor to specify it")
+	}
+
+	// Verify the URL is accessible
+	if !skipVerify {
+		fmt.Printf("Verifying URL accessibility: %s\n", tarballUrl)
+		size, err := downloads.CheckRemoteUrl(tarballUrl)
+		if err != nil {
+			return fmt.Errorf("URL is not accessible: %s\nUse --skip-verify-url to bypass this check", err)
+		}
+		tarballDesc.Size = size
+		if size > 0 {
+			fmt.Printf("URL is accessible (size: %s)\n", humanize.Bytes(uint64(size)))
+		} else {
+			fmt.Printf("URL is accessible (size unknown)\n")
+		}
+	}
+
+	tarballDesc.Notes = fmt.Sprintf("added with version %s", common.VersionDef)
+	tarballDesc.DateAdded = time.Now().Format("2006-01-02 15:04")
+
+	// Load existing collection and add the new entry
+	var tarballCollection = downloads.DefaultTarballRegistry
+
+	existingTarball, findErr := downloads.FindTarballByName(tarballDesc.Name)
+	if findErr == nil {
+		if overwrite {
+			var newList []downloads.TarballDescription
+			newList, err = downloads.DeleteTarball(tarballCollection.Tarballs, tarballDesc.Name)
+			if err != nil {
+				return fmt.Errorf("error removing existing tarball %s from list: %s", tarballDesc.Name, err)
+			}
+			tarballCollection.Tarballs = newList
+		} else {
+			ops.DisplayTarball(existingTarball)
+			fmt.Println()
+			return fmt.Errorf("tarball %s already in the list; use --overwrite to replace it", tarballDesc.Name)
+		}
+	}
+
+	tarballCollection.Tarballs = append(tarballCollection.Tarballs, tarballDesc)
+
+	err = downloads.WriteTarballFileInfo(tarballCollection)
+	if err != nil {
+		return fmt.Errorf("error writing tarball list: %s", err)
+	}
+	fmt.Printf("Tarball below added to %s\n", downloads.TarballFileRegistry)
+	ops.DisplayTarball(tarballDesc)
+	return nil
+}
+
 func removeTarballFromCollection(cmd *cobra.Command, args []string) {
 	if len(args) < 1 {
 		common.Exit(1, "command 'delete' requires a tarball name")
@@ -753,6 +864,27 @@ var downloadsAddStdinCmd = &cobra.Command{
 	Run: addTarballToCollectionFromStdin,
 }
 
+var downloadsAddUrlCmd = &cobra.Command{
+	Use:   "add-url URL",
+	Short: "Adds a remote tarball to the list by URL",
+	Long: `Adds a tarball entry to the local registry using a direct URL.
+
+The filename is parsed to auto-detect version, OS, architecture, flavor, and
+whether the tarball is minimal. Use the override flags if auto-detection fails
+or produces wrong results.
+
+The URL is validated with an HTTP HEAD request before the entry is saved.
+Use --skip-verify-url to bypass this check.
+`,
+	Example: `
+$ dbdeployer downloads add-url https://example.com/mysql-8.4.8-linux-glibc2.17-x86_64.tar.xz
+$ dbdeployer downloads add-url https://example.com/Percona-Server-8.0.35-27-Linux.x86_64.glibc2.17-minimal.tar.gz
+$ dbdeployer downloads add-url https://example.com/mysql-8.4.8-macos15-arm64.tar.gz --OS=darwin --arch=arm64
+$ dbdeployer downloads add-url https://example.com/mysql-8.4.8-linux-glibc2.17-x86_64-minimal.tar.xz --overwrite
+`,
+	RunE: addTarballToCollectionFromUrl,
+}
+
 var downloadsCmd = &cobra.Command{
 	Use:   "downloads",
 	Short: "Manages remote tarballs",
@@ -788,6 +920,7 @@ func init() {
 	downloadsCmd.AddCommand(downloadsAddStdinCmd)
 	downloadsCmd.AddCommand(downloadsDeleteCmd)
 	downloadsCmd.AddCommand(downloadsTreeCmd)
+	downloadsCmd.AddCommand(downloadsAddUrlCmd)
 
 	downloadsListCmd.Flags().BoolP(globals.ShowUrlLabel, "", false, "Show the URL")
 	downloadsListCmd.Flags().String(globals.FlavorLabel, "", "Which flavor will be listed")
@@ -836,6 +969,15 @@ func init() {
 	downloadsAddRemoteCmd.Flags().BoolP(globals.ChangeUserAgentLabel, "", false, "Use alternative user agent ('Firefox' instead of 'dbdeployer')")
 
 	downloadsAddStdinCmd.Flags().BoolP(globals.OverwriteLabel, "", false, "Overwrite existing entry")
+
+	downloadsAddUrlCmd.Flags().String(globals.OSLabel, "", "Override the detected OS (e.g. linux, darwin)")
+	downloadsAddUrlCmd.Flags().String(globals.ArchLabel, "", "Override the detected architecture (e.g. amd64, arm64)")
+	downloadsAddUrlCmd.Flags().String(globals.FlavorLabel, "", "Override the detected flavor (e.g. mysql, percona)")
+	downloadsAddUrlCmd.Flags().String(globals.VersionLabel, "", "Override the detected version (e.g. 8.4.8)")
+	downloadsAddUrlCmd.Flags().String(globals.ShortVersionLabel, "", "Override the detected short version (e.g. 8.4)")
+	downloadsAddUrlCmd.Flags().BoolP(globals.MinimalLabel, "", false, "Mark the tarball as minimal")
+	downloadsAddUrlCmd.Flags().BoolP(globals.OverwriteLabel, "", false, "Overwrite existing entry")
+	downloadsAddUrlCmd.Flags().BoolP(globals.SkipVerifyUrlLabel, "", false, "Skip URL accessibility check")
 
 	downloadsExportCmd.Flags().BoolP(globals.AddEmptyItemLabel, "", false, "Add an empty item to the tarballs list")
 

@@ -149,6 +149,7 @@ const (
 	DeleteAfterUnpackLabel = "delete-after-unpack"
 	MaxItemsLabel          = "max-items"
 	ChangeUserAgentLabel   = "change-user-agent"
+	SkipVerifyUrlLabel     = "skip-verify-url"
 
 	// Instantiated in cmd/admin.go
 	VerboseLabel = "verbose"
