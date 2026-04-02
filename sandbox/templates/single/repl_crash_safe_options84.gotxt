@@ -1,0 +1,4 @@
+
+# replication crash-safe options for MySQL 8.4+
+# master-info-repository and relay-log-info-repository are removed in 8.4
+relay-log-recovery=on

@@ -328,8 +328,11 @@ func CreatePxcReplication(sandboxDef SandboxDef, origin string, nodes int, maste
 
 		sandboxDef.ReplOptions += fmt.Sprintf("\n%s\n", SingleTemplates[globals.TmplGtidOptions57].Contents)
 		// master-info-repository and relay-log-info-repository removed in 8.4+
-		skipCrashSafeOpts, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
-		if !skipCrashSafeOpts {
+		isMySQL84pxc, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
+		if isMySQL84pxc {
+			// relay-log-recovery is still valid; use 8.4-specific template (no deprecated master-info-repository)
+			sandboxDef.ReplOptions += fmt.Sprintf("\n%s\n", SingleTemplates[globals.TmplReplCrashSafeOptions84].Contents)
+		} else {
 			sandboxDef.ReplOptions += fmt.Sprintf("\n%s\n", SingleTemplates[globals.TmplReplCrashSafeOptions].Contents)
 		}
 		// 8.0.11

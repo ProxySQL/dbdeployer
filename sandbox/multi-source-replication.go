@@ -113,8 +113,11 @@ func CreateAllMastersReplication(sandboxDef SandboxDef, origin string, nodes int
 	}
 
 	sandboxDef.GtidOptions = SingleTemplates[globals.TmplGtidOptions57].Contents
-	skipCrashSafeOpts, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
-	if !skipCrashSafeOpts {
+	isMySQL84allMasters, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
+	if isMySQL84allMasters {
+		// relay-log-recovery is still valid; use 8.4-specific template (no deprecated master-info-repository)
+		sandboxDef.ReplCrashSafeOptions = SingleTemplates[globals.TmplReplCrashSafeOptions84].Contents
+	} else {
 		sandboxDef.ReplCrashSafeOptions = SingleTemplates[globals.TmplReplCrashSafeOptions].Contents
 	}
 	if sandboxDef.DirName == "" {
@@ -325,8 +328,11 @@ func CreateFanInReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 		slaveList = globals.SlaveListValue
 	}
 	sandboxDef.GtidOptions = SingleTemplates[globals.TmplGtidOptions57].Contents
-	skipCrashSafe2, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
-	if !skipCrashSafe2 {
+	isMySQL84fanIn, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
+	if isMySQL84fanIn {
+		// relay-log-recovery is still valid; use 8.4-specific template (no deprecated master-info-repository)
+		sandboxDef.ReplCrashSafeOptions = SingleTemplates[globals.TmplReplCrashSafeOptions84].Contents
+	} else {
 		sandboxDef.ReplCrashSafeOptions = SingleTemplates[globals.TmplReplCrashSafeOptions].Contents
 	}
 	if sandboxDef.DirName == "" {
