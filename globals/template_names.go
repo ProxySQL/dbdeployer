@@ -171,6 +171,13 @@ const (
 	TmplInitNodes84        = "init_nodes84"
 	TmplGroupReplOptions84 = "group_repl_options84"
 
+	// innodb_cluster
+	TmplInnoDBClusterOptions = "innodb_cluster_options"
+	TmplInitCluster          = "init_cluster"
+	TmplCheckCluster         = "check_cluster"
+	TmplRouterStart          = "router_start"
+	TmplRouterStop           = "router_stop"
+
 	// MySQL 8.4+ specific templates
 	TmplInitSlaves84          = "init_slaves_84"
 	TmplReplCrashSafeOptions84 = "repl_crash_safe_options84"

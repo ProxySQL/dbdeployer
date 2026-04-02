@@ -179,7 +179,9 @@ const (
 	TopologyValue       = "master-slave"
 	PxcLabel            = "pxc"
 	NdbLabel            = "ndb"
+	InnoDBClusterLabel  = "innodb-cluster"
 	ChangeMasterOptions = "change-master-options"
+	SkipRouterLabel     = "skip-router"
 
 	// Instantiated in cmd/unpack.go and unpack/unpack.go
 	GzExt              = ".gz"
@@ -320,6 +322,12 @@ const (
 	ScriptCheckSlaves      = "check_slaves"
 	ScriptUseAllMasters    = "use_all_masters"
 	ScriptUseAllSlaves     = "use_all_slaves"
+
+	// InnoDB Cluster scripts
+	ScriptInitCluster  = "init_cluster"
+	ScriptCheckCluster = "check_cluster"
+	ScriptRouterStart  = "router_start"
+	ScriptRouterStop   = "router_stop"
 )
 
 // Common error messages
@@ -475,6 +483,7 @@ var AllowedTopologies = []string{
 	FanInLabel,
 	AllMastersLabel,
 	NdbLabel,
+	InnoDBClusterLabel,
 }
 
 // This structure is not used directly by dbdeployer.

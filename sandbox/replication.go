@@ -91,6 +91,7 @@ type ReplicationData struct {
 	NdbNodes   int
 	MasterList string
 	SlaveList  string
+	SkipRouter bool
 }
 
 func setChangeMasterProperties(currentProperties string, moreProperties []string, logger *defaults.Logger) string {
@@ -642,6 +643,16 @@ func CreateReplicationSandbox(sdef SandboxDef, origin string, replData Replicati
 				common.IntSliceToDottedString(globals.MinimumNdbClusterVersion))
 		}
 		sdef.SandboxDir = path.Join(sdef.SandboxDir, defaults.Defaults().NdbPrefix+common.VersionToName(origin))
+	case globals.InnoDBClusterLabel:
+		isMinimumVersion, err := common.HasCapability(sdef.Flavor, common.MySQLXDefault, sdef.Version)
+		if err != nil {
+			return err
+		}
+		if !isMinimumVersion {
+			return fmt.Errorf(globals.ErrFeatureRequiresVersion, "InnoDB Cluster",
+				common.IntSliceToDottedString(globals.MinimumMysqlxDefaultVersion))
+		}
+		sdef.SandboxDir = path.Join(sdef.SandboxDir, defaults.Defaults().InnoDBClusterPrefix+common.VersionToName(origin))
 	default:
 		return fmt.Errorf("unrecognized topology. Accepted: '%v'", globals.AllowedTopologies)
 	}
@@ -674,6 +685,8 @@ func CreateReplicationSandbox(sdef SandboxDef, origin string, replData Replicati
 		err = CreatePxcReplication(sdef, origin, replData.Nodes, replData.MasterIp)
 	case globals.NdbLabel:
 		err = CreateNdbReplication(sdef, origin, replData.Nodes, replData.NdbNodes, replData.MasterIp)
+	case globals.InnoDBClusterLabel:
+		err = CreateInnoDBCluster(sdef, origin, replData.Nodes, replData.MasterIp, replData.SkipRouter)
 	}
 	return err
 }
