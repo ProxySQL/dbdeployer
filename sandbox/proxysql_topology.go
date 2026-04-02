@@ -33,7 +33,20 @@ import (
 //   - proxysqlPort: port for ProxySQL admin interface (0 = auto-assign)
 //   - host: bind address (typically "127.0.0.1")
 //   - backendProvider: database provider name (e.g. "mysql", "postgresql", or "" for mysql default)
-func DeployProxySQLForTopology(sandboxDir string, masterPort int, slavePorts []int, proxysqlPort int, host string, backendProvider string) error {
+// DeployProxySQLForTopology creates a ProxySQL sandbox configured for a database topology.
+//
+// Parameters:
+//   - sandboxDir: parent sandbox directory (e.g. ~/sandboxes/rsandbox_8_4_4)
+//   - masterPort: primary/master port
+//   - slavePorts: replica/slave ports (empty for single topology)
+//   - proxysqlPort: port for ProxySQL admin interface (0 = auto-assign)
+//   - host: bind address (typically "127.0.0.1")
+//   - backendProvider: database provider name ("mysql", "postgresql", or "" for mysql default)
+//   - topology: the deployment topology ("replication", "innodb-cluster", "group", etc.)
+//
+// For Group Replication and InnoDB Cluster topologies, ProxySQL is configured with
+// mysql_group_replication_hostgroups for automatic failover-aware routing.
+func DeployProxySQLForTopology(sandboxDir string, masterPort int, slavePorts []int, proxysqlPort int, host string, backendProvider string, topology ...string) error {
 	reg := providers.DefaultRegistry
 	p, err := reg.Get("proxysql")
 	if err != nil {
@@ -75,6 +88,7 @@ func DeployProxySQLForTopology(sandboxDir string, masterPort int, slavePorts []i
 			"monitor_password": "msandbox",
 			"backends":         strings.Join(backendParts, ","),
 			"backend_provider": backendProvider,
+			"topology":         topologyName(topology),
 		},
 	}
 
@@ -90,4 +104,11 @@ func DeployProxySQLForTopology(sandboxDir string, masterPort int, slavePorts []i
 
 	fmt.Printf("ProxySQL deployed in %s (admin port: %d, mysql port: %d)\n", proxysqlDir, proxysqlPort, proxysqlPort+1)
 	return nil
+}
+
+func topologyName(topology []string) string {
+	if len(topology) > 0 {
+		return topology[0]
+	}
+	return ""
 }

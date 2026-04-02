@@ -23,6 +23,7 @@ type ProxySQLConfig struct {
 	MonitorUser     string
 	MonitorPass     string
 	BackendProvider string
+	Topology        string // "replication", "innodb-cluster", "group", etc.
 }
 
 func GenerateConfig(cfg ProxySQLConfig) string {
@@ -89,5 +90,31 @@ func GenerateConfig(cfg ProxySQLConfig) string {
 	b.WriteString("    }\n")
 	b.WriteString(")\n")
 
+	// For Group Replication / InnoDB Cluster topologies, configure ProxySQL
+	// to monitor GR status and automatically reroute on failover.
+	// HG 0 = writer, HG 1 = reader, HG 2 = backup writer, HG 3 = offline
+	if isGRTopology(cfg.Topology) && !isPgsql {
+		b.WriteString("\nmysql_group_replication_hostgroups=\n(\n")
+		b.WriteString("    {\n")
+		b.WriteString("        writer_hostgroup=0\n")
+		b.WriteString("        backup_writer_hostgroup=2\n")
+		b.WriteString("        reader_hostgroup=1\n")
+		b.WriteString("        offline_hostgroup=3\n")
+		b.WriteString("        active=1\n")
+		b.WriteString("        max_writers=1\n")
+		b.WriteString("        writer_is_also_reader=1\n")
+		b.WriteString("        max_transactions_behind=100\n")
+		b.WriteString("    }\n")
+		b.WriteString(")\n")
+	}
+
 	return b.String()
+}
+
+func isGRTopology(topology string) bool {
+	switch topology {
+	case "innodb-cluster", "group", "group-replication":
+		return true
+	}
+	return false
 }

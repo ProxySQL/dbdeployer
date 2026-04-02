@@ -108,3 +108,64 @@ func TestGenerateConfigPostgreSQL(t *testing.T) {
 		t.Error("should not contain mysql_variables for postgresql backend")
 	}
 }
+
+func TestGenerateConfigGRHostgroups(t *testing.T) {
+	cfg := ProxySQLConfig{
+		AdminHost: "127.0.0.1", AdminPort: 6032,
+		AdminUser: "admin", AdminPassword: "admin",
+		MySQLPort: 6033, DataDir: "/tmp/test",
+		MonitorUser: "msandbox", MonitorPass: "msandbox",
+		Topology: "innodb-cluster",
+		Backends: []BackendServer{
+			{Host: "127.0.0.1", Port: 3306, Hostgroup: 0, MaxConns: 200},
+			{Host: "127.0.0.1", Port: 3307, Hostgroup: 1, MaxConns: 200},
+		},
+	}
+	config := GenerateConfig(cfg)
+	if !strings.Contains(config, "mysql_group_replication_hostgroups") {
+		t.Error("expected mysql_group_replication_hostgroups for innodb-cluster topology")
+	}
+	if !strings.Contains(config, "writer_hostgroup=0") {
+		t.Error("expected writer_hostgroup=0")
+	}
+	if !strings.Contains(config, "reader_hostgroup=1") {
+		t.Error("expected reader_hostgroup=1")
+	}
+	if !strings.Contains(config, "writer_is_also_reader=1") {
+		t.Error("expected writer_is_also_reader=1")
+	}
+}
+
+func TestGenerateConfigNoGRHostgroupsForReplication(t *testing.T) {
+	cfg := ProxySQLConfig{
+		AdminHost: "127.0.0.1", AdminPort: 6032,
+		AdminUser: "admin", AdminPassword: "admin",
+		MySQLPort: 6033, DataDir: "/tmp/test",
+		MonitorUser: "msandbox", MonitorPass: "msandbox",
+		Topology: "replication",
+		Backends: []BackendServer{
+			{Host: "127.0.0.1", Port: 3306, Hostgroup: 0, MaxConns: 200},
+		},
+	}
+	config := GenerateConfig(cfg)
+	if strings.Contains(config, "mysql_group_replication_hostgroups") {
+		t.Error("should not contain mysql_group_replication_hostgroups for standard replication")
+	}
+}
+
+func TestGenerateConfigGRHostgroupsForGroup(t *testing.T) {
+	cfg := ProxySQLConfig{
+		AdminHost: "127.0.0.1", AdminPort: 6032,
+		AdminUser: "admin", AdminPassword: "admin",
+		MySQLPort: 6033, DataDir: "/tmp/test",
+		MonitorUser: "msandbox", MonitorPass: "msandbox",
+		Topology: "group",
+		Backends: []BackendServer{
+			{Host: "127.0.0.1", Port: 3306, Hostgroup: 0, MaxConns: 200},
+		},
+	}
+	config := GenerateConfig(cfg)
+	if !strings.Contains(config, "mysql_group_replication_hostgroups") {
+		t.Error("expected mysql_group_replication_hostgroups for group topology")
+	}
+}

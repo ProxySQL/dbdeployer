@@ -282,7 +282,7 @@ func replicationSandbox(cmd *cobra.Command, args []string) {
 			slavePorts = append(slavePorts, nodeDesc.Port[0])
 		}
 
-		err = sandbox.DeployProxySQLForTopology(sandboxDir, masterPort, slavePorts, 0, "127.0.0.1", "")
+		err = sandbox.DeployProxySQLForTopology(sandboxDir, masterPort, slavePorts, 0, "127.0.0.1", "", topology)
 		if err != nil {
 			common.Exitf(1, "ProxySQL deployment failed: %s", err)
 		}

@@ -90,6 +90,7 @@ func (p *ProxySQLProvider) CreateSandbox(config providers.SandboxConfig) (*provi
 		MonitorPass:     monitorPass,
 		Backends:        parseBackends(config.Options),
 		BackendProvider: config.Options["backend_provider"],
+		Topology:        config.Options["topology"],
 	}
 
 	cfgContent := GenerateConfig(proxyCfg)
