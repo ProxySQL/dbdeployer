@@ -136,12 +136,24 @@ jobs:
           PG_FULL=$(ls ~/opt/postgresql/ | head -1)
           echo "=== Deploying PostgreSQL $PG_FULL replication + ProxySQL ==="
           ./dbdeployer deploy replication "$PG_FULL" --provider=postgresql --with-proxysql
+          SBDIR=$(ls -d ~/sandboxes/postgresql_repl_*)
+
           echo "=== Check ProxySQL is running ==="
-          ~/sandboxes/postgresql_repl_*/proxysql/status
-          echo "=== Check ProxySQL admin interface ==="
-          ~/sandboxes/postgresql_repl_*/proxysql/use -e "SELECT * FROM pgsql_servers;" || true
-          echo "=== Connect through ProxySQL (may fail - pgsql auth config is WIP) ==="
-          ~/sandboxes/postgresql_repl_*/proxysql/use_proxy -c "SELECT 1;" || echo "WARN: ProxySQL pgsql proxy connection failed (expected - auth config WIP)"
+          $SBDIR/proxysql/status
+
+          echo "=== Check ProxySQL has pgsql_servers configured ==="
+          $SBDIR/proxysql/use -e "SELECT * FROM pgsql_servers;" || true
+
+          echo "=== Functional test: verify PostgreSQL replication works ==="
+          $SBDIR/primary/use -c "CREATE TABLE proxy_test(id serial, val text); INSERT INTO proxy_test(val) VALUES ('pg_proxysql_test');"
+          sleep 2
+          RESULT=$($SBDIR/replica1/use -c "SELECT val FROM proxy_test;" 2>&1)
+          echo "$RESULT"
+          echo "$RESULT" | grep -q "pg_proxysql_test" || { echo "FAIL: PG replication not working"; exit 1; }
+          echo "OK: PostgreSQL replication verified with ProxySQL deployed"
+
+          echo "=== ProxySQL proxy connection test (pgsql auth WIP) ==="
+          $SBDIR/proxysql/use_proxy -c "SELECT 1;" || echo "WARN: ProxySQL pgsql proxy connection failed (expected - auth config WIP)"
 
       - name: Cleanup
         if: always()

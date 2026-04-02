@@ -269,34 +269,8 @@ jobs:
           cp -r "$ROUTER_DIR/lib/." "$SANDBOX_BINARY/${MYSQL_VERSION}/lib/" 2>/dev/null || true
           echo "mysqlrouter installed at $SANDBOX_BINARY/${MYSQL_VERSION}/bin/mysqlrouter"
 
-      - name: Test InnoDB Cluster with MySQL Router
+      - name: Install ProxySQL
         run: |
-          echo "=== Deploying InnoDB Cluster ${MYSQL_VERSION} with Router ==="
-          ./dbdeployer deploy replication "$MYSQL_VERSION" \
-            --topology=innodb-cluster \
-            --sandbox-binary="$SANDBOX_BINARY" \
-            --nodes=3
-          echo "=== Check cluster status ==="
-          ~/sandboxes/ic_msb_*/check_cluster
-          echo "=== Cleanup ==="
-          ./dbdeployer delete all --skip-confirm
-
-      - name: Test InnoDB Cluster with --skip-router
-        run: |
-          echo "=== Deploying InnoDB Cluster ${MYSQL_VERSION} without Router ==="
-          ./dbdeployer deploy replication "$MYSQL_VERSION" \
-            --topology=innodb-cluster \
-            --skip-router \
-            --sandbox-binary="$SANDBOX_BINARY" \
-            --nodes=3
-          echo "=== Check cluster status ==="
-          ~/sandboxes/ic_msb_*/check_cluster
-          echo "=== Cleanup ==="
-          ./dbdeployer delete all --skip-confirm
-
-      - name: Test InnoDB Cluster with ProxySQL (instead of Router)
-        run: |
-          # Install ProxySQL
           PROXYSQL_VERSION="3.0.6"
           wget -nv -O /tmp/proxysql.deb \
             "https://github.com/sysown/proxysql/releases/download/v${PROXYSQL_VERSION}/proxysql_${PROXYSQL_VERSION}-ubuntu22_amd64.deb"
@@ -305,19 +279,102 @@ jobs:
           sudo cp /tmp/proxysql-extract/usr/bin/proxysql /usr/local/bin/proxysql
           sudo chmod +x /usr/local/bin/proxysql
 
-          echo "=== Deploying InnoDB Cluster ${MYSQL_VERSION} + ProxySQL (no Router) ==="
+      - name: Test InnoDB Cluster with MySQL Router
+        run: |
+          echo "=== Deploy InnoDB Cluster ${MYSQL_VERSION} with Router ==="
+          ./dbdeployer deploy replication "$MYSQL_VERSION" \
+            --topology=innodb-cluster \
+            --sandbox-binary="$SANDBOX_BINARY" \
+            --nodes=3
+
+          echo "=== Verify cluster status ==="
+          ~/sandboxes/ic_msb_*/check_cluster
+
+          echo "=== Functional test: write on primary, read on all nodes ==="
+          # Find the primary node (node1)
+          SBDIR=$(ls -d ~/sandboxes/ic_msb_*)
+          $SBDIR/node1/use -e "CREATE DATABASE ic_test; USE ic_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('hello_from_primary');"
+          sleep 3
+          echo "--- Read from node2 (should see replicated data) ---"
+          RESULT=$($SBDIR/node2/use -e "SELECT val FROM ic_test.t1;" 2>&1)
+          echo "$RESULT"
+          echo "$RESULT" | grep -q "hello_from_primary" || { echo "FAIL: data not replicated to node2"; exit 1; }
+          echo "--- Read from node3 ---"
+          RESULT=$($SBDIR/node3/use -e "SELECT val FROM ic_test.t1;" 2>&1)
+          echo "$RESULT"
+          echo "$RESULT" | grep -q "hello_from_primary" || { echo "FAIL: data not replicated to node3"; exit 1; }
+
+          echo "=== Functional test: connect through MySQL Router ==="
+          ROUTER_RW_PORT=$(ls $SBDIR/router/mysqlrouter.conf 2>/dev/null && grep -A5 '\[routing:bootstrap_rw\]' $SBDIR/router/mysqlrouter.conf | grep 'bind_port' | awk -F= '{print $2}' | tr -d ' ' || echo "")
+          if [ -n "$ROUTER_RW_PORT" ]; then
+            echo "Router R/W port: $ROUTER_RW_PORT"
+            $SBDIR/node1/use -h 127.0.0.1 -P "$ROUTER_RW_PORT" -e "INSERT INTO ic_test.t1 (val) VALUES ('via_router');"
+            sleep 2
+            RESULT=$($SBDIR/node2/use -e "SELECT val FROM ic_test.t1 WHERE val='via_router';" 2>&1)
+            echo "$RESULT"
+            echo "$RESULT" | grep -q "via_router" || { echo "FAIL: write through Router not replicated"; exit 1; }
+            echo "OK: Router R/W connection works and replication verified"
+          else
+            echo "WARN: Could not determine Router R/W port, skipping Router connection test"
+          fi
+
+          echo "=== Cleanup ==="
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Test InnoDB Cluster with --skip-router + write/read verification
+        run: |
+          echo "=== Deploy InnoDB Cluster ${MYSQL_VERSION} without Router ==="
+          ./dbdeployer deploy replication "$MYSQL_VERSION" \
+            --topology=innodb-cluster \
+            --skip-router \
+            --sandbox-binary="$SANDBOX_BINARY" \
+            --nodes=3
+
+          echo "=== Verify cluster status ==="
+          ~/sandboxes/ic_msb_*/check_cluster
+
+          echo "=== Functional test: write/read across cluster ==="
+          SBDIR=$(ls -d ~/sandboxes/ic_msb_*)
+          $SBDIR/node1/use -e "CREATE DATABASE skiprt_test; USE skiprt_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, msg TEXT); INSERT INTO t1 (msg) VALUES ('skip_router_test');"
+          sleep 3
+          RESULT=$($SBDIR/node3/use -e "SELECT msg FROM skiprt_test.t1;" 2>&1)
+          echo "$RESULT"
+          echo "$RESULT" | grep -q "skip_router_test" || { echo "FAIL: data not replicated"; exit 1; }
+          echo "OK: InnoDB Cluster replication works without Router"
+
+          echo "=== Cleanup ==="
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Test InnoDB Cluster with ProxySQL (instead of Router)
+        run: |
+          echo "=== Deploy InnoDB Cluster ${MYSQL_VERSION} + ProxySQL ==="
           ./dbdeployer deploy replication "$MYSQL_VERSION" \
             --topology=innodb-cluster \
             --skip-router \
             --with-proxysql \
             --sandbox-binary="$SANDBOX_BINARY" \
             --nodes=3
-          echo "=== Check cluster ==="
+
+          echo "=== Verify cluster status ==="
           ~/sandboxes/ic_msb_*/check_cluster
-          echo "=== Check ProxySQL is running ==="
-          ~/sandboxes/ic_msb_*/proxysql/status
-          echo "=== Query ProxySQL servers ==="
-          ~/sandboxes/ic_msb_*/proxysql/use -e "SELECT * FROM runtime_mysql_servers;" || true
+
+          echo "=== Verify ProxySQL sees the backend servers ==="
+          SBDIR=$(ls -d ~/sandboxes/ic_msb_*)
+          SERVERS=$($SBDIR/proxysql/use -e "SELECT hostname, port, hostgroup_id, status FROM runtime_mysql_servers;" 2>&1)
+          echo "$SERVERS"
+          # Verify at least 2 servers are ONLINE
+          ONLINE_COUNT=$(echo "$SERVERS" | grep -c "ONLINE" || true)
+          echo "Online servers: $ONLINE_COUNT"
+          [ "$ONLINE_COUNT" -ge 2 ] || { echo "FAIL: expected at least 2 ONLINE servers in ProxySQL"; exit 1; }
+
+          echo "=== Functional test: write through ProxySQL ==="
+          $SBDIR/proxysql/use_proxy -e "CREATE DATABASE proxy_ic_test; USE proxy_ic_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('via_proxysql');"
+          sleep 3
+          echo "--- Verify on node2 directly ---"
+          RESULT=$($SBDIR/node2/use -e "SELECT val FROM proxy_ic_test.t1;" 2>&1)
+          echo "$RESULT"
+          echo "$RESULT" | grep -q "via_proxysql" || { echo "FAIL: write through ProxySQL not replicated"; exit 1; }
+          echo "OK: ProxySQL -> InnoDB Cluster write + replication verified"
 
       - name: Cleanup
         if: always()
