@@ -193,13 +193,16 @@ else
     fail "single topology: backend in hostgroup 0" "got: $PS_HG"
 fi
 
-# Query through ProxySQL reaches MySQL (give ProxySQL time to start accepting on mysql port)
+# Query through ProxySQL reaches MySQL (use a query that must hit the backend)
 sleep 3
-VERSION_VIA_PROXY=$(${SANDBOX_DIR}/proxysql/use_proxy -BN -e "SELECT @@version" 2>&1 | grep -v Warning)
-if [ "$VERSION_VIA_PROXY" = "$MYSQL_VERSION_1" ]; then
-    pass "query through ProxySQL returns correct MySQL version"
+${SANDBOX_DIR}/proxysql/use_proxy -e "CREATE DATABASE IF NOT EXISTS proxysql_conn_test" 2>&1 | grep -v Warning
+${SANDBOX_DIR}/proxysql/use_proxy -e "CREATE TABLE IF NOT EXISTS proxysql_conn_test.t1 (id INT PRIMARY KEY)" 2>&1 | grep -v Warning
+${SANDBOX_DIR}/proxysql/use_proxy -e "INSERT INTO proxysql_conn_test.t1 VALUES (1)" 2>&1 | grep -v Warning
+ROW_COUNT=$(${SANDBOX_DIR}/proxysql/use_proxy -BN -e "SELECT COUNT(*) FROM proxysql_conn_test.t1" 2>&1 | grep -v Warning)
+if [ "$ROW_COUNT" = "1" ]; then
+    pass "write+read through ProxySQL reaches MySQL backend"
 else
-    fail "query through ProxySQL returns correct MySQL version" "got: '$VERSION_VIA_PROXY'"
+    fail "write+read through ProxySQL reaches MySQL backend" "got row count: '$ROW_COUNT'"
 fi
 
 cleanup
