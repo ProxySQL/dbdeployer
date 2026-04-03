@@ -66,6 +66,8 @@ type DbdeployerDefaults struct {
 	RemoteTarballUrl              string `json:"remote-tarball-url"`
 	PxcPrefix                     string `json:"pxc-prefix"`
 	NdbPrefix                     string `json:"ndb-prefix"`
+	InnoDBClusterPrefix           string `json:"innodb-cluster-prefix"`
+	InnoDBClusterBasePort         int    `json:"innodb-cluster-base-port"`
 	DefaultSandboxExecutable      string `json:"default-sandbox-executable"`
 	DownloadNameLinux             string `json:"download-name-linux"`
 	DownloadNameMacOs             string `json:"download-name-macos"`
@@ -134,6 +136,8 @@ var (
 		RemoteTarballUrl:              "https://raw.githubusercontent.com/datacharmer/dbdeployer/master/downloads/tarball_list.json",
 		NdbPrefix:                     "ndb_msb_",
 		PxcPrefix:                     "pxc_msb_",
+		InnoDBClusterPrefix:           "ic_msb_",
+		InnoDBClusterBasePort:         21000,
 		DefaultSandboxExecutable:      "default",
 		DownloadNameLinux:             "mysql-{{.Version}}-linux-glibc2.17-x86_64{{.Minimal}}.{{.Ext}}",
 		DownloadNameMacOs:             "mysql-{{.Version}}-macos11-x86_64.{{.Ext}}",
@@ -226,6 +230,7 @@ func ValidateDefaults(nd DbdeployerDefaults) bool {
 		checkInt("pxc-base-port", nd.PxcBasePort, minPortValue, maxPortValue) &&
 		checkInt("ndb-base-port", nd.NdbBasePort, minPortValue, maxPortValue) &&
 		checkInt("ndb-cluster-port", nd.NdbClusterPort, minPortValue, maxPortValue) &&
+		checkInt("innodb-cluster-base-port", nd.InnoDBClusterBasePort, minPortValue, maxPortValue) &&
 		checkInt("group-port-delta", nd.GroupPortDelta, 101, 299) &&
 		checkInt("mysqlx-port-delta", nd.MysqlXPortDelta, 2000, 15000) &&
 		checkInt("admin-port-delta", nd.AdminPortDelta, 2000, 15000)
@@ -250,6 +255,7 @@ func ValidateDefaults(nd DbdeployerDefaults) bool {
 		nd.MasterAbbr != nd.SlaveAbbr &&
 		nd.MultiplePrefix != nd.NdbPrefix &&
 		nd.MultiplePrefix != nd.PxcPrefix &&
+		nd.MultiplePrefix != nd.InnoDBClusterPrefix &&
 		nd.SandboxHome != nd.SandboxBinary
 	if !noConflicts {
 		common.CondPrintf("Conflicts found in defaults values:\n")
@@ -270,6 +276,7 @@ func ValidateDefaults(nd DbdeployerDefaults) bool {
 		nd.MultiplePrefix != "" &&
 		nd.PxcPrefix != "" &&
 		nd.NdbPrefix != "" &&
+		nd.InnoDBClusterPrefix != "" &&
 		nd.DefaultSandboxExecutable != "" &&
 		nd.DownloadUrl != "" &&
 		nd.DownloadNameLinux != "" &&
@@ -403,6 +410,10 @@ func UpdateDefaults(label, value string, storeDefaults bool) {
 		newDefaults.PxcPrefix = value
 	case "ndb-prefix":
 		newDefaults.NdbPrefix = value
+	case "innodb-cluster-prefix":
+		newDefaults.InnoDBClusterPrefix = value
+	case "innodb-cluster-base-port":
+		newDefaults.InnoDBClusterBasePort = common.Atoi(value)
 	case "default-sandbox-executable":
 		newDefaults.DefaultSandboxExecutable = value
 	case "download-url":
@@ -538,6 +549,10 @@ func DefaultsToMap() common.StringMap {
 		"pxc-prefix":                        currentDefaults.PxcPrefix,
 		"NdbPrefix":                         currentDefaults.NdbPrefix,
 		"ndb-prefix":                        currentDefaults.NdbPrefix,
+		"InnoDBClusterPrefix":               currentDefaults.InnoDBClusterPrefix,
+		"innodb-cluster-prefix":             currentDefaults.InnoDBClusterPrefix,
+		"InnoDBClusterBasePort":             currentDefaults.InnoDBClusterBasePort,
+		"innodb-cluster-base-port":          currentDefaults.InnoDBClusterBasePort,
 		"DefaultSandboxExecutable":          currentDefaults.DefaultSandboxExecutable,
 		"default-sandbox-executable":        currentDefaults.DefaultSandboxExecutable,
 		"download-url":                      currentDefaults.DownloadUrl,

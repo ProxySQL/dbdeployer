@@ -241,6 +241,8 @@ func replicationSandbox(cmd *cobra.Command, args []string) {
 			globals.NdbLabel)
 
 	}
+	skipRouter, _ := flags.GetBool(globals.SkipRouterLabel)
+
 	origin := args[0]
 	if args[0] != sd.BasedirName {
 		origin = sd.BasedirName
@@ -252,7 +254,8 @@ func replicationSandbox(cmd *cobra.Command, args []string) {
 			NdbNodes:   ndbNodes,
 			MasterIp:   masterIp,
 			MasterList: masterList,
-			SlaveList:  slaveList})
+			SlaveList:  slaveList,
+			SkipRouter: skipRouter})
 	if err != nil {
 		common.Exitf(1, globals.ErrCreatingSandbox, err)
 	}
@@ -296,7 +299,9 @@ var replicationCmd = &cobra.Command{
 	Long: `The replication command allows you to deploy several nodes in replication.
 Allowed topologies are "master-slave" for all versions, and  "group", "all-masters", "fan-in"
 for  5.7.17+.
-Topologies "pcx" and "ndb" are available for binaries of type Percona Xtradb Cluster and MySQL Cluster.
+Topologies "pxc" and "ndb" are available for binaries of type Percona Xtradb Cluster and MySQL Cluster.
+Topology "innodb-cluster" deploys Group Replication managed by MySQL Shell AdminAPI with optional
+MySQL Router for connection routing (requires MySQL 8.0.11+ and mysqlsh).
 For this command to work, there must be a directory $HOME/opt/mysql/5.7.21, containing
 the binary files from mysql-5.7.21-$YOUR_OS-x86_64.tar.gz
 Use the "unpack" command to get the tarball into the right directory.
@@ -321,6 +326,8 @@ Use the "unpack" command to get the tarball into the right directory.
 		$ dbdeployer deploy --topology=fan-in replication 5.7
 		$ dbdeployer deploy --topology=pxc replication pxc5.7.25
 		$ dbdeployer deploy --topology=ndb replication ndb8.0.14
+		$ dbdeployer deploy --topology=innodb-cluster replication 8.4.4
+		$ dbdeployer deploy --topology=innodb-cluster replication 8.4.4 --skip-router
 	`,
 	Annotations: map[string]string{"export": ExportAnnotationToJson(ReplicationExport)},
 }
@@ -339,6 +346,7 @@ func init() {
 	replicationCmd.PersistentFlags().BoolP(globals.SuperReadOnlyLabel, "", false, "Set super-read-only for slaves")
 	replicationCmd.PersistentFlags().Bool(globals.ReplHistoryDirLabel, false, "uses the replication directory to store mysql client history")
 	setPflag(replicationCmd, globals.ChangeMasterOptions, "", "CHANGE_MASTER_OPTIONS", "", "options to add to CHANGE MASTER TO", true)
+	replicationCmd.PersistentFlags().Bool(globals.SkipRouterLabel, false, "Skip MySQL Router deployment for InnoDB Cluster topology")
 	replicationCmd.PersistentFlags().Bool("with-proxysql", false, "Deploy ProxySQL alongside the replication sandbox")
 	replicationCmd.PersistentFlags().String(globals.ProviderLabel, globals.ProviderValue, "Database provider (mysql, postgresql)")
 }

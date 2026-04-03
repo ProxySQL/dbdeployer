@@ -445,6 +445,7 @@ var (
 		"group":       GroupTemplates,
 		"pxc":         PxcTemplates,
 		"ndb":         NdbTemplates,
+		"cluster":     InnoDBClusterTemplates,
 	}
 )
 

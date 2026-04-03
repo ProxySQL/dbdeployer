@@ -191,6 +191,199 @@ jobs:
           done 2>/dev/null || true
           pkill -9 -u "$USER" postgres 2>/dev/null || true
 
+  # Test InnoDB Cluster topology with MySQL Shell + MySQL Router
+  innodb-cluster-test:
+    name: InnoDB Cluster (${{ matrix.mysql-version }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        mysql-version:
+          - '8.4.8'
+          - '9.5.0'
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      MYSQL_VERSION: ${{ matrix.mysql-version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Cache MySQL tarball
+        uses: actions/cache@v4
+        with:
+          path: /tmp/mysql-tarball
+          key: mysql-${{ matrix.mysql-version }}-linux-x86_64-v2
+
+      - name: Download MySQL Server
+        env:
+          SHORT_VER_ENV: ${{ matrix.mysql-version }}
+        run: |
+          SHORT_VER="${SHORT_VER_ENV%.*}"
+          TARBALL="mysql-${MYSQL_VERSION}-linux-glibc2.17-x86_64.tar.xz"
+          mkdir -p /tmp/mysql-tarball
+          if [ ! -f "/tmp/mysql-tarball/$TARBALL" ]; then
+            curl -L -f -o "/tmp/mysql-tarball/$TARBALL" \
+              "https://dev.mysql.com/get/Downloads/MySQL-${SHORT_VER}/$TARBALL"
+          fi
+          mkdir -p "$SANDBOX_BINARY"
+          ./dbdeployer unpack "/tmp/mysql-tarball/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Download and install MySQL Shell
+        env:
+          SHORT_VER_ENV: ${{ matrix.mysql-version }}
+        run: |
+          SHORT_VER="${SHORT_VER_ENV%.*}"
+          SHELL_TARBALL="mysql-shell-${MYSQL_VERSION}-linux-glibc2.17-x86-64bit.tar.gz"
+          echo "Downloading MySQL Shell ${MYSQL_VERSION}..."
+          curl -L -f -o "/tmp/$SHELL_TARBALL" \
+            "https://dev.mysql.com/get/Downloads/MySQL-Shell-${SHORT_VER}/$SHELL_TARBALL"
+          tar xzf "/tmp/$SHELL_TARBALL" -C /tmp/
+          SHELL_DIR=$(ls -d /tmp/mysql-shell-${MYSQL_VERSION}* | head -1)
+          cp "$SHELL_DIR/bin/mysqlsh" "$SANDBOX_BINARY/${MYSQL_VERSION}/bin/"
+          echo "mysqlsh installed at $SANDBOX_BINARY/${MYSQL_VERSION}/bin/mysqlsh"
+
+      - name: Download and install MySQL Router
+        env:
+          SHORT_VER_ENV: ${{ matrix.mysql-version }}
+        run: |
+          SHORT_VER="${SHORT_VER_ENV%.*}"
+          ROUTER_TARBALL="mysql-router-${MYSQL_VERSION}-linux-glibc2.17-x86_64.tar.xz"
+          echo "Downloading MySQL Router ${MYSQL_VERSION}..."
+          curl -L -f -o "/tmp/$ROUTER_TARBALL" \
+            "https://dev.mysql.com/get/Downloads/MySQL-Router-${SHORT_VER}/$ROUTER_TARBALL"
+          tar xJf "/tmp/$ROUTER_TARBALL" -C /tmp/
+          ROUTER_DIR=$(ls -d /tmp/mysql-router-${MYSQL_VERSION}* | head -1)
+          cp "$ROUTER_DIR/bin/mysqlrouter" "$SANDBOX_BINARY/${MYSQL_VERSION}/bin/"
+          cp -r "$ROUTER_DIR/lib/." "$SANDBOX_BINARY/${MYSQL_VERSION}/lib/" 2>/dev/null || true
+          echo "mysqlrouter installed at $SANDBOX_BINARY/${MYSQL_VERSION}/bin/mysqlrouter"
+
+      - name: Install ProxySQL
+        run: |
+          PROXYSQL_VERSION="3.0.6"
+          wget -nv -O /tmp/proxysql.deb \
+            "https://github.com/sysown/proxysql/releases/download/v${PROXYSQL_VERSION}/proxysql_${PROXYSQL_VERSION}-ubuntu22_amd64.deb"
+          mkdir -p /tmp/proxysql-extract
+          dpkg-deb -x /tmp/proxysql.deb /tmp/proxysql-extract
+          sudo cp /tmp/proxysql-extract/usr/bin/proxysql /usr/local/bin/proxysql
+          sudo chmod +x /usr/local/bin/proxysql
+
+      - name: Test InnoDB Cluster with MySQL Router
+        run: |
+          echo "=== Deploy InnoDB Cluster ${MYSQL_VERSION} with Router ==="
+          ./dbdeployer deploy replication "$MYSQL_VERSION" \
+            --topology=innodb-cluster \
+            --sandbox-binary="$SANDBOX_BINARY" \
+            --nodes=3
+
+          echo "=== Verify cluster status ==="
+          ~/sandboxes/ic_msb_*/check_cluster
+
+          echo "=== Functional test: write on primary, read on all nodes ==="
+          # Find the primary node (node1)
+          SBDIR=$(ls -d ~/sandboxes/ic_msb_*)
+          $SBDIR/node1/use -e "CREATE DATABASE ic_test; USE ic_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('hello_from_primary');"
+          sleep 3
+          echo "--- Read from node2 (should see replicated data) ---"
+          RESULT=$($SBDIR/node2/use -e "SELECT val FROM ic_test.t1;" 2>&1)
+          echo "$RESULT"
+          echo "$RESULT" | grep -q "hello_from_primary" || { echo "FAIL: data not replicated to node2"; exit 1; }
+          echo "--- Read from node3 ---"
+          RESULT=$($SBDIR/node3/use -e "SELECT val FROM ic_test.t1;" 2>&1)
+          echo "$RESULT"
+          echo "$RESULT" | grep -q "hello_from_primary" || { echo "FAIL: data not replicated to node3"; exit 1; }
+
+          echo "=== Functional test: connect through MySQL Router ==="
+          ROUTER_RW_PORT=$(ls $SBDIR/router/mysqlrouter.conf 2>/dev/null && grep -A5 '\[routing:bootstrap_rw\]' $SBDIR/router/mysqlrouter.conf | grep 'bind_port' | awk -F= '{print $2}' | tr -d ' ' || echo "")
+          if [ -n "$ROUTER_RW_PORT" ]; then
+            echo "Router R/W port: $ROUTER_RW_PORT"
+            $SBDIR/node1/use -h 127.0.0.1 -P "$ROUTER_RW_PORT" -e "INSERT INTO ic_test.t1 (val) VALUES ('via_router');"
+            sleep 2
+            RESULT=$($SBDIR/node2/use -e "SELECT val FROM ic_test.t1 WHERE val='via_router';" 2>&1)
+            echo "$RESULT"
+            echo "$RESULT" | grep -q "via_router" || { echo "FAIL: write through Router not replicated"; exit 1; }
+            echo "OK: Router R/W connection works and replication verified"
+          else
+            echo "WARN: Could not determine Router R/W port, skipping Router connection test"
+          fi
+
+          echo "=== Cleanup ==="
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Test InnoDB Cluster with --skip-router + write/read verification
+        run: |
+          echo "=== Deploy InnoDB Cluster ${MYSQL_VERSION} without Router ==="
+          ./dbdeployer deploy replication "$MYSQL_VERSION" \
+            --topology=innodb-cluster \
+            --skip-router \
+            --sandbox-binary="$SANDBOX_BINARY" \
+            --nodes=3
+
+          echo "=== Verify cluster status ==="
+          ~/sandboxes/ic_msb_*/check_cluster
+
+          echo "=== Functional test: write/read across cluster ==="
+          SBDIR=$(ls -d ~/sandboxes/ic_msb_*)
+          $SBDIR/node1/use -e "CREATE DATABASE skiprt_test; USE skiprt_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, msg TEXT); INSERT INTO t1 (msg) VALUES ('skip_router_test');"
+          sleep 3
+          RESULT=$($SBDIR/node3/use -e "SELECT msg FROM skiprt_test.t1;" 2>&1)
+          echo "$RESULT"
+          echo "$RESULT" | grep -q "skip_router_test" || { echo "FAIL: data not replicated"; exit 1; }
+          echo "OK: InnoDB Cluster replication works without Router"
+
+          echo "=== Cleanup ==="
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Test InnoDB Cluster with ProxySQL (instead of Router)
+        run: |
+          echo "=== Deploy InnoDB Cluster ${MYSQL_VERSION} + ProxySQL ==="
+          ./dbdeployer deploy replication "$MYSQL_VERSION" \
+            --topology=innodb-cluster \
+            --skip-router \
+            --with-proxysql \
+            --sandbox-binary="$SANDBOX_BINARY" \
+            --nodes=3
+
+          echo "=== Verify cluster status ==="
+          ~/sandboxes/ic_msb_*/check_cluster
+
+          echo "=== Verify ProxySQL sees the backend servers ==="
+          SBDIR=$(ls -d ~/sandboxes/ic_msb_*)
+          SERVERS=$($SBDIR/proxysql/use -e "SELECT hostname, port, hostgroup_id, status FROM runtime_mysql_servers;" 2>&1)
+          echo "$SERVERS"
+          # Verify at least 2 servers are ONLINE
+          ONLINE_COUNT=$(echo "$SERVERS" | grep -c "ONLINE" || true)
+          echo "Online servers: $ONLINE_COUNT"
+          [ "$ONLINE_COUNT" -ge 2 ] || { echo "FAIL: expected at least 2 ONLINE servers in ProxySQL"; exit 1; }
+
+          echo "=== Functional test: write through ProxySQL ==="
+          $SBDIR/proxysql/use_proxy -e "CREATE DATABASE proxy_ic_test; USE proxy_ic_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('via_proxysql');"
+          sleep 3
+          echo "--- Verify on node2 directly ---"
+          RESULT=$($SBDIR/node2/use -e "SELECT val FROM proxy_ic_test.t1;" 2>&1)
+          echo "$RESULT"
+          echo "$RESULT" | grep -q "via_proxysql" || { echo "FAIL: write through ProxySQL not replicated"; exit 1; }
+          echo "OK: ProxySQL -> InnoDB Cluster write + replication verified"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+          pkill -9 -u "$USER" mysqlrouter 2>/dev/null || true
+          pkill -9 -u "$USER" proxysql 2>/dev/null || true
+
   # Test the "downloads get-by-version" + "unpack" flow that users follow
   # from the quickstart guide. This catches registry gaps and download issues.
   downloads-test:
