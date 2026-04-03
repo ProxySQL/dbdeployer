@@ -84,8 +84,8 @@ func DeployProxySQLForTopology(sandboxDir string, masterPort int, slavePorts []i
 		DbUser:     "admin",
 		DbPassword: "admin",
 		Options: map[string]string{
-			"monitor_user":     "msandbox",
-			"monitor_password": "msandbox",
+			"monitor_user":     "rsandbox",
+			"monitor_password": "rsandbox",
 			"backends":         strings.Join(backendParts, ","),
 			"backend_provider": backendProvider,
 			"topology":         topologyName(topology),

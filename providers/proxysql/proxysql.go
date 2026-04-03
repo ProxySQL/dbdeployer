@@ -67,11 +67,11 @@ func (p *ProxySQLProvider) CreateSandbox(config providers.SandboxConfig) (*provi
 
 	monitorUser := config.Options["monitor_user"]
 	if monitorUser == "" {
-		monitorUser = "msandbox"
+		monitorUser = "rsandbox"
 	}
 	monitorPass := config.Options["monitor_password"]
 	if monitorPass == "" {
-		monitorPass = "msandbox"
+		monitorPass = "rsandbox"
 	}
 
 	host := config.Host
@@ -117,8 +117,9 @@ func (p *ProxySQLProvider) CreateSandbox(config providers.SandboxConfig) (*provi
 		scripts["use_proxy"] = fmt.Sprintf("#!/bin/bash\npsql -h %s -p %d -U %s \"$@\"\n",
 			host, mysqlPort, monitorUser)
 	} else {
-		scripts["use_proxy"] = fmt.Sprintf("#!/bin/bash\nmysql -h %s -P %d -u %s -p%s --prompt 'ProxySQL> ' \"$@\"\n",
-			host, mysqlPort, monitorUser, monitorPass)
+		// use_proxy connects as msandbox (app user), not the monitor user (rsandbox)
+		scripts["use_proxy"] = fmt.Sprintf("#!/bin/bash\nmysql -h %s -P %d -u msandbox -pmsandbox --prompt 'ProxySQL> ' \"$@\"\n",
+			host, mysqlPort)
 	}
 
 	for name, content := range scripts {

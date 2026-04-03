@@ -369,10 +369,22 @@ section "Configuration correctness"
 dbdeployer deploy single $MYSQL_VERSION_1 --sandbox-binary=$SANDBOX_BINARY --with-proxysql > /dev/null 2>&1
 SANDBOX_DIR=~/sandboxes/msb_$(echo $MYSQL_VERSION_1 | tr '.' '_')
 
-if grep -q "msandbox" ${SANDBOX_DIR}/proxysql/proxysql.cnf 2>/dev/null; then
-    pass "config contains monitor_username=msandbox"
+if grep -q 'monitor_username="rsandbox"' ${SANDBOX_DIR}/proxysql/proxysql.cnf 2>/dev/null; then
+    pass "config contains monitor_username=rsandbox"
 else
-    fail "monitor username in config" "not found"
+    fail "monitor username in config" "rsandbox not found"
+fi
+
+if grep -q 'username="msandbox_rw"' ${SANDBOX_DIR}/proxysql/proxysql.cnf 2>/dev/null; then
+    pass "config contains msandbox_rw proxy user"
+else
+    fail "msandbox_rw proxy user in config" "not found"
+fi
+
+if grep -q 'username="msandbox_ro"' ${SANDBOX_DIR}/proxysql/proxysql.cnf 2>/dev/null; then
+    pass "config contains msandbox_ro proxy user"
+else
+    fail "msandbox_ro proxy user in config" "not found"
 fi
 
 if grep -q 'admin_credentials="admin:admin"' ${SANDBOX_DIR}/proxysql/proxysql.cnf 2>/dev/null; then
