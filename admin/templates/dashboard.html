@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dbdeployer admin</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+    }
+    header {
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 0.85rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    header h1 { font-size: 1rem; color: #e6edf3; }
+    header .count {
+      font-size: 0.8rem;
+      color: #8b949e;
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 0.1rem 0.6rem;
+    }
+    main { padding: 1.5rem; max-width: 1100px; margin: 0 auto; }
+    h2 { font-size: 0.85rem; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; }
+    .sandbox-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.6rem;
+    }
+    .card-name { font-size: 0.95rem; color: #e6edf3; font-weight: 600; word-break: break-all; }
+    .badge {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-running { background: #1a3a1a; color: #3fb950; border: 1px solid #238636; }
+    .badge-stopped { background: #2d1a1a; color: #f85149; border: 1px solid #6e1717; }
+    .meta {
+      font-size: 0.78rem;
+      color: #8b949e;
+      margin-bottom: 0.75rem;
+      line-height: 1.6;
+    }
+    .meta span { margin-right: 0.75rem; }
+    .nodes { margin-bottom: 0.75rem; }
+    .node-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      color: #8b949e;
+      padding: 0.2rem 0;
+    }
+    .node-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .node-dot.running { background: #3fb950; }
+    .node-dot.stopped { background: #f85149; }
+    .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .btn {
+      font-size: 0.78rem;
+      padding: 0.3rem 0.65rem;
+      border-radius: 5px;
+      cursor: pointer;
+      border: 1px solid;
+    }
+    .btn-start {
+      background: #1a3a1a; color: #3fb950; border-color: #238636;
+    }
+    .btn-start:hover { background: #238636; color: #fff; }
+    .btn-stop {
+      background: #2d1a1a; color: #f85149; border-color: #6e1717;
+    }
+    .btn-stop:hover { background: #6e1717; color: #fff; }
+    .btn-destroy {
+      background: #21262d; color: #8b949e; border-color: #30363d;
+    }
+    .btn-destroy:hover { background: #6e1717; color: #fff; border-color: #6e1717; }
+    .empty {
+      text-align: center;
+      color: #8b949e;
+      padding: 3rem;
+      font-size: 0.9rem;
+    }
+    .htmx-indicator { opacity: 0.5; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>dbdeployer admin</h1>
+    <span class="count">{{.Count}} sandbox{{if ne .Count 1}}es{{end}}</span>
+  </header>
+  <main>
+    <div id="sandbox-list"
+         hx-get="/api/sandboxes/refresh"
+         hx-trigger="every 5s"
+         hx-swap="innerHTML">
+      {{template "sandbox-list.html" .}}
+    </div>
+  </main>
+</body>
+</html>

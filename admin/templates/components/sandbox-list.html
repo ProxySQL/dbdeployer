@@ -1,0 +1,58 @@
+{{define "sandbox-list.html"}}
+{{if eq (len .Sandboxes) 0}}
+  <div class="empty">No sandboxes deployed yet. Run <code>dbdeployer deploy single &lt;version&gt;</code> to create one.</div>
+{{else}}
+  <div class="sandbox-grid">
+  {{range .Sandboxes}}
+    <div class="card">
+      <div class="card-header">
+        <span class="card-name">{{.Name}}</span>
+        {{if .Running}}
+          <span class="badge badge-running">running</span>
+        {{else}}
+          <span class="badge badge-stopped">stopped</span>
+        {{end}}
+      </div>
+      <div class="meta">
+        <span>{{.SBType}}</span>
+        {{if .Version}}<span>{{.Version}}</span>{{end}}
+        {{if .Flavor}}<span>{{.Flavor}}</span>{{end}}
+        {{if .Ports}}<span>port{{if gt (len .Ports) 1}}s{{end}}: {{range $i, $p := .Ports}}{{if $i}}, {{end}}{{$p}}{{end}}</span>{{end}}
+      </div>
+      {{if .Nodes}}
+      <div class="nodes">
+        {{range .Nodes}}
+        <div class="node-row">
+          <div class="node-dot {{if .Running}}running{{else}}stopped{{end}}"></div>
+          <span>{{.Name}}</span>
+          {{if .Port}}<span style="color:#6e7681">:{{.Port}}</span>{{end}}
+        </div>
+        {{end}}
+      </div>
+      {{end}}
+      <div class="actions">
+        <button class="btn btn-start"
+          hx-post="/api/sandboxes/{{.Name | urlquery}}/start"
+          hx-target="#sandbox-list"
+          hx-swap="innerHTML">
+          Start
+        </button>
+        <button class="btn btn-stop"
+          hx-post="/api/sandboxes/{{.Name | urlquery}}/stop"
+          hx-target="#sandbox-list"
+          hx-swap="innerHTML">
+          Stop
+        </button>
+        <button class="btn btn-destroy"
+          hx-post="/api/sandboxes/{{.Name | urlquery}}/destroy"
+          hx-target="#sandbox-list"
+          hx-swap="innerHTML"
+          hx-confirm="Destroy sandbox {{.Name}}? This cannot be undone.">
+          Destroy
+        </button>
+      </div>
+    </div>
+  {{end}}
+  </div>
+{{end}}
+{{end}}
