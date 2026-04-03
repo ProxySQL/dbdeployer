@@ -41,6 +41,7 @@ export default defineConfig({
             { label: 'Group Replication', slug: 'deploying/group-replication' },
             { label: 'Fan-In & All-Masters', slug: 'deploying/fan-in-all-masters' },
             { label: 'NDB Cluster', slug: 'deploying/ndb-cluster' },
+            { label: 'InnoDB Cluster', slug: 'deploying/innodb-cluster' },
           ],
         },
         {
