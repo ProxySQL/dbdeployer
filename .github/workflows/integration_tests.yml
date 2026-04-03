@@ -171,6 +171,27 @@ jobs:
           echo "=== Replica 2: read test ==="
           ~/sandboxes/postgresql_repl_*/replica2/use -c "SELECT * FROM test_repl;"
 
+      - name: Test deploy multiple --provider=postgresql
+        run: |
+          PG_FULL=$(ls ~/opt/postgresql/ | head -1)
+          echo "=== Deploying PostgreSQL $PG_FULL multiple (3 nodes) ==="
+          ./dbdeployer deploy multiple "$PG_FULL" --provider=postgresql --nodes=3
+          echo "=== Checking topology dir ==="
+          ls ~/sandboxes/multi_msb_*/
+          echo "=== Connect to node1 ==="
+          ~/sandboxes/multi_msb_*/node1/use -c "SELECT version();"
+          ~/sandboxes/multi_msb_*/node1/use -c "CREATE TABLE multi_test(id serial, val text); INSERT INTO multi_test(val) VALUES ('from_node1');"
+          echo "=== Connect to node2 ==="
+          ~/sandboxes/multi_msb_*/node2/use -c "SELECT version();"
+          ~/sandboxes/multi_msb_*/node2/use -c "INSERT INTO multi_test(val) VALUES ('from_node2');" || true
+          echo "=== Connect to node3 ==="
+          ~/sandboxes/multi_msb_*/node3/use -c "SELECT version();"
+          echo "=== Cleanup ==="
+          for dir in ~/sandboxes/multi_msb_*; do
+            [ -d "$dir" ] && bash "$dir/stop" 2>/dev/null || true
+            rm -rf "$dir"
+          done
+
       - name: Test cross-database validation
         run: |
           PG_FULL=$(ls ~/opt/postgresql/ | head -1)
@@ -304,7 +325,7 @@ jobs:
           echo "$RESULT"
           echo "$RESULT" | grep -q "hello_from_primary" || { echo "FAIL: data not replicated to node3"; exit 1; }
 
-          echo "=== Functional test: connect through MySQL Router ==="
+          echo "=== Functional test: connect through MySQL Router (R/W) ==="
           ROUTER_RW_PORT=$(ls $SBDIR/router/mysqlrouter.conf 2>/dev/null && grep -A5 '\[routing:bootstrap_rw\]' $SBDIR/router/mysqlrouter.conf | grep 'bind_port' | awk -F= '{print $2}' | tr -d ' ' || echo "")
           if [ -n "$ROUTER_RW_PORT" ]; then
             echo "Router R/W port: $ROUTER_RW_PORT"
@@ -315,7 +336,19 @@ jobs:
             echo "$RESULT" | grep -q "via_router" || { echo "FAIL: write through Router not replicated"; exit 1; }
             echo "OK: Router R/W connection works and replication verified"
           else
-            echo "WARN: Could not determine Router R/W port, skipping Router connection test"
+            echo "WARN: Could not determine Router R/W port, skipping Router R/W connection test"
+          fi
+
+          echo "=== Functional test: connect through MySQL Router (R/O) ==="
+          ROUTER_RO_PORT=$(ls $SBDIR/router/mysqlrouter.conf 2>/dev/null && grep -A5 '\[routing:bootstrap_ro\]' $SBDIR/router/mysqlrouter.conf | grep 'bind_port' | awk -F= '{print $2}' | tr -d ' ' || echo "")
+          if [ -n "$ROUTER_RO_PORT" ]; then
+            echo "Router R/O port: $ROUTER_RO_PORT"
+            RESULT=$($SBDIR/node1/use -h 127.0.0.1 -P "$ROUTER_RO_PORT" -e "SELECT val FROM ic_test.t1 WHERE val='hello_from_primary';" 2>&1)
+            echo "$RESULT"
+            echo "$RESULT" | grep -q "hello_from_primary" || { echo "FAIL: SELECT through Router R/O port failed"; exit 1; }
+            echo "OK: Router R/O SELECT succeeded"
+          else
+            echo "WARN: Could not determine Router R/O port, skipping Router R/O connection test"
           fi
 
           echo "=== Cleanup ==="
@@ -436,6 +469,246 @@ jobs:
           echo "=== Deploying: $VERSION ==="
           ./dbdeployer deploy single "$VERSION" --sandbox-binary="$SANDBOX_BINARY"
           ~/sandboxes/msb_*/use -e "SELECT VERSION()"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
+  # Test group replication topologies: single-primary and multi-primary (#64)
+  group-replication-test:
+    name: Group Replication (${{ matrix.mysql-version }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        mysql-version:
+          - '8.4.8'
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      MYSQL_VERSION: ${{ matrix.mysql-version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Cache MySQL tarball
+        uses: actions/cache@v4
+        with:
+          path: /tmp/mysql-tarball
+          key: mysql-${{ matrix.mysql-version }}-linux-x86_64-v1
+
+      - name: Download and unpack MySQL
+        env:
+          SHORT_VER_ENV: ${{ matrix.mysql-version }}
+        run: |
+          SHORT_VER="${SHORT_VER_ENV%.*}"
+          TARBALL="mysql-${MYSQL_VERSION}-linux-glibc2.17-x86_64.tar.xz"
+          mkdir -p /tmp/mysql-tarball
+          if [ ! -f "/tmp/mysql-tarball/$TARBALL" ]; then
+            curl -L -f -o "/tmp/mysql-tarball/$TARBALL" \
+              "https://dev.mysql.com/get/Downloads/MySQL-${SHORT_VER}/$TARBALL"
+          fi
+          mkdir -p "$SANDBOX_BINARY"
+          ./dbdeployer unpack "/tmp/mysql-tarball/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Test group replication (single-primary)
+        run: |
+          echo "=== Deploy group replication single-primary ${MYSQL_VERSION} ==="
+          ./dbdeployer deploy replication "$MYSQL_VERSION" \
+            --topology=group \
+            --sandbox-binary="$SANDBOX_BINARY" \
+            --nodes=3
+
+          SBDIR=$(ls -d ~/sandboxes/group_msb_*)
+          echo "=== Verify all nodes ONLINE ==="
+          ONLINE_COUNT=$($SBDIR/node1/use -BN -e "SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE MEMBER_STATE='ONLINE';" 2>&1)
+          echo "Online members: $ONLINE_COUNT"
+          [ "$ONLINE_COUNT" -eq 3 ] || { echo "FAIL: expected 3 ONLINE members, got $ONLINE_COUNT"; exit 1; }
+
+          echo "=== Identify primary ==="
+          PRIMARY_PORT=$($SBDIR/node1/use -BN -e "SELECT @@port;" 2>&1)
+          IS_PRIMARY=$($SBDIR/node1/use -BN -e "SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE MEMBER_ROLE='PRIMARY' AND MEMBER_PORT=$PRIMARY_PORT;" 2>&1)
+          echo "node1 is primary: $IS_PRIMARY"
+
+          echo "=== Write on primary (node1), read on secondary (node2) ==="
+          $SBDIR/node1/use -e "CREATE DATABASE gr_test; USE gr_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('single_primary_write');"
+          sleep 3
+          RESULT=$($SBDIR/node2/use -BN -e "SELECT val FROM gr_test.t1;" 2>&1)
+          echo "node2 result: $RESULT"
+          echo "$RESULT" | grep -q "single_primary_write" || { echo "FAIL: data not replicated to node2"; exit 1; }
+          RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM gr_test.t1;" 2>&1)
+          echo "node3 result: $RESULT"
+          echo "$RESULT" | grep -q "single_primary_write" || { echo "FAIL: data not replicated to node3"; exit 1; }
+          echo "OK: group replication single-primary write+read verified"
+
+          echo "=== Cleanup ==="
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Test group replication (multi-primary)
+        run: |
+          echo "=== Deploy group replication multi-primary ${MYSQL_VERSION} ==="
+          ./dbdeployer deploy replication "$MYSQL_VERSION" \
+            --topology=group \
+            --single-primary=false \
+            --sandbox-binary="$SANDBOX_BINARY" \
+            --nodes=3
+
+          SBDIR=$(ls -d ~/sandboxes/group_msb_*)
+          echo "=== Verify all nodes ONLINE ==="
+          ONLINE_COUNT=$($SBDIR/node1/use -BN -e "SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE MEMBER_STATE='ONLINE';" 2>&1)
+          echo "Online members: $ONLINE_COUNT"
+          [ "$ONLINE_COUNT" -eq 3 ] || { echo "FAIL: expected 3 ONLINE members, got $ONLINE_COUNT"; exit 1; }
+
+          echo "=== Verify multi-primary: all nodes are PRIMARY ==="
+          PRIMARY_COUNT=$($SBDIR/node1/use -BN -e "SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE MEMBER_ROLE='PRIMARY';" 2>&1)
+          echo "Primary count: $PRIMARY_COUNT"
+          [ "$PRIMARY_COUNT" -eq 3 ] || { echo "FAIL: expected 3 PRIMARY members in multi-primary mode, got $PRIMARY_COUNT"; exit 1; }
+
+          echo "=== Write on node1, read on node3 ==="
+          $SBDIR/node1/use -e "CREATE DATABASE gr_mp_test; USE gr_mp_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('write_from_node1');"
+          sleep 3
+          RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM gr_mp_test.t1 WHERE val='write_from_node1';" 2>&1)
+          echo "node3 sees node1 write: $RESULT"
+          echo "$RESULT" | grep -q "write_from_node1" || { echo "FAIL: node1 write not replicated to node3"; exit 1; }
+
+          echo "=== Write on node3, read on node1 ==="
+          $SBDIR/node3/use -e "INSERT INTO gr_mp_test.t1 (val) VALUES ('write_from_node3');"
+          sleep 3
+          RESULT=$($SBDIR/node1/use -BN -e "SELECT val FROM gr_mp_test.t1 WHERE val='write_from_node3';" 2>&1)
+          echo "node1 sees node3 write: $RESULT"
+          echo "$RESULT" | grep -q "write_from_node3" || { echo "FAIL: node3 write not replicated to node1"; exit 1; }
+          echo "OK: group replication multi-primary write+read verified"
+
+          echo "=== Cleanup ==="
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
+  # Test fan-in and all-masters replication topologies (#67)
+  fan-in-all-masters-test:
+    name: Fan-in and All-masters (${{ matrix.mysql-version }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        mysql-version:
+          - '8.4.8'
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      MYSQL_VERSION: ${{ matrix.mysql-version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Cache MySQL tarball
+        uses: actions/cache@v4
+        with:
+          path: /tmp/mysql-tarball
+          key: mysql-${{ matrix.mysql-version }}-linux-x86_64-v1
+
+      - name: Download and unpack MySQL
+        env:
+          SHORT_VER_ENV: ${{ matrix.mysql-version }}
+        run: |
+          SHORT_VER="${SHORT_VER_ENV%.*}"
+          TARBALL="mysql-${MYSQL_VERSION}-linux-glibc2.17-x86_64.tar.xz"
+          mkdir -p /tmp/mysql-tarball
+          if [ ! -f "/tmp/mysql-tarball/$TARBALL" ]; then
+            curl -L -f -o "/tmp/mysql-tarball/$TARBALL" \
+              "https://dev.mysql.com/get/Downloads/MySQL-${SHORT_VER}/$TARBALL"
+          fi
+          mkdir -p "$SANDBOX_BINARY"
+          ./dbdeployer unpack "/tmp/mysql-tarball/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Test fan-in topology
+        run: |
+          echo "=== Deploy fan-in ${MYSQL_VERSION} (3 nodes) ==="
+          # Fan-in: multiple masters feed into one slave (the last node)
+          ./dbdeployer deploy replication "$MYSQL_VERSION" \
+            --topology=fan-in \
+            --sandbox-binary="$SANDBOX_BINARY" \
+            --nodes=3
+
+          SBDIR=$(ls -d ~/sandboxes/fan_in_msb_*)
+          echo "=== Verify replication ==="
+          bash "$SBDIR/check_slaves" || bash "$SBDIR/check_replication" || true
+
+          echo "=== Write on master1 (node1), read on common node (node3) ==="
+          $SBDIR/node1/use -e "CREATE DATABASE fanin_test; USE fanin_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100), src VARCHAR(20)); INSERT INTO t1 (val, src) VALUES ('from_master1', 'node1');"
+          sleep 3
+          RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM fanin_test.t1 WHERE src='node1';" 2>&1)
+          echo "node3 sees node1 write: $RESULT"
+          echo "$RESULT" | grep -q "from_master1" || { echo "FAIL: node1 write not replicated to node3"; exit 1; }
+
+          echo "=== Write on master2 (node2), read on common node (node3) ==="
+          $SBDIR/node2/use -e "INSERT INTO fanin_test.t1 (val, src) VALUES ('from_master2', 'node2');"
+          sleep 3
+          RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM fanin_test.t1 WHERE src='node2';" 2>&1)
+          echo "node3 sees node2 write: $RESULT"
+          echo "$RESULT" | grep -q "from_master2" || { echo "FAIL: node2 write not replicated to node3"; exit 1; }
+          echo "OK: fan-in topology write+read verified"
+
+          echo "=== Cleanup ==="
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Test all-masters topology
+        run: |
+          echo "=== Deploy all-masters ${MYSQL_VERSION} (3 nodes) ==="
+          ./dbdeployer deploy replication "$MYSQL_VERSION" \
+            --topology=all-masters \
+            --sandbox-binary="$SANDBOX_BINARY" \
+            --nodes=3
+
+          SBDIR=$(ls -d ~/sandboxes/all_masters_msb_*)
+          echo "=== Verify replication ==="
+          bash "$SBDIR/check_slaves" || bash "$SBDIR/check_replication" || true
+
+          echo "=== Write on node1, read on node3 ==="
+          $SBDIR/node1/use -e "CREATE DATABASE allm_test; USE allm_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('write_from_node1');"
+          sleep 3
+          RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM allm_test.t1 WHERE val='write_from_node1';" 2>&1)
+          echo "node3 sees node1 write: $RESULT"
+          echo "$RESULT" | grep -q "write_from_node1" || { echo "FAIL: node1 write not replicated to node3"; exit 1; }
+
+          echo "=== Write on node3, read on node1 ==="
+          $SBDIR/node3/use -e "INSERT INTO allm_test.t1 (val) VALUES ('write_from_node3');"
+          sleep 3
+          RESULT=$($SBDIR/node1/use -BN -e "SELECT val FROM allm_test.t1 WHERE val='write_from_node3';" 2>&1)
+          echo "node1 sees node3 write: $RESULT"
+          echo "$RESULT" | grep -q "write_from_node3" || { echo "FAIL: node3 write not replicated to node1"; exit 1; }
+          echo "OK: all-masters topology write+read verified"
+
+          echo "=== Cleanup ==="
           ./dbdeployer delete all --skip-confirm
 
       - name: Cleanup
