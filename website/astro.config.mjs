@@ -61,6 +61,7 @@ export default defineConfig({
             { label: 'Database Users', slug: 'managing/users' },
             { label: 'Logs', slug: 'managing/logs' },
             { label: 'Deletion & Cleanup', slug: 'managing/deletion' },
+            { label: 'Admin Web UI', slug: 'managing/admin-ui' },
           ],
         },
         {
