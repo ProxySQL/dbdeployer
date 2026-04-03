@@ -10,13 +10,13 @@ func TestGenerateConfigBasic(t *testing.T) {
 		AdminHost: "127.0.0.1", AdminPort: 6032,
 		AdminUser: "admin", AdminPassword: "admin",
 		MySQLPort: 6033, DataDir: "/tmp/test",
-		MonitorUser: "msandbox", MonitorPass: "msandbox",
+		MonitorUser: "rsandbox", MonitorPass: "rsandbox",
 	}
 	result := GenerateConfig(cfg)
 	checks := []string{
 		`admin_credentials="admin:admin"`,
 		`interfaces="127.0.0.1:6033"`,
-		`monitor_username="msandbox"`,
+		`monitor_username="rsandbox"`,
 		`mysql_ifaces="127.0.0.1:6032"`,
 	}
 	for _, check := range checks {
@@ -31,7 +31,7 @@ func TestGenerateConfigWithBackends(t *testing.T) {
 		AdminHost: "127.0.0.1", AdminPort: 6032,
 		AdminUser: "admin", AdminPassword: "admin",
 		MySQLPort: 6033, DataDir: "/tmp/test",
-		MonitorUser: "msandbox", MonitorPass: "msandbox",
+		MonitorUser: "rsandbox", MonitorPass: "rsandbox",
 		Backends: []BackendServer{
 			{Host: "127.0.0.1", Port: 3306, Hostgroup: 0, MaxConns: 100},
 			{Host: "127.0.0.1", Port: 3307, Hostgroup: 1, MaxConns: 100},
@@ -57,8 +57,8 @@ func TestGenerateConfigMySQL(t *testing.T) {
 		AdminPassword: "admin",
 		MySQLPort:     6033,
 		DataDir:       "/tmp/proxysql/data",
-		MonitorUser:   "msandbox",
-		MonitorPass:   "msandbox",
+		MonitorUser:   "rsandbox",
+		MonitorPass:   "rsandbox",
 		Backends: []BackendServer{
 			{Host: "127.0.0.1", Port: 3306, Hostgroup: 0, MaxConns: 200},
 		},
@@ -72,6 +72,20 @@ func TestGenerateConfigMySQL(t *testing.T) {
 	}
 	if !strings.Contains(config, "mysql_users") {
 		t.Error("expected mysql_users block")
+	}
+	// Monitor user should be rsandbox (not in mysql_users, only in mysql_variables)
+	if !strings.Contains(config, `monitor_username="rsandbox"`) {
+		t.Error("expected monitor_username=rsandbox")
+	}
+	// Three proxy users for R/W split
+	if !strings.Contains(config, `username="msandbox"`) {
+		t.Error("expected msandbox user in mysql_users")
+	}
+	if !strings.Contains(config, `username="msandbox_rw"`) {
+		t.Error("expected msandbox_rw user in mysql_users")
+	}
+	if !strings.Contains(config, `username="msandbox_ro"`) {
+		t.Error("expected msandbox_ro user in mysql_users")
 	}
 }
 
@@ -114,7 +128,7 @@ func TestGenerateConfigGRHostgroups(t *testing.T) {
 		AdminHost: "127.0.0.1", AdminPort: 6032,
 		AdminUser: "admin", AdminPassword: "admin",
 		MySQLPort: 6033, DataDir: "/tmp/test",
-		MonitorUser: "msandbox", MonitorPass: "msandbox",
+		MonitorUser: "rsandbox", MonitorPass: "rsandbox",
 		Topology: "innodb-cluster",
 		Backends: []BackendServer{
 			{Host: "127.0.0.1", Port: 3306, Hostgroup: 0, MaxConns: 200},
@@ -141,7 +155,7 @@ func TestGenerateConfigNoGRHostgroupsForReplication(t *testing.T) {
 		AdminHost: "127.0.0.1", AdminPort: 6032,
 		AdminUser: "admin", AdminPassword: "admin",
 		MySQLPort: 6033, DataDir: "/tmp/test",
-		MonitorUser: "msandbox", MonitorPass: "msandbox",
+		MonitorUser: "rsandbox", MonitorPass: "rsandbox",
 		Topology: "replication",
 		Backends: []BackendServer{
 			{Host: "127.0.0.1", Port: 3306, Hostgroup: 0, MaxConns: 200},
@@ -158,7 +172,7 @@ func TestGenerateConfigGRHostgroupsForGroup(t *testing.T) {
 		AdminHost: "127.0.0.1", AdminPort: 6032,
 		AdminUser: "admin", AdminPassword: "admin",
 		MySQLPort: 6033, DataDir: "/tmp/test",
-		MonitorUser: "msandbox", MonitorPass: "msandbox",
+		MonitorUser: "rsandbox", MonitorPass: "rsandbox",
 		Topology: "group",
 		Backends: []BackendServer{
 			{Host: "127.0.0.1", Port: 3306, Hostgroup: 0, MaxConns: 200},

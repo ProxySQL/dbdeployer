@@ -82,13 +82,35 @@ func GenerateConfig(cfg ProxySQLConfig) string {
 		b.WriteString(")\n\n")
 	}
 
-	b.WriteString(fmt.Sprintf("%s=\n(\n", usersKey))
-	b.WriteString("    {\n")
-	b.WriteString(fmt.Sprintf("        username=\"%s\"\n", cfg.MonitorUser))
-	b.WriteString(fmt.Sprintf("        password=\"%s\"\n", cfg.MonitorPass))
-	b.WriteString("        default_hostgroup=0\n")
-	b.WriteString("    }\n")
-	b.WriteString(")\n")
+	if isPgsql {
+		// PostgreSQL: single user entry (no R/W split)
+		b.WriteString(fmt.Sprintf("%s=\n(\n", usersKey))
+		b.WriteString("    {\n")
+		b.WriteString(fmt.Sprintf("        username=\"%s\"\n", cfg.MonitorUser))
+		b.WriteString(fmt.Sprintf("        password=\"%s\"\n", cfg.MonitorPass))
+		b.WriteString("        default_hostgroup=0\n")
+		b.WriteString("    }\n")
+		b.WriteString(")\n")
+	} else {
+		// MySQL: three users — general purpose, dedicated writer, dedicated reader
+		b.WriteString(fmt.Sprintf("%s=\n(\n", usersKey))
+		b.WriteString("    {\n")
+		b.WriteString("        username=\"msandbox\"\n")
+		b.WriteString("        password=\"msandbox\"\n")
+		b.WriteString("        default_hostgroup=0\n")
+		b.WriteString("    },\n")
+		b.WriteString("    {\n")
+		b.WriteString("        username=\"msandbox_rw\"\n")
+		b.WriteString("        password=\"msandbox\"\n")
+		b.WriteString("        default_hostgroup=0\n")
+		b.WriteString("    },\n")
+		b.WriteString("    {\n")
+		b.WriteString("        username=\"msandbox_ro\"\n")
+		b.WriteString("        password=\"msandbox\"\n")
+		b.WriteString("        default_hostgroup=1\n")
+		b.WriteString("    }\n")
+		b.WriteString(")\n")
+	}
 
 	// For Group Replication / InnoDB Cluster topologies, configure ProxySQL
 	// to monitor GR status and automatically reroute on failover.
