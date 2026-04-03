@@ -79,6 +79,7 @@ export default defineConfig({
           items: [
             { label: 'CLI Commands', slug: 'reference/cli-commands' },
             { label: 'Configuration', slug: 'reference/configuration' },
+            { label: 'Topology Reference', slug: 'reference/topology-reference' },
             { label: 'API Changelog', slug: 'reference/api-changelog' },
           ],
         },
