@@ -159,6 +159,43 @@ func preliminaryChecks() {
 			os.Exit(1)
 		}
 	}
+
+	// Build PostgreSQL tests if PG binaries are available
+	pgBinaryDir := path.Join(os.Getenv("HOME"), "opt", "postgresql")
+	if os.Getenv("PG_BINARY") != "" {
+		pgBinaryDir = os.Getenv("PG_BINARY")
+	}
+	if common.DirExists(pgBinaryDir) {
+		pgVersions, _ := filepath.Glob(path.Join(pgBinaryDir, "*"))
+		for _, pgDir := range pgVersions {
+			pgVer := common.BaseName(pgDir)
+			if !common.FileExists(path.Join(pgDir, "bin", "postgres")) {
+				continue
+			}
+			label := "pg_" + strings.Replace(pgVer, ".", "_", -1)
+			// PostgreSQL port: 15000 + major*100 + minor
+			parts := strings.Split(pgVer, ".")
+			if len(parts) != 2 {
+				continue
+			}
+			major, _ := strconv.Atoi(parts[0])
+			minor, _ := strconv.Atoi(parts[1])
+			pgPort := 15000 + major*100 + minor
+
+			conditionalPrint("building PostgreSQL test: %s\n", label)
+			err = buildTests("templates", "testdata", label, map[string]string{
+				"DbVersion":       pgVer,
+				"DbFlavor":        "postgresql",
+				"DbPathVer":       label,
+				"Home":            os.Getenv("HOME"),
+				"TmpDir":          "/tmp",
+				"DbIncreasedPort": fmt.Sprintf("%d", pgPort),
+			})
+			if err != nil {
+				conditionalPrint("error creating PostgreSQL tests for %s: %s\n", pgVer, err)
+			}
+		}
+	}
 }
 
 func getFlavor(version string) string {
@@ -268,6 +305,7 @@ func buildTests(templateDir, dataDir, label string, data map[string]string) erro
 		"semisync":                  common.SemiSynch,
 		"fan-in":                    common.MultiSource,
 		"all-masters":               common.MultiSource,
+		"pg-replication":            "",
 	}
 	for _, needed := range []string{"DbVersion", "DbFlavor", "DbPathVer", "Home", "TmpDir"} {
 		neededTxt, ok := data[needed]
@@ -315,6 +353,17 @@ func buildTests(templateDir, dataDir, label string, data map[string]string) erro
 		if !known {
 			return fmt.Errorf("file %s.tmpl has no recognized feature", fName)
 		}
+
+		// PostgreSQL templates only run for PostgreSQL versions, and vice versa
+		isPgTemplate := strings.HasPrefix(fName, "pg-")
+		isPgVersion := data["DbFlavor"] == "postgresql"
+		if isPgTemplate && !isPgVersion {
+			continue
+		}
+		if !isPgTemplate && isPgVersion {
+			continue
+		}
+
 		var valid = false
 		if feature == "" {
 			valid = true

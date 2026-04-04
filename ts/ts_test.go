@@ -81,6 +81,10 @@ func TestGroup(t *testing.T) {
 	testDbDeployer(t, "group", false)
 }
 
+func TestPostgreSQL(t *testing.T) {
+	testDbDeployer(t, "postgresql", false)
+}
+
 func TestMain(m *testing.M) {
 
 	identity := common.BaseName(os.Args[0])

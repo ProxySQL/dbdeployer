@@ -1,0 +1,54 @@
+[!unix] skip 'this procedure can only work on Unix systems'
+env HOME={{.Home}}
+env TMPDIR={{.TmpDir}}
+
+# ===== Test 1: Single sandbox =====
+
+exec dbdeployer deploy postgresql {{.DbVersion}}
+stdout 'sandbox deployed'
+
+# test connectivity
+exec bash -c '$HOME/sandboxes/pg_sandbox_*/use -c "SELECT version()"'
+stdout 'PostgreSQL'
+
+# test stop and start
+exec bash -c '$HOME/sandboxes/pg_sandbox_*/stop'
+exec bash -c '$HOME/sandboxes/pg_sandbox_*/start'
+sleep 2
+exec bash -c '$HOME/sandboxes/pg_sandbox_*/use -c "SELECT 1 as result"'
+stdout 'result'
+
+# cleanup single
+exec bash -c '$HOME/sandboxes/pg_sandbox_*/stop'
+exec bash -c 'rm -rf $HOME/sandboxes/pg_sandbox_*'
+
+# ===== Test 2: Replication =====
+
+exec dbdeployer deploy replication {{.DbVersion}} --provider=postgresql --nodes=3
+stdout 'Primary deployed'
+stdout 'Replica 1 deployed'
+stdout 'Replica 2 deployed'
+
+# test connectivity on all nodes
+exec bash -c '$HOME/sandboxes/postgresql_repl_*/primary/use -c "SELECT version()"'
+stdout 'PostgreSQL'
+
+exec bash -c '$HOME/sandboxes/postgresql_repl_*/replica1/use -c "SELECT version()"'
+stdout 'PostgreSQL'
+
+# test replication: write on primary, read on replicas
+exec bash -c '$HOME/sandboxes/postgresql_repl_*/primary/use -c "CREATE TABLE repl_test (id serial, val text)"'
+exec bash -c 'sb=$(ls -d $HOME/sandboxes/postgresql_repl_* | head -1) && $sb/primary/use -c "INSERT INTO repl_test (val) VALUES (chr(116)||chr(115)||chr(95)||chr(116)||chr(101)||chr(115)||chr(116))"'
+exec bash -c '$HOME/sandboxes/postgresql_repl_*/primary/use -c "SELECT val FROM repl_test"'
+stdout 'ts_test'
+sleep 3
+
+exec bash -c '$HOME/sandboxes/postgresql_repl_*/replica1/use -c "SELECT val FROM repl_test"'
+stdout 'ts_test'
+
+exec bash -c '$HOME/sandboxes/postgresql_repl_*/replica2/use -c "SELECT val FROM repl_test"'
+stdout 'ts_test'
+
+# cleanup replication
+exec bash -c 'for d in $HOME/sandboxes/postgresql_repl_*/primary $HOME/sandboxes/postgresql_repl_*/replica1 $HOME/sandboxes/postgresql_repl_*/replica2; do $d/stop 2>/dev/null; done'
+exec bash -c 'rm -rf $HOME/sandboxes/postgresql_repl_*'
