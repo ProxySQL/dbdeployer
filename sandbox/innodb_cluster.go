@@ -194,12 +194,10 @@ func CreateInnoDBCluster(sandboxDef SandboxDef, origin string, nodes int, master
 	slaveAbbr := defaults.Defaults().SlaveAbbr
 	masterAbbr := defaults.Defaults().MasterAbbr
 	masterLabel := defaults.Defaults().MasterName
-	masterList := makeNodesList(nodes)
-	slaveList := masterList
-
 	// InnoDB Cluster always uses single-primary mode by default
 	// The primary is node 1, the rest are secondaries
-	masterList = "1"
+	masterList := "1"
+	slaveList := makeNodesList(nodes)
 	slaveList = ""
 	for N := 2; N <= nodes; N++ {
 		if slaveList != "" {
