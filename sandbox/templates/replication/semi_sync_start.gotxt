@@ -7,11 +7,23 @@ SBDIR={{.SandboxDir}}
 sleep 2
 set -x
 cd "$SBDIR"
-$SBDIR/{{.MasterLabel}}/use -u root -e 'set global rpl_semi_sync_master_enabled=1'
-echo "rpl_semi_sync_master_enabled=1" >> $SBDIR/{{.MasterLabel}}/my.sandbox.cnf
+
+# Detect whether to use old (master/slave) or new (source/replica) variable names.
+# MySQL 8.0.26+ has rpl_semi_sync_source_enabled; older versions use rpl_semi_sync_master_enabled.
+HAS_SOURCE=$($SBDIR/{{.MasterLabel}}/use -BN -u root -e "SHOW GLOBAL VARIABLES LIKE 'rpl_semi_sync_source_enabled'" 2>/dev/null | wc -l)
+if [ "$HAS_SOURCE" -gt 0 ]; then
+    MASTER_VAR=rpl_semi_sync_source_enabled
+    SLAVE_VAR=rpl_semi_sync_replica_enabled
+else
+    MASTER_VAR=rpl_semi_sync_master_enabled
+    SLAVE_VAR=rpl_semi_sync_slave_enabled
+fi
+
+$SBDIR/{{.MasterLabel}}/use -u root -e "set global $MASTER_VAR=1"
+echo "$MASTER_VAR=1" >> $SBDIR/{{.MasterLabel}}/my.sandbox.cnf
 {{ range .Slaves }}
-$SBDIR/{{.NodeLabel}}{{.Node}}/use -u root -e '{{.StopReplica}}'
-$SBDIR/{{.NodeLabel}}{{.Node}}/use -u root -e 'set global rpl_semi_sync_slave_enabled=1'
-$SBDIR/{{.NodeLabel}}{{.Node}}/use -u root -e '{{.StartReplica}}'
-echo "rpl_semi_sync_slave_enabled=1" >> $SBDIR/{{.NodeLabel}}{{.Node}}/my.sandbox.cnf
+$SBDIR/{{.NodeLabel}}{{.Node}}/use -u root -e '{{$.StopReplica}}'
+$SBDIR/{{.NodeLabel}}{{.Node}}/use -u root -e "set global $SLAVE_VAR=1"
+$SBDIR/{{.NodeLabel}}{{.Node}}/use -u root -e '{{$.StartReplica}}'
+echo "$SLAVE_VAR=1" >> $SBDIR/{{.NodeLabel}}{{.Node}}/my.sandbox.cnf
 {{end}}
