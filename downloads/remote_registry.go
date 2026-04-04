@@ -263,7 +263,12 @@ func FindOrGuessTarballByVersionFlavorOS(version, flavor, OS, arch string, minim
 	}
 
 	if newestVersionList[0] == 0 {
-		// No registry match found. If the version is allowed for guessing,
+		// No match found. If searching for minimal on macOS (which doesn't have
+		// minimal tarballs), retry without the minimal constraint.
+		if minimal && OS == "darwin" {
+			return FindOrGuessTarballByVersionFlavorOS(version, flavor, OS, arch, false, newest, guess)
+		}
+		// If still no match and the version is allowed for guessing,
 		// retry with --guess enabled so the download URL can be constructed
 		// from templates rather than requiring an exact registry entry.
 		if !guess && isAllowedForGuessing(version) {
@@ -274,48 +279,36 @@ func FindOrGuessTarballByVersionFlavorOS(version, flavor, OS, arch string, minim
 	newestVersion := fmt.Sprintf("%d.%d.%d", newestVersionList[0], newestVersionList[1], newestVersionList[2])
 
 	if guess && len(tbd) > 0 {
-
+		// Guess a newer version by taking the newest known entry and incrementing
+		// its patch version, then constructing a URL from the entry's own pattern
+		// (not from hardcoded templates which may have wrong OS labels).
 		newest = true
-		OS := strings.ToLower(tbd[0].OperatingSystem)
-		if OS == "linux" {
-			minimal = true
+		newestEntry := tbd[0]
+		for _, tb := range tbd {
+			isGreater, _ := common.GreaterOrEqualVersion(tb.Version, newestVersionList)
+			if isGreater || tb.Version == fmt.Sprintf("%d.%d.%d", newestVersionList[0], newestVersionList[1], newestVersionList[2]) {
+				newestEntry = tb
+			}
 		}
+
 		rev := newestVersionList[2] + 1
 		newVersion := fmt.Sprintf("%d.%d.%d", newestVersionList[0], newestVersionList[1], rev)
+		oldVersion := newestEntry.Version
 
-		shortVersion := tbd[0].ShortVersion
-		ext := "tar.gz"
-		if OS == "linux" && shortVersion == "8.0" {
-			ext = "tar.xz"
-		}
-		minimalData := ""
+		// Construct the new URL by replacing the version in the known-good URL
+		newName := strings.ReplaceAll(newestEntry.Name, oldVersion, newVersion)
+		newUrl := strings.ReplaceAll(newestEntry.Url, oldVersion, newVersion)
 
-		if minimal {
-			minimalData = "-minimal"
-		}
-		data := common.StringMap{"Version": newVersion, "Ext": ext, "Minimal": minimalData}
-
-		fileNameTemplate := ""
-		switch OS {
-		case "linux":
-			fileNameTemplate = defaults.Defaults().DownloadNameLinux
-		case "darwin":
-			fileNameTemplate = defaults.Defaults().DownloadNameMacOs
-		}
-		name, err := common.SafeTemplateFill("", fileNameTemplate, data)
-		if err != nil {
-			return TarballDescription{}, fmt.Errorf("[guess version] error filling new download name %s", err)
-		}
-		downloadUrl := fmt.Sprintf("%s-%s/%s", defaults.Defaults().DownloadUrl, shortVersion, name)
 		tbd = append(tbd, TarballDescription{
-			Name:            name,
+			Name:            newName,
 			Checksum:        "",
-			OperatingSystem: OS,
-			Url:             downloadUrl,
-			Flavor:          flavor,
-			Minimal:         minimal,
+			OperatingSystem: newestEntry.OperatingSystem,
+			Arch:            newestEntry.Arch,
+			Url:             newUrl,
+			Flavor:          newestEntry.Flavor,
+			Minimal:         newestEntry.Minimal,
 			Size:            0,
-			ShortVersion:    shortVersion,
+			ShortVersion:    newestEntry.ShortVersion,
 			Version:         newVersion,
 			UpdatedBy:       "",
 			Notes:           "guessed",
