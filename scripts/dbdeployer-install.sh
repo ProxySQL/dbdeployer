@@ -156,8 +156,8 @@ then
 fi
 
 # (STEP 8) downloads the checksum file
-curl -L -s -o "$checksum_file" "$origin/${filename}.sha256"
-check_exit_code "curl -L -s -o $checksum_file $origin/${filename}.sha256"
+curl -L -s -o "$checksum_file" "$origin/$checksum_file"
+check_exit_code "curl -L -s -o $checksum_file $origin/$checksum_file"
 
 # (STEP 9) checks that the checksum file was downloaded
 if [ ! -f  "${checksum_file}" ]
