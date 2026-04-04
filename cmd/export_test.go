@@ -93,7 +93,7 @@ func TestExportImport(t *testing.T) {
 			subCommandName:      "",
 			expectedName:        "admin",
 			expectedAncestors:   2,
-			expectedSubCommands: 6,
+			expectedSubCommands: 7,
 			expectedArgument:    "",
 		},
 		{

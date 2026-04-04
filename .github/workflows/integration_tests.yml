@@ -21,6 +21,7 @@ jobs:
           - '8.0.42'
           - '8.4.4'
           - '9.1.0'
+          - '9.5.0'
     env:
       GO111MODULE: on
       SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql

@@ -6,11 +6,11 @@ echo "{{.MasterLabel}}"
 port=$($SBDIR/{{.MasterLabel}}/use -BN -e "show variables like 'port'")
 server_id=$($SBDIR/{{.MasterLabel}}/use -BN -e "show variables like 'server_id'")
 echo "$port - $server_id"
-$SBDIR/{{.MasterLabel}}/use -e '{{.ShowMasterStatus}}\G' | grep "File\|Position\|Executed"
+$SBDIR/{{.MasterLabel}}/use --vertical -e '{{.ShowMasterStatus}}' | grep "File\|Position\|Executed"
 {{ range .Slaves }}
 echo "{{.SlaveLabel}}{{.Node}}"
 port=$($SBDIR/{{.NodeLabel}}{{.Node}}/use -BN -e "show variables like 'port'")
 server_id=$($SBDIR/{{.NodeLabel}}{{.Node}}/use -BN -e "show variables like 'server_id'")
 echo "$port - $server_id"
-$SBDIR/{{.NodeLabel}}{{.Node}}/use -e '{{.ShowSlaveStatus}}\G' | grep -E "(Running:|Master_Log_Pos|Source_Log_Pos|\<Master_Log_File|\<Source_Log_File|Retrieved|Executed|Auto_Position)"
+$SBDIR/{{.NodeLabel}}{{.Node}}/use --vertical -e '{{.ShowSlaveStatus}}' | grep -E "(Running:|Master_Log_Pos|Source_Log_Pos|\<Master_Log_File|\<Source_Log_File|Retrieved|Executed|Auto_Position)"
 {{end}}
