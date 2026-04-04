@@ -89,6 +89,62 @@ jobs:
           ./dbdeployer delete all --skip-confirm 2>/dev/null || true
           pkill -9 -u "$USER" mysqld 2>/dev/null || true
 
+  # Run the ts (testscript) replication suite against multiple MySQL versions.
+  # This tests replication, replication-gtid, and semisync across versions.
+  ts-replication-test:
+    name: ts Replication Tests
+    runs-on: ubuntu-22.04
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Download MySQL versions
+        run: |
+          mkdir -p "$SANDBOX_BINARY"
+          for VER in 5.7.44 8.0.42 8.4.8 9.5.0; do
+            SHORT="${VER%.*}"
+            TARBALL="mysql-${VER}-linux-glibc2.17-x86_64-minimal.tar.xz"
+            echo "Downloading $VER..."
+            curl -L -f -s -o "/tmp/$TARBALL" \
+              "https://dev.mysql.com/get/Downloads/MySQL-${SHORT}/$TARBALL" \
+              || curl -L -f -s -o "/tmp/$TARBALL" \
+              "https://downloads.mysql.com/archives/get/p/23/file/$TARBALL"
+            ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+            rm -f "/tmp/$TARBALL"
+          done
+          echo "Available versions:"
+          ls "$SANDBOX_BINARY"
+
+      - name: Run ts replication tests
+        env:
+          TEST_SHORT_VERSIONS: "5.7,8.0,8.4,9.5"
+        run: |
+          export HOME="$GITHUB_WORKSPACE/home"
+          mkdir -p "$HOME/sandboxes" "$HOME/.dbdeployer"
+          echo '{}' > "$HOME/.dbdeployer/sandboxes.json"
+          export PATH="$GITHUB_WORKSPACE:$PATH"
+          go test ./ts/ -v -count=1 -run TestReplication -timeout 30m
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
   # Test PostgreSQL provider: deb extraction, single sandbox, replication,
   # cross-database validation.
   postgresql-test:
