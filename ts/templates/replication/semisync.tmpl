@@ -36,22 +36,23 @@ stdout '# failed:     0'
 ! stderr .
 
 # test semi-synchronous operations
+# Variable names differ: master/slave (pre-9.2) vs source/replica (9.2+)
 
-exec $sb_dir/m -e 'show global status like "Rpl_semi_sync_master_status" '
-stdout 'Rpl_semi_sync_master_status.*ON'
+exec $sb_dir/m -e 'show global status like "Rpl_semi_sync_%_status" '
+stdout 'Rpl_semi_sync_.*status.*ON'
 ! stderr .
 
-exec $sb_dir/s1 -e 'show global status like "Rpl_semi_sync_slave_status" '
-stdout 'Rpl_semi_sync_slave_status.*ON'
+exec $sb_dir/s1 -e 'show global status like "Rpl_semi_sync_%_status" '
+stdout 'Rpl_semi_sync_.*status.*ON'
 ! stderr .
 
-exec $sb_dir/m -e 'show global status like "Rpl_semi_sync_master_yes_tx" '
-stdout 'Rpl_semi_sync_master_yes_tx[^0-9]+[0-9]+'
+exec $sb_dir/m -e 'show global status like "Rpl_semi_sync_%_yes_tx" '
+stdout 'Rpl_semi_sync_.*yes_tx[^0-9]+[0-9]+'
 ! stdout '\b0\b'
 ! stderr .
 
-exec $sb_dir/m -e 'show global status like "Rpl_semi_sync_master_no_tx" '
-stdout 'Rpl_semi_sync_master_no_tx[^0-9]+0'
+exec $sb_dir/m -e 'show global status like "Rpl_semi_sync_%_no_tx" '
+stdout 'Rpl_semi_sync_.*no_tx[^0-9]+0'
 ! stderr .
 
 [!darwin] [version_is_at_least:$db_version:5.6.0] ! find_errors $sb_dir/master

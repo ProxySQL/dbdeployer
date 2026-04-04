@@ -113,6 +113,8 @@ const (
 	TmplConnectionInfoSql       = "connection_info_sql"
 	TmplMetadata                = "metadata"
 	TmplSemisyncMasterOptions   = "semisync_master_options"
+	TmplSemisyncSourceOptions   = "semisync_source_options"
+	TmplSemisyncReplicaOptions  = "semisync_replica_options"
 	TmplGrants57                = "grants57"
 	TmplLoadGrants              = "load_grants"
 	TmplMy                      = "my"

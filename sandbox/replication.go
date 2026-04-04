@@ -430,7 +430,13 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 			logger.Printf(installationMessage, slaveLabel, i)
 		}
 		if sandboxDef.SemiSyncOptions != "" {
-			sandboxDef.SemiSyncOptions = SingleTemplates[globals.TmplSemisyncSlaveOptions].Contents
+			// Use replica plugin for MySQL 9.2+ (old slave plugin removed)
+			useSourcePlugin, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumSemisyncSourcePluginVersion)
+			if useSourcePlugin {
+				sandboxDef.SemiSyncOptions = SingleTemplates[globals.TmplSemisyncReplicaOptions].Contents
+			} else {
+				sandboxDef.SemiSyncOptions = SingleTemplates[globals.TmplSemisyncSlaveOptions].Contents
+			}
 		}
 		logger.Printf("Creating single sandbox for slave %d\n", i)
 		execListNode, err := CreateChildSandbox(sandboxDef)

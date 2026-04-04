@@ -116,9 +116,9 @@ func preliminaryChecks() {
 		os.Exit(1)
 	}
 
-	shortVersions := []string{"5.5", "5.6", "5.7", "8.0", "8.4", "9.0"}
+	shortVersions := []string{"5.5", "5.6", "5.7", "8.0", "8.4", "9.0", "9.5"}
 	if os.Getenv("GITHUB_ACTIONS") != "" {
-		shortVersions = []string{"5.7", "8.0", "8.4"}
+		shortVersions = []string{"5.7", "8.0", "8.4", "9.5"}
 	}
 	customShortVersions := os.Getenv("TEST_SHORT_VERSIONS")
 	if customShortVersions != "" {

@@ -125,6 +125,12 @@ var (
 	//go:embed templates/single/semisync_slave_options.gotxt
 	semisyncSlaveOptions string
 
+	//go:embed templates/single/semisync_source_options.gotxt
+	semisyncSourceOptions string
+
+	//go:embed templates/single/semisync_replica_options.gotxt
+	semisyncReplicaOptions string
+
 	//go:embed templates/single/repl_crash_safe_options.gotxt
 	replCrashSafeOptions string
 
@@ -205,6 +211,16 @@ var (
 			Description: "slave semi-synch options for my.cnf",
 			Notes:       "",
 			Contents:    semisyncSlaveOptions,
+		},
+		globals.TmplSemisyncSourceOptions: TemplateDesc{
+			Description: "source semi-synch options for my.cnf (MySQL 9.2+)",
+			Notes:       "",
+			Contents:    semisyncSourceOptions,
+		},
+		globals.TmplSemisyncReplicaOptions: TemplateDesc{
+			Description: "replica semi-synch options for my.cnf (MySQL 9.2+)",
+			Notes:       "",
+			Contents:    semisyncReplicaOptions,
 		},
 		globals.TmplGtidOptions56: TemplateDesc{
 			Description: "GTID options for my.cnf 5.6.x",

@@ -434,6 +434,7 @@ var (
 	MinimumShowBinaryLogStatusVersion         = NumericVersion{8, 2, 0}
 	MinimumNoWriteSetExtractionVersion        = NumericVersion{8, 3, 0}
 	MinimumResetBinaryLogsVersion             = NumericVersion{8, 4, 0}
+	MinimumSemisyncSourcePluginVersion        = NumericVersion{9, 2, 0}
 )
 
 const (
