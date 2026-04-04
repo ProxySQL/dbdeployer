@@ -164,7 +164,7 @@ then
     show_master_status_cmd="show binary log status"
 fi
 
-$master_use_script -e "$show_master_status_cmd\G" > $master_status
+$master_use_script --vertical -e "$show_master_status_cmd" > $master_status
 binlog_file=$(grep File < $master_status | awk '{print $2}')
 binlog_pos=$(grep Position < $master_status | awk '{print $2}')
 rm -f $master_status
@@ -270,7 +270,7 @@ then
     stop_reset_cmd="stop replica; reset replica"
 fi
 $SBDIR/use -v -e "$start_replica_cmd"
-$SBDIR/use -v -e "$show_replica_cmd\G" | grep "\(Running:\|Master_Log_Pos\|Source_Log_Pos\|\<Master_Log_File\|\<Source_Log_File\|Retrieved\|Executed\|Auto_Position\)"
+$SBDIR/use --vertical -e "$show_replica_cmd" | grep "\(Running:\|Master_Log_Pos\|Source_Log_Pos\|\<Master_Log_File\|\<Source_Log_File\|Retrieved\|Executed\|Auto_Position\)"
 date > $active_replication
 echo "Connected to $master_path" >> $active_replication
 echo "#!{{.ShellPath}}" > $remove_replication

@@ -29,9 +29,9 @@ MASTER_RECS=$($MASTER -BN -e 'select count(*) from test.t1')
 
 master_status=master_status$$
 slave_status=slave_status$$
-$MASTER -e '{{.ShowMasterStatus}}\G' > $master_status
-master_binlog=$(grep 'File:' $master_status | awk '{print $2}' )
-master_pos=$(grep 'Position:' $master_status | awk '{print $2}' )
+$MASTER --vertical -e '{{.ShowMasterStatus}}' > $master_status
+master_binlog=$(grep -E '^\s*(File|Log_name):' $master_status | awk '{print $2}' )
+master_pos=$(grep -E '^\s*Position:' $master_status | awk '{print $2}' )
 echo "# {{.MasterLabel}} log: $master_binlog - Position: $master_pos - Rows: $MASTER_RECS"
 rm -f $master_status
 
@@ -98,7 +98,13 @@ do
         then
             sleep 3
         else
-            S_READY=$($SLAVE -BN -e "select {{.MasterPosWaitFunc}}('$master_binlog', $master_pos,60)")
+            if [ -z "$master_binlog" ] || [ -z "$master_pos" ]; then
+                echo "# WARNING: could not determine master binlog/position, using GTID wait"
+                sleep 3
+                S_READY=0
+            else
+                S_READY=$($SLAVE -BN -e "select {{.MasterPosWaitFunc}}('$master_binlog', $master_pos, 60)")
+            fi
             # master_pos_wait can return 0 or a positive number for successful replication
             # Any result that is not NULL or -1 is acceptable
             if [ "$S_READY" != "-1" -a "$S_READY" != "NULL" ]
@@ -109,7 +115,7 @@ do
         fi
 if [ -f initialize_{{.SlaveLabel}}s ]
 then
-	$SLAVE -e '{{.ShowSlaveStatus}}\G' > $slave_status
+	$SLAVE --vertical -e '{{.ShowSlaveStatus}}' > $slave_status
 	IO_RUNNING=$(grep -E -w "Slave_IO_Running|Replica_IO_Running" $slave_status | awk '{print $2}')
 	ok_equal $IO_RUNNING Yes "{{.SlaveLabel}} #$SLAVE_N IO thread is running"
 	SQL_RUNNING=$(grep -E -w "Slave_SQL_Running|Replica_SQL_Running" $slave_status | awk '{print $2}')
