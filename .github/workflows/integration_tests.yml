@@ -129,7 +129,7 @@ jobs:
           echo "Available versions:"
           ls "$SANDBOX_BINARY"
 
-      - name: Run ts replication tests
+      - name: Run ts replication tests (MySQL)
         env:
           TEST_SHORT_VERSIONS: "5.7,8.0,8.4,9.5"
         run: |
@@ -139,11 +139,43 @@ jobs:
           export PATH="$GITHUB_WORKSPACE:$PATH"
           go test ./ts/ -v -count=1 -run TestReplication -timeout 30m
 
+      - name: Cleanup MySQL
+        if: always()
+        run: |
+          export HOME="$GITHUB_WORKSPACE/home"
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+          rm -rf "$HOME/sandboxes"/*
+          echo '{}' > "$HOME/.dbdeployer/sandboxes.json"
+
+      - name: Install PostgreSQL for ts tests
+        run: |
+          sudo apt-get install -y postgresql-16 postgresql-client-16
+          sudo systemctl stop postgresql || true
+          export HOME="$GITHUB_WORKSPACE/home"
+          PG_FULL=$(dpkg -s postgresql-16 | grep '^Version:' | sed 's/Version: //' | cut -d'-' -f1)
+          mkdir -p "$HOME/opt/postgresql/${PG_FULL}/"{bin,lib,share}
+          cp -a /usr/lib/postgresql/16/bin/. "$HOME/opt/postgresql/${PG_FULL}/bin/"
+          cp -a /usr/lib/postgresql/16/lib/. "$HOME/opt/postgresql/${PG_FULL}/lib/"
+          cp -a /usr/share/postgresql/16/. "$HOME/opt/postgresql/${PG_FULL}/share/"
+
+      - name: Run ts PostgreSQL tests
+        env:
+          TEST_SHORT_VERSIONS: "8.4"
+        run: |
+          export HOME="$GITHUB_WORKSPACE/home"
+          mkdir -p "$HOME/sandboxes"
+          echo '{}' > "$HOME/.dbdeployer/sandboxes.json"
+          export PATH="$GITHUB_WORKSPACE:$PATH"
+          go test ./ts/ -v -count=1 -run TestPostgreSQL -timeout 10m
+
       - name: Cleanup
         if: always()
         run: |
+          export HOME="$GITHUB_WORKSPACE/home"
           ./dbdeployer delete all --skip-confirm 2>/dev/null || true
           pkill -9 -u "$USER" mysqld 2>/dev/null || true
+          pkill -9 -u "$USER" postgres 2>/dev/null || true
 
   # Test PostgreSQL provider: deb extraction, single sandbox, replication,
   # cross-database validation.
