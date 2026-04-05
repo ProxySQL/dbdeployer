@@ -2,100 +2,28 @@
 title: "What's Coming to dbdeployer"
 date: 2026-04-03
 author: "Rene Cannao"
-description: "A preview of the features we're shipping — from InnoDB Cluster to PostgreSQL support. This is just the beginning."
+description: "A preview of the features we're shipping — from InnoDB Cluster to a web UI. This is just the beginning."
 tags: ["announcement", "roadmap", "series"]
 ---
 
-When we took over dbdeployer, we had a clear goal: turn a MySQL sandbox tool into a **database infrastructure platform**. We've been heads-down building, and we're ready to start sharing what we've done.
+When we took over dbdeployer, we had a clear goal: turn a MySQL sandbox tool into a **database infrastructure platform**. We've been heads-down building, and we're ready to start sharing what's coming.
 
 ## The short version
 
-dbdeployer v2.1.1 is out, and it's a different tool than what you remember.
-
-### MySQL replication in one command
-
-```
-$ dbdeployer deploy replication 8.4.8
-Installing and starting master
-. sandbox server started
-Installing and starting slave1
-. sandbox server started
-Installing and starting slave2
-. sandbox server started
-initializing slave 1
-initializing slave 2
-Replication directory installed in $HOME/sandboxes/rsandbox_8_4_8
-```
-
-Verify it works:
-
-```
-$ ~/sandboxes/rsandbox_8_4_8/test_replication
-# master log: mysql-bin.000001 - Position: 15455 - Rows: 20
-# Testing slave #1
-ok - slave #1 acknowledged reception of transactions from master
-ok - slave #1 IO thread is running
-ok - slave #1 SQL thread is running
-ok - Table t1 found on slave #1
-ok - Table t1 has 20 rows on #1
-# Testing slave #2
-ok - slave #2 acknowledged reception of transactions from master
-ok - slave #2 IO thread is running
-ok - slave #2 SQL thread is running
-ok - Table t1 found on slave #2
-ok - Table t1 has 20 rows on #2
-# PASSED:    10 (100.0%)
-```
-
-### PostgreSQL streaming replication
-
-```
-$ dbdeployer deploy replication 16.13 --provider=postgresql
-  Primary deployed (port: 16613)
-  Replica 1 deployed (port: 16614)
-  Replica 2 deployed (port: 16615)
-```
-
-Write on the primary, read from a replica:
-
-```
-$ ~/sandboxes/postgresql_repl_16613/primary/use -c \
-    "CREATE TABLE demo(id serial, msg text); INSERT INTO demo(msg) VALUES ('hello from primary');"
-CREATE TABLE
-INSERT 0 1
-
-$ ~/sandboxes/postgresql_repl_16613/replica1/use -c "SELECT * FROM demo;"
- id |        msg
-----+--------------------
-  1 | hello from primary
-(1 row)
-```
-
-Two replicas streaming from the primary, all caught up:
-
-```
-$ ~/sandboxes/postgresql_repl_16613/check_replication
- client_addr |   state   | sent_lsn  | write_lsn | flush_lsn | replay_lsn
--------------+-----------+-----------+-----------+-----------+------------
- 127.0.0.1   | streaming | 0/40217D8 | 0/40217D8 | 0/40217D8 | 0/40217D8
- 127.0.0.1   | streaming | 0/40217D8 | 0/40217D8 | 0/40217D8 | 0/40217D8
-(2 rows)
-```
-
-### And more
+dbdeployer v2.0.0 is out, and it's a different tool than what you remember. Here's a taste:
 
 ```bash
-# Group Replication — 3 nodes, all ONLINE
-dbdeployer deploy replication 8.4.8 --topology=group
-
-# InnoDB Cluster with MySQL Router
+# InnoDB Cluster with MySQL Router — one command
 dbdeployer deploy replication 8.4.8 --topology=innodb-cluster
 
-# InnoDB Cluster with ProxySQL instead of Router
+# Same cluster, but with ProxySQL instead of Router
 dbdeployer deploy replication 8.4.8 --topology=innodb-cluster --skip-router --with-proxysql
 
-# MySQL replication with ProxySQL read/write split
-dbdeployer deploy replication 8.4.8 --with-proxysql
+# PostgreSQL streaming replication
+dbdeployer deploy replication 16.13 --provider=postgresql
+
+# Visual dashboard to manage it all
+dbdeployer admin ui
 ```
 
 ## What we'll be writing about
@@ -110,6 +38,9 @@ The full story — from deb extraction to streaming replication. Why PostgreSQL'
 
 **InnoDB Cluster: Router vs ProxySQL**
 Deploy the same InnoDB Cluster and swap between MySQL Router and ProxySQL with a single flag. We'll walk through the differences in configuration, failover behavior, and when to use which.
+
+**The Web Admin UI**
+A localhost dashboard that turns dbdeployer from a CLI tool into something visual. OTP authentication, real-time status, start/stop/destroy with a click.
 
 **MySQL 8.4 and 9.x**
 What changed in MySQL's replication syntax, why your old sandboxes might show deprecation warnings, and how we fixed it with version-aware templates.
