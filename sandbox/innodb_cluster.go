@@ -197,8 +197,7 @@ func CreateInnoDBCluster(sandboxDef SandboxDef, origin string, nodes int, master
 	// InnoDB Cluster always uses single-primary mode by default
 	// The primary is node 1, the rest are secondaries
 	masterList := "1"
-	slaveList := makeNodesList(nodes)
-	slaveList = ""
+	slaveList := ""
 	for N := 2; N <= nodes; N++ {
 		if slaveList != "" {
 			slaveList += " "

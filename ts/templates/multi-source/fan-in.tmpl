@@ -33,6 +33,7 @@ env required_ports=3
 [version_is_at_least:$db_version:8.0.0] env required_ports=6
 check_ports $sb_dir $required_ports
 
+sleep 3
 exec $HOME/sandboxes/fan_in_msb_{{.DbPathVer}}/test_replication
 stdout '# fail: 0'
 ! stderr .

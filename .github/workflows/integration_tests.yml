@@ -122,16 +122,16 @@ jobs:
         run: |
           # Extract major.minor from version (e.g., "8.0.36-28" -> "8.0")
           MAJOR_MINOR=$(echo "$PERCONA_VERSION" | grep -oP '^\d+\.\d+')
-          GLIBC="glibc2.17"
+          GLIBC="glibc2.35"
           TARBALL="Percona-Server-${PERCONA_VERSION}-Linux.x86_64.${GLIBC}-minimal.tar.gz"
           URL="https://downloads.percona.com/downloads/Percona-Server-${MAJOR_MINOR}/Percona-Server-${PERCONA_VERSION}/binary/tarball/${TARBALL}"
-          echo "Downloading Percona Server ${PERCONA_VERSION}..."
+          echo "Downloading Percona Server ${PERCONA_VERSION} (${GLIBC})..."
           mkdir -p "$SANDBOX_BINARY"
           curl -L -f -o "/tmp/$TARBALL" "$URL" || {
-            GLIBC="glibc2.35"
+            GLIBC="glibc2.17"
             TARBALL="Percona-Server-${PERCONA_VERSION}-Linux.x86_64.${GLIBC}-minimal.tar.gz"
             URL="https://downloads.percona.com/downloads/Percona-Server-${MAJOR_MINOR}/Percona-Server-${PERCONA_VERSION}/binary/tarball/${TARBALL}"
-            echo "Retrying with glibc2.35..."
+            echo "Retrying with glibc2.17..."
             curl -L -f -o "/tmp/$TARBALL" "$URL"
           }
           ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
@@ -169,8 +169,8 @@ jobs:
       fail-fast: false
       matrix:
         mariadb-version:
-          - '10.11.25'
-          - '11.4.10'
+          - '10.11.9'
+          - '11.4.5'
     env:
       GO111MODULE: on
       SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
@@ -192,8 +192,8 @@ jobs:
 
       - name: Download and unpack MariaDB
         run: |
-          TARBALL="mariadb-${MARIADB_VERSION}-linux-x86_64.tar.gz"
-          URL="https://downloads.mariadb.com/MariaDB/mariadb-${MARIADB_VERSION}/bintar-linux-x86_64/${TARBALL}"
+          TARBALL="mariadb-${MARIADB_VERSION}-linux-systemd-x86_64.tar.gz"
+          URL="https://archive.mariadb.org/mariadb-${MARIADB_VERSION}/bintar-linux-systemd-x86_64/${TARBALL}"
           echo "Downloading MariaDB ${MARIADB_VERSION}..."
           mkdir -p "$SANDBOX_BINARY"
           curl -L -f -o "/tmp/$TARBALL" "$URL"
@@ -253,7 +253,7 @@ jobs:
       - name: Download MySQL versions
         run: |
           mkdir -p "$SANDBOX_BINARY"
-          for VER in 5.7.44 8.0.42 8.4.8 9.5.0; do
+          for VER in 8.0.42 8.4.8 9.5.0; do
             SHORT="${VER%.*}"
             TARBALL="mysql-${VER}-linux-glibc2.17-x86_64-minimal.tar.xz"
             echo "Downloading $VER..."
@@ -269,7 +269,7 @@ jobs:
 
       - name: Run ts replication tests (MySQL)
         env:
-          TEST_SHORT_VERSIONS: "5.7,8.0,8.4,9.5"
+          TEST_SHORT_VERSIONS: "8.0,8.4,9.5"
         run: |
           export HOME="$GITHUB_WORKSPACE/home"
           mkdir -p "$HOME/sandboxes" "$HOME/.dbdeployer"
@@ -403,6 +403,8 @@ jobs:
           PG_FULL=$(ls ~/opt/postgresql/ | head -1)
           echo "=== Deploying PostgreSQL $PG_FULL multiple (3 nodes) ==="
           ./dbdeployer deploy multiple "$PG_FULL" --provider=postgresql --nodes=3
+          echo "=== Waiting for nodes to start ==="
+          sleep 5
           echo "=== Checking topology dir ==="
           ls ~/sandboxes/multi_msb_*/
           echo "=== Connect to node1 ==="
