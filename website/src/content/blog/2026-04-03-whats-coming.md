@@ -2,17 +2,20 @@
 title: "What's Coming to dbdeployer"
 date: 2026-04-03
 author: "Rene Cannao"
-description: "A preview of the features we're shipping — from InnoDB Cluster to a web UI. This is just the beginning."
+description: "A preview of the features we're shipping — from InnoDB Cluster to PostgreSQL support. This is just the beginning."
 tags: ["announcement", "roadmap", "series"]
 ---
 
-When we took over dbdeployer, we had a clear goal: turn a MySQL sandbox tool into a **database infrastructure platform**. We've been heads-down building, and we're ready to start sharing what's coming.
+When we took over dbdeployer, we had a clear goal: turn a MySQL sandbox tool into a **database infrastructure platform**. We've been heads-down building, and we're ready to start sharing what we've done.
 
 ## The short version
 
-dbdeployer v2.0.0 is out, and it's a different tool than what you remember. Here's a taste:
+dbdeployer v2.1.1 is out, and it's a different tool than what you remember. Here's a taste:
 
 ```bash
+# MySQL replication with ProxySQL read/write split
+dbdeployer deploy replication 8.4.8 --with-proxysql
+
 # InnoDB Cluster with MySQL Router — one command
 dbdeployer deploy replication 8.4.8 --topology=innodb-cluster
 
@@ -21,9 +24,6 @@ dbdeployer deploy replication 8.4.8 --topology=innodb-cluster --skip-router --wi
 
 # PostgreSQL streaming replication
 dbdeployer deploy replication 16.13 --provider=postgresql
-
-# Visual dashboard to manage it all
-dbdeployer admin ui
 ```
 
 ## What we'll be writing about
@@ -38,9 +38,6 @@ The full story — from deb extraction to streaming replication. Why PostgreSQL'
 
 **InnoDB Cluster: Router vs ProxySQL**
 Deploy the same InnoDB Cluster and swap between MySQL Router and ProxySQL with a single flag. We'll walk through the differences in configuration, failover behavior, and when to use which.
-
-**The Web Admin UI**
-A localhost dashboard that turns dbdeployer from a CLI tool into something visual. OTP authentication, real-time status, start/stop/destroy with a click.
 
 **MySQL 8.4 and 9.x**
 What changed in MySQL's replication syntax, why your old sandboxes might show deprecation warnings, and how we fixed it with version-aware templates.
