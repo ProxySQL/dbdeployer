@@ -23,8 +23,8 @@ exists $sb_dir
 exec $sb_dir/check_ms_nodes
 stdout '# Master 1'
 stdout '# Master 2'
-stdout -count=2 'Slave_IO_Running: Yes'
-stdout -count=2 'Slave_SQL_Running: Yes'
+stdout -count=2 '(Slave|Replica)_IO_Running: Yes'
+stdout -count=2 '(Slave|Replica)_SQL_Running: Yes'
 ! stderr .
 
 check_sandbox_manifest $sb_dir multi_source
