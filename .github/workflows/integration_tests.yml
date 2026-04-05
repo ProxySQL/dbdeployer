@@ -89,6 +89,144 @@ jobs:
           ./dbdeployer delete all --skip-confirm 2>/dev/null || true
           pkill -9 -u "$USER" mysqld 2>/dev/null || true
 
+  # Test Percona Server: single + replication with data verification
+  percona-test:
+    name: Percona Server (${{ matrix.percona-version }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        percona-version:
+          - '8.0.36-28'
+          - '8.4.2-2'
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      PERCONA_VERSION: ${{ matrix.percona-version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Download and unpack Percona Server
+        run: |
+          # Extract major.minor from version (e.g., "8.0.36-28" -> "8.0")
+          MAJOR_MINOR=$(echo "$PERCONA_VERSION" | grep -oP '^\d+\.\d+')
+          GLIBC="glibc2.17"
+          TARBALL="Percona-Server-${PERCONA_VERSION}-Linux.x86_64.${GLIBC}-minimal.tar.gz"
+          URL="https://downloads.percona.com/downloads/Percona-Server-${MAJOR_MINOR}/Percona-Server-${PERCONA_VERSION}/binary/tarball/${TARBALL}"
+          echo "Downloading Percona Server ${PERCONA_VERSION}..."
+          mkdir -p "$SANDBOX_BINARY"
+          curl -L -f -o "/tmp/$TARBALL" "$URL" || {
+            GLIBC="glibc2.35"
+            TARBALL="Percona-Server-${PERCONA_VERSION}-Linux.x86_64.${GLIBC}-minimal.tar.gz"
+            URL="https://downloads.percona.com/downloads/Percona-Server-${MAJOR_MINOR}/Percona-Server-${PERCONA_VERSION}/binary/tarball/${TARBALL}"
+            echo "Retrying with glibc2.35..."
+            curl -L -f -o "/tmp/$TARBALL" "$URL"
+          }
+          ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Test single sandbox
+        run: |
+          # Extract version without build suffix for deploy
+          VERSION=$(ls "$SANDBOX_BINARY" | head -1)
+          echo "Deploying Percona Server $VERSION..."
+          ./dbdeployer deploy single "$VERSION" --sandbox-binary="$SANDBOX_BINARY"
+          ~/sandboxes/msb_*/use -e "SELECT VERSION()" | grep -i percona
+          echo "OK: Percona Server single sandbox works"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Test replication with data verification
+        run: |
+          VERSION=$(ls "$SANDBOX_BINARY" | head -1)
+          echo "Deploying Percona Server $VERSION replication..."
+          ./dbdeployer deploy replication "$VERSION" --sandbox-binary="$SANDBOX_BINARY"
+          ~/sandboxes/rsandbox_*/test_replication
+          echo "OK: Percona Server replication works"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
+  # Test MariaDB: single + replication with data verification
+  mariadb-test:
+    name: MariaDB (${{ matrix.mariadb-version }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        mariadb-version:
+          - '10.11.25'
+          - '11.4.10'
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      MARIADB_VERSION: ${{ matrix.mariadb-version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Download and unpack MariaDB
+        run: |
+          TARBALL="mariadb-${MARIADB_VERSION}-linux-x86_64.tar.gz"
+          URL="https://downloads.mariadb.com/MariaDB/mariadb-${MARIADB_VERSION}/bintar-linux-x86_64/${TARBALL}"
+          echo "Downloading MariaDB ${MARIADB_VERSION}..."
+          mkdir -p "$SANDBOX_BINARY"
+          curl -L -f -o "/tmp/$TARBALL" "$URL"
+          ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Test single sandbox
+        run: |
+          echo "Deploying MariaDB ${MARIADB_VERSION}..."
+          ./dbdeployer deploy single "$MARIADB_VERSION" --sandbox-binary="$SANDBOX_BINARY"
+          ~/sandboxes/msb_*/use -e "SELECT VERSION()" | grep -i mariadb
+          echo "OK: MariaDB single sandbox works"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Test replication with data verification
+        run: |
+          echo "Deploying MariaDB ${MARIADB_VERSION} replication..."
+          ./dbdeployer deploy replication "$MARIADB_VERSION" --sandbox-binary="$SANDBOX_BINARY"
+          SBDIR=$(ls -d ~/sandboxes/rsandbox_*)
+          # Write on master, verify on slave
+          $SBDIR/m -e "CREATE DATABASE ci_test; USE ci_test; CREATE TABLE t1(id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'mariadb_repl_test');"
+          sleep 2
+          RESULT=$($SBDIR/s1 -BN -e "SELECT val FROM ci_test.t1;")
+          echo "Replica result: $RESULT"
+          echo "$RESULT" | grep -q "mariadb_repl_test" || { echo "FAIL: data not replicated"; exit 1; }
+          echo "OK: MariaDB replication works"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
   # Run the ts (testscript) replication suite against multiple MySQL versions.
   # This tests replication, replication-gtid, and semisync across versions.
   ts-replication-test:
