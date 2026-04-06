@@ -23,8 +23,8 @@ exists $sb_dir
 exec $sb_dir/check_ms_nodes
 stdout '# Master 1'
 stdout '# Master 2'
-stdout -count=2 'Slave_IO_Running: Yes'
-stdout -count=2 'Slave_SQL_Running: Yes'
+stdout -count=2 '(Slave|Replica)_IO_Running: Yes'
+stdout -count=2 '(Slave|Replica)_SQL_Running: Yes'
 ! stderr .
 
 check_sandbox_manifest $sb_dir multi_source
@@ -33,6 +33,7 @@ env required_ports=3
 [version_is_at_least:$db_version:8.0.0] env required_ports=6
 check_ports $sb_dir $required_ports
 
+sleep 3
 exec $HOME/sandboxes/fan_in_msb_{{.DbPathVer}}/test_replication
 stdout '# fail: 0'
 ! stderr .
