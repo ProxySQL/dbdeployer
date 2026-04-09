@@ -40,6 +40,10 @@ cluster.addInstance('icadmin:icadmin@127.0.0.1:{{.Port}}', {recoveryMethod: 'inc
 sleep 3
 {{end}}
 
+# Grant performance_schema access to the replication/monitor user
+# ProxySQL's GR monitor needs this to query replication_group_members
+$MYSQL -u root -p{{.DbPassword}} -h 127.0.0.1 -P {{.PrimaryPort}} -e "GRANT SELECT ON performance_schema.* TO '{{.RplUser}}'@'127.%';" 2>/dev/null
+
 echo "Checking cluster status..."
 $MYSQLSH --uri icadmin:icadmin@127.0.0.1:{{.PrimaryPort}} --js -e "
 var cluster = dba.getCluster();
