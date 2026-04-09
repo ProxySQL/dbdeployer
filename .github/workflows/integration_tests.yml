@@ -544,8 +544,12 @@ jobs:
           tar xzf "/tmp/$SHELL_TARBALL" -C /tmp/
           SHELL_DIR=$(ls -d /tmp/mysql-shell-${MYSQL_VERSION}* | head -1)
           cp "$SHELL_DIR/bin/mysqlsh" "$SANDBOX_BINARY/${MYSQL_VERSION}/bin/"
-          # Copy mysqlsh bundled library directory (mysqlsh expects lib/mysqlsh/ to exist)
+          # Copy mysqlsh bundled directories (mysqlsh expects lib/mysqlsh/ and libexec/ to exist)
           cp -a "$SHELL_DIR/lib/mysqlsh" "$SANDBOX_BINARY/${MYSQL_VERSION}/lib/mysqlsh"
+          mkdir -p "$SANDBOX_BINARY/${MYSQL_VERSION}/libexec"
+          cp -a "$SHELL_DIR/libexec/mysqlsh" "$SANDBOX_BINARY/${MYSQL_VERSION}/libexec/mysqlsh"
+          mkdir -p "$SANDBOX_BINARY/${MYSQL_VERSION}/share"
+          cp -a "$SHELL_DIR/share/mysqlsh" "$SANDBOX_BINARY/${MYSQL_VERSION}/share/mysqlsh" 2>/dev/null || true
           echo "mysqlsh installed at $SANDBOX_BINARY/${MYSQL_VERSION}/bin/mysqlsh"
 
       - name: Download and install MySQL Router
