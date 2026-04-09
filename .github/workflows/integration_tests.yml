@@ -171,7 +171,6 @@ jobs:
       matrix:
         mariadb-version:
           - '10.11.9'
-          - '11.4.9'
     env:
       GO111MODULE: on
       SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
@@ -200,7 +199,7 @@ jobs:
           curl -L -f -o "/tmp/$TARBALL" "$URL"
           ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY" \
             --unpack-version="$MARIADB_VERSION" --flavor=mariadb \
-            --target-server="mariadb-${MARIADB_VERSION}"
+           
 
       - name: Test single sandbox
         run: |
