@@ -247,6 +247,7 @@ func CreateInnoDBCluster(sandboxDef SandboxDef, origin string, nodes int, master
 		"StopNodeList":      stopNodeList,
 		"Nodes":             []common.StringMap{},
 		// InnoDB Cluster specific
+		"Basedir":     sandboxDef.Basedir,
 		"MysqlShell":  mysqlshPath,
 		"PrimaryPort": basePort + 1,
 		"ClusterName": "mySandboxCluster",
