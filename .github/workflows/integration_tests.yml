@@ -543,6 +543,8 @@ jobs:
           tar xzf "/tmp/$SHELL_TARBALL" -C /tmp/
           SHELL_DIR=$(ls -d /tmp/mysql-shell-${MYSQL_VERSION}* | head -1)
           cp "$SHELL_DIR/bin/mysqlsh" "$SANDBOX_BINARY/${MYSQL_VERSION}/bin/"
+          # Copy mysqlsh bundled libraries (includes libprotobuf-lite)
+          cp -a "$SHELL_DIR/lib/mysqlsh/"*.so* "$SANDBOX_BINARY/${MYSQL_VERSION}/lib/" 2>/dev/null || true
           echo "mysqlsh installed at $SANDBOX_BINARY/${MYSQL_VERSION}/bin/mysqlsh"
 
       - name: Download and install MySQL Router
@@ -571,7 +573,6 @@ jobs:
           sudo chmod +x /usr/local/bin/proxysql
 
       - name: Test InnoDB Cluster with MySQL Router
-        continue-on-error: true
         run: |
           echo "=== Deploy InnoDB Cluster ${MYSQL_VERSION} with Router ==="
           ./dbdeployer deploy replication "$MYSQL_VERSION" \
@@ -643,7 +644,6 @@ jobs:
           ./dbdeployer delete all --skip-confirm
 
       - name: Test InnoDB Cluster with --skip-router + write/read verification
-        continue-on-error: true
         run: |
           echo "=== Deploy InnoDB Cluster ${MYSQL_VERSION} without Router ==="
           ./dbdeployer deploy replication "$MYSQL_VERSION" \
@@ -674,7 +674,6 @@ jobs:
           ./dbdeployer delete all --skip-confirm
 
       - name: Test InnoDB Cluster with ProxySQL (instead of Router)
-        continue-on-error: true
         run: |
           echo "=== Deploy InnoDB Cluster ${MYSQL_VERSION} + ProxySQL ==="
           ./dbdeployer deploy replication "$MYSQL_VERSION" \

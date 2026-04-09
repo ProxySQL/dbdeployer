@@ -77,8 +77,14 @@ jobs:
           export MYSQL_VERSION_2=""
           ./test/proxysql-integration-tests.sh "$SANDBOX_BINARY"
 
+      - name: Cleanup before R/W split test
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" proxysql 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+          sleep 3
+
       - name: Test R/W split verification (#66)
-        continue-on-error: true
         run: |
           echo "=== Deploy replication + ProxySQL for R/W split test ==="
           ./dbdeployer deploy replication "$MYSQL_VERSION" \
@@ -89,13 +95,10 @@ jobs:
 
           echo "=== Add query rules for R/W split ==="
           # Route SELECTs to reader hostgroup (HG 1), writes stay on HG 0
-          ${SANDBOX_DIR}/proxysql/use -e "
-            INSERT INTO mysql_query_rules (rule_id, active, match_pattern, destination_hostgroup, apply)
-            VALUES (1, 1, '^SELECT', 1, 1);
-            LOAD MYSQL QUERY RULES TO RUNTIME;
-            LOAD MYSQL SERVERS TO RUNTIME;
-            SAVE MYSQL QUERY RULES TO DISK;
-          " 2>&1 | grep -v Warning
+          ${SANDBOX_DIR}/proxysql/use -e "INSERT INTO mysql_query_rules (rule_id, active, match_pattern, destination_hostgroup, apply) VALUES (1, 1, '^SELECT', 1, 1);" 2>&1 | grep -v Warning
+          ${SANDBOX_DIR}/proxysql/use -e "LOAD MYSQL QUERY RULES TO RUNTIME;" 2>&1 | grep -v Warning
+          ${SANDBOX_DIR}/proxysql/use -e "LOAD MYSQL SERVERS TO RUNTIME;" 2>&1 | grep -v Warning
+          ${SANDBOX_DIR}/proxysql/use -e "SAVE MYSQL QUERY RULES TO DISK;" 2>&1 | grep -v Warning
 
           # Allow ProxySQL to apply rules and establish connections before testing
           sleep 3
