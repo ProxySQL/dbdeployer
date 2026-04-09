@@ -92,12 +92,16 @@ jobs:
             INSERT INTO mysql_query_rules (rule_id, active, match_pattern, destination_hostgroup, apply)
             VALUES (1, 1, '^SELECT', 1, 1);
             LOAD MYSQL QUERY RULES TO RUNTIME;
+            LOAD MYSQL SERVERS TO RUNTIME;
             SAVE MYSQL QUERY RULES TO DISK;
           " 2>&1 | grep -v Warning
 
-          echo "=== Baseline: record current query counts per hostgroup ==="
-          HG0_BEFORE=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(Queries),0) FROM stats_mysql_connection_pool WHERE hostgroup=0;" 2>&1 | grep -v Warning)
-          HG1_BEFORE=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(Queries),0) FROM stats_mysql_connection_pool WHERE hostgroup=1;" 2>&1 | grep -v Warning)
+          # Allow ProxySQL to apply rules and establish connections before testing
+          sleep 3
+
+          echo "=== Baseline: record current query digest counts per hostgroup ==="
+          HG0_BEFORE=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(count_star),0) FROM stats_mysql_query_digest WHERE hostgroup=0;" 2>&1 | grep -v Warning)
+          HG1_BEFORE=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(count_star),0) FROM stats_mysql_query_digest WHERE hostgroup=1;" 2>&1 | grep -v Warning)
           echo "HG0 queries before: $HG0_BEFORE"
           echo "HG1 queries before: $HG1_BEFORE"
 
@@ -109,16 +113,19 @@ jobs:
             ${SANDBOX_DIR}/proxysql/use_proxy -BN -e "SELECT val FROM rw_split_test.t1;" > /dev/null 2>&1 || true
           done
 
+          # Give ProxySQL time to flush stats to query digest
+          sleep 2
+
           echo "=== Check query counts increased ==="
           # Wait for HG0 (writer) query count to increase with retries
           for i in $(seq 1 10); do
-            HG0_AFTER=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(Queries),0) FROM stats_mysql_connection_pool WHERE hostgroup=0;" 2>&1 | grep -v Warning)
+            HG0_AFTER=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(count_star),0) FROM stats_mysql_query_digest WHERE hostgroup=0;" 2>&1 | grep -v Warning)
             [ "$HG0_AFTER" -gt "$HG0_BEFORE" ] && break
             sleep 2
           done
           # Wait for HG1 (reader) query count to increase with retries
           for i in $(seq 1 10); do
-            HG1_AFTER=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(Queries),0) FROM stats_mysql_connection_pool WHERE hostgroup=1;" 2>&1 | grep -v Warning)
+            HG1_AFTER=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(count_star),0) FROM stats_mysql_query_digest WHERE hostgroup=1;" 2>&1 | grep -v Warning)
             [ "$HG1_AFTER" -gt "$HG1_BEFORE" ] && break
             sleep 2
           done

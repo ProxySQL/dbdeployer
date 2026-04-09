@@ -142,7 +142,8 @@ jobs:
           VERSION=$(ls "$SANDBOX_BINARY" | head -1)
           echo "Deploying Percona Server $VERSION..."
           ./dbdeployer deploy single "$VERSION" --sandbox-binary="$SANDBOX_BINARY"
-          ~/sandboxes/msb_*/use -e "SELECT VERSION()" | grep -i percona
+          # SELECT VERSION() returns "8.0.36-28" — "Percona" appears in @@version_comment
+          ~/sandboxes/msb_*/use -e "SELECT @@version_comment" | grep -i percona
           echo "OK: Percona Server single sandbox works"
           ./dbdeployer delete all --skip-confirm
 
@@ -203,7 +204,9 @@ jobs:
         run: |
           echo "Deploying MariaDB ${MARIADB_VERSION}..."
           ./dbdeployer deploy single "$MARIADB_VERSION" --sandbox-binary="$SANDBOX_BINARY"
-          ~/sandboxes/msb_*/use -e "SELECT VERSION()" | grep -i mariadb
+          # SELECT VERSION() returns "11.4.5-MariaDB"; use @@version_comment as fallback
+          ~/sandboxes/msb_*/use -e "SELECT VERSION()" | grep -i mariadb \
+            || ~/sandboxes/msb_*/use -e "SELECT @@version_comment" | grep -i mariadb
           echo "OK: MariaDB single sandbox works"
           ./dbdeployer delete all --skip-confirm
 
@@ -296,6 +299,12 @@ jobs:
 
       - name: Install PostgreSQL for ts tests
         run: |
+          # Add PostgreSQL apt repo (PGDG) — required for postgresql-16 on ubuntu-22.04
+          sudo apt-get install -y curl ca-certificates
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
           sudo apt-get install -y postgresql-16 postgresql-client-16
           sudo systemctl stop postgresql || true
           export HOME="$GITHUB_WORKSPACE/home"
@@ -563,7 +572,8 @@ jobs:
           ./dbdeployer deploy replication "$MYSQL_VERSION" \
             --topology=innodb-cluster \
             --sandbox-binary="$SANDBOX_BINARY" \
-            --nodes=3
+            --nodes=3 \
+            || { cat ~/sandboxes/ic_msb_*/init_cluster.log 2>/dev/null; exit 1; }
 
           echo "=== Verify cluster status ==="
           ~/sandboxes/ic_msb_*/check_cluster
@@ -634,7 +644,8 @@ jobs:
             --topology=innodb-cluster \
             --skip-router \
             --sandbox-binary="$SANDBOX_BINARY" \
-            --nodes=3
+            --nodes=3 \
+            || { cat ~/sandboxes/ic_msb_*/init_cluster.log 2>/dev/null; exit 1; }
 
           echo "=== Verify cluster status ==="
           ~/sandboxes/ic_msb_*/check_cluster
@@ -664,7 +675,8 @@ jobs:
             --skip-router \
             --with-proxysql \
             --sandbox-binary="$SANDBOX_BINARY" \
-            --nodes=3
+            --nodes=3 \
+            || { cat ~/sandboxes/ic_msb_*/init_cluster.log 2>/dev/null; exit 1; }
 
           echo "=== Verify cluster status ==="
           ~/sandboxes/ic_msb_*/check_cluster
@@ -969,27 +981,27 @@ jobs:
 
           echo "=== Write on master1 (node1), read on common node (node3) ==="
           $SBDIR/node1/use -e "CREATE DATABASE fanin_test; USE fanin_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100), src VARCHAR(20)); INSERT INTO t1 (val, src) VALUES ('from_master1', 'node1');"
-          # Wait for replication to node3 with retries
-          for i in $(seq 1 10); do
+          # Fan-in uses multi-source replication; allow up to 30s per source
+          for i in $(seq 1 15); do
             RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM fanin_test.t1 WHERE src='node1';" 2>/dev/null)
             echo "$RESULT" | grep -q "from_master1" && break
-            echo "  Waiting for replication... ($i/10)"
+            echo "  Waiting for replication from node1... ($i/15)"
             sleep 2
           done
           echo "node3 sees node1 write: $RESULT"
-          echo "$RESULT" | grep -q "from_master1" || { echo "FAIL: node1 write not replicated to node3 after 20s"; exit 1; }
+          echo "$RESULT" | grep -q "from_master1" || { echo "FAIL: node1 write not replicated to node3 after 30s"; exit 1; }
 
           echo "=== Write on master2 (node2), read on common node (node3) ==="
           $SBDIR/node2/use -e "INSERT INTO fanin_test.t1 (val, src) VALUES ('from_master2', 'node2');"
-          # Wait for replication to node3 with retries
-          for i in $(seq 1 10); do
+          # Fan-in uses multi-source replication; allow up to 30s per source
+          for i in $(seq 1 15); do
             RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM fanin_test.t1 WHERE src='node2';" 2>/dev/null)
             echo "$RESULT" | grep -q "from_master2" && break
-            echo "  Waiting for replication... ($i/10)"
+            echo "  Waiting for replication from node2... ($i/15)"
             sleep 2
           done
           echo "node3 sees node2 write: $RESULT"
-          echo "$RESULT" | grep -q "from_master2" || { echo "FAIL: node2 write not replicated to node3 after 20s"; exit 1; }
+          echo "$RESULT" | grep -q "from_master2" || { echo "FAIL: node2 write not replicated to node3 after 30s"; exit 1; }
           echo "OK: fan-in topology write+read verified"
 
           echo "=== Cleanup ==="
