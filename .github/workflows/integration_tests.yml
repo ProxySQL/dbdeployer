@@ -615,7 +615,7 @@ jobs:
           echo "$RESULT" | grep -q "hello_from_primary" || { echo "FAIL: data not replicated to node3 after 20s"; exit 1; }
 
           echo "=== Functional test: connect through MySQL Router (R/W) ==="
-          ROUTER_RW_PORT=$(ls $SBDIR/router/mysqlrouter.conf 2>/dev/null && grep -A5 '\[routing:bootstrap_rw\]' $SBDIR/router/mysqlrouter.conf | grep 'bind_port' | awk -F= '{print $2}' | tr -d ' ' || echo "")
+          ROUTER_RW_PORT=$(grep -A5 '\[routing:bootstrap_rw\]' $SBDIR/router/mysqlrouter.conf 2>/dev/null | grep 'bind_port' | awk -F= '{print $2}' | tr -d ' ')
           if [ -n "$ROUTER_RW_PORT" ]; then
             echo "Router R/W port: $ROUTER_RW_PORT"
             $SBDIR/node1/use -h 127.0.0.1 -P "$ROUTER_RW_PORT" -e "INSERT INTO ic_test.t1 (val) VALUES ('via_router');"
@@ -634,7 +634,7 @@ jobs:
           fi
 
           echo "=== Functional test: connect through MySQL Router (R/O) ==="
-          ROUTER_RO_PORT=$(ls $SBDIR/router/mysqlrouter.conf 2>/dev/null && grep -A5 '\[routing:bootstrap_ro\]' $SBDIR/router/mysqlrouter.conf | grep 'bind_port' | awk -F= '{print $2}' | tr -d ' ' || echo "")
+          ROUTER_RO_PORT=$(grep -A5 '\[routing:bootstrap_ro\]' $SBDIR/router/mysqlrouter.conf 2>/dev/null | grep 'bind_port' | awk -F= '{print $2}' | tr -d ' ')
           if [ -n "$ROUTER_RO_PORT" ]; then
             echo "Router R/O port: $ROUTER_RO_PORT"
             RESULT=$($SBDIR/node1/use -h 127.0.0.1 -P "$ROUTER_RO_PORT" -e "SELECT val FROM ic_test.t1 WHERE val='hello_from_primary';" 2>&1) || true
