@@ -141,7 +141,7 @@ jobs:
           echo "OK: HG1 (reader) received queries — R/W split is working"
 
           echo "=== Verify written data is readable through proxy ==="
-          RESULT=$(${SANDBOX_DIR}/proxysql/use_proxy -BN -e "SELECT val FROM rw_split_test.t1 WHERE val='rw_split_write_1';" 2>&1 | grep -v Warning)
+          RESULT=$(${SANDBOX_DIR}/proxysql/use_proxy -BN -e "SELECT val FROM rw_split_test.t1 WHERE val='rw_split_write_1';" 2>&1 | grep -v Warning) || true
           echo "Result: $RESULT"
           echo "$RESULT" | grep -q "rw_split_write_1" || { echo "FAIL: written data not readable through proxy"; exit 1; }
           echo "OK: R/W split write+read data flow verified"
@@ -220,7 +220,7 @@ jobs:
           $SBDIR/primary/use -c "CREATE TABLE proxy_test(id serial, val text); INSERT INTO proxy_test(val) VALUES ('pg_proxysql_test');"
           # Wait for replication with retries
           for i in $(seq 1 10); do
-            RESULT=$($SBDIR/replica1/use -c "SELECT val FROM proxy_test;" 2>/dev/null)
+            RESULT=$($SBDIR/replica1/use -c "SELECT val FROM proxy_test;" 2>/dev/null) || true
             echo "$RESULT" | grep -q "pg_proxysql_test" && break
             echo "  Waiting for replication... ($i/10)"
             sleep 2
