@@ -270,26 +270,48 @@ func replicationSandbox(cmd *cobra.Command, args []string) {
 	withProxySQL, _ := flags.GetBool("with-proxysql")
 	if withProxySQL {
 		// Determine the sandbox directory that was created
-		sandboxDir := path.Join(sd.SandboxDir, defaults.Defaults().MasterSlavePrefix+common.VersionToName(origin))
+		var sandboxDir string
 		if sd.DirName != "" {
 			sandboxDir = path.Join(sd.SandboxDir, sd.DirName)
+		} else if topology == globals.InnoDBClusterLabel {
+			sandboxDir = path.Join(sd.SandboxDir, defaults.Defaults().InnoDBClusterPrefix+common.VersionToName(origin))
+		} else {
+			sandboxDir = path.Join(sd.SandboxDir, defaults.Defaults().MasterSlavePrefix+common.VersionToName(origin))
 		}
 
-		// Read port info from child sandbox descriptions
-		masterDesc, err := common.ReadSandboxDescription(path.Join(sandboxDir, defaults.Defaults().MasterName))
-		if err != nil {
-			common.Exitf(1, "could not read master sandbox description: %s", err)
-		}
-		masterPort := masterDesc.Port[0]
-
+		var masterPort int
 		var slavePorts []int
-		for i := 1; i < nodes; i++ {
-			nodeDir := path.Join(sandboxDir, fmt.Sprintf("%s%d", defaults.Defaults().NodePrefix, i))
-			nodeDesc, err := common.ReadSandboxDescription(nodeDir)
+
+		if topology == globals.InnoDBClusterLabel {
+			// InnoDB Cluster: node1 is primary, node2..N are secondaries
+			primaryDesc, err := common.ReadSandboxDescription(path.Join(sandboxDir, fmt.Sprintf("%s%d", defaults.Defaults().NodePrefix, 1)))
 			if err != nil {
-				common.Exitf(1, "could not read node%d sandbox description: %s", i, err)
+				common.Exitf(1, "could not read primary (node1) sandbox description: %s", err)
 			}
-			slavePorts = append(slavePorts, nodeDesc.Port[0])
+			masterPort = primaryDesc.Port[0]
+			for i := 2; i <= nodes; i++ {
+				nodeDir := path.Join(sandboxDir, fmt.Sprintf("%s%d", defaults.Defaults().NodePrefix, i))
+				nodeDesc, err := common.ReadSandboxDescription(nodeDir)
+				if err != nil {
+					common.Exitf(1, "could not read node%d sandbox description: %s", i, err)
+				}
+				slavePorts = append(slavePorts, nodeDesc.Port[0])
+			}
+		} else {
+			// Standard replication: master + node1..N-1 as slaves
+			masterDesc, err := common.ReadSandboxDescription(path.Join(sandboxDir, defaults.Defaults().MasterName))
+			if err != nil {
+				common.Exitf(1, "could not read master sandbox description: %s", err)
+			}
+			masterPort = masterDesc.Port[0]
+			for i := 1; i < nodes; i++ {
+				nodeDir := path.Join(sandboxDir, fmt.Sprintf("%s%d", defaults.Defaults().NodePrefix, i))
+				nodeDesc, err := common.ReadSandboxDescription(nodeDir)
+				if err != nil {
+					common.Exitf(1, "could not read node%d sandbox description: %s", i, err)
+				}
+				slavePorts = append(slavePorts, nodeDesc.Port[0])
+			}
 		}
 
 		err = sandbox.DeployProxySQLForTopology(sandboxDir, masterPort, slavePorts, 0, "127.0.0.1", "", topology)
