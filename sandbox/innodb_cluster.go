@@ -18,6 +18,7 @@ package sandbox
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"time"
@@ -602,10 +603,13 @@ func bootstrapRouter(mysqlrouterPath, routerDir string, primaryPort int, dbPassw
 		return fmt.Errorf("mysqlrouter bootstrap failed: %s", err)
 	}
 
-	// Start the router
-	startScript := path.Join(routerDir, "start.sh")
-	if common.FileExists(startScript) {
-		_, err = common.RunCmd(startScript)
+	// Start the router directly (not via start.sh, which backgrounds the
+	// process but inherits pipes — causing RunCmd to block forever).
+	confFile := path.Join(routerDir, "mysqlrouter.conf")
+	if common.FileExists(confFile) {
+		cmd := exec.Command(mysqlrouterPath, "-c", confFile)
+		cmd.Env = append(os.Environ(), fmt.Sprintf("ROUTER_PID=%s/mysqlrouter.pid", routerDir))
+		err = cmd.Start()
 		if err != nil {
 			return fmt.Errorf("error starting MySQL Router: %s", err)
 		}

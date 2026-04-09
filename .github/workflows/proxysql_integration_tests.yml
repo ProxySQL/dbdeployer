@@ -95,22 +95,24 @@ jobs:
 
           echo "=== Add query rules for R/W split ==="
           # Route SELECTs to reader hostgroup (HG 1), writes stay on HG 0
-          ${SANDBOX_DIR}/proxysql/use -e "INSERT INTO mysql_query_rules (rule_id, active, match_pattern, destination_hostgroup, apply) VALUES (1, 1, '^SELECT', 1, 1);" 2>&1 | grep -v Warning
-          ${SANDBOX_DIR}/proxysql/use -e "LOAD MYSQL QUERY RULES TO RUNTIME;" 2>&1 | grep -v Warning
-          ${SANDBOX_DIR}/proxysql/use -e "LOAD MYSQL SERVERS TO RUNTIME;" 2>&1 | grep -v Warning
-          ${SANDBOX_DIR}/proxysql/use -e "SAVE MYSQL QUERY RULES TO DISK;" 2>&1 | grep -v Warning
+          ${SANDBOX_DIR}/proxysql/use -e "INSERT INTO mysql_query_rules (rule_id, active, match_pattern, destination_hostgroup, apply) VALUES (1, 1, '^SELECT', 1, 1);" 2>&1 | { grep -v Warning || true; }
+          ${SANDBOX_DIR}/proxysql/use -e "LOAD MYSQL QUERY RULES TO RUNTIME;" 2>&1 | { grep -v Warning || true; }
+          ${SANDBOX_DIR}/proxysql/use -e "LOAD MYSQL SERVERS TO RUNTIME;" 2>&1 | { grep -v Warning || true; }
+          ${SANDBOX_DIR}/proxysql/use -e "SAVE MYSQL QUERY RULES TO DISK;" 2>&1 | { grep -v Warning || true; }
 
           # Allow ProxySQL to apply rules and establish connections before testing
           sleep 3
 
           echo "=== Baseline: record current query digest counts per hostgroup ==="
-          HG0_BEFORE=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(count_star),0) FROM stats_mysql_query_digest WHERE hostgroup=0;" 2>&1 | grep -v Warning)
-          HG1_BEFORE=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(count_star),0) FROM stats_mysql_query_digest WHERE hostgroup=1;" 2>&1 | grep -v Warning)
+          HG0_BEFORE=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(count_star),0) FROM stats_mysql_query_digest WHERE hostgroup=0;" 2>&1 | { grep -v Warning || true; })
+          HG1_BEFORE=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(count_star),0) FROM stats_mysql_query_digest WHERE hostgroup=1;" 2>&1 | { grep -v Warning || true; })
           echo "HG0 queries before: $HG0_BEFORE"
           echo "HG1 queries before: $HG1_BEFORE"
 
           echo "=== Run a write (INSERT) through ProxySQL ==="
-          ${SANDBOX_DIR}/proxysql/use_proxy -e "CREATE DATABASE IF NOT EXISTS rw_split_test; CREATE TABLE IF NOT EXISTS rw_split_test.t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO rw_split_test.t1 (val) VALUES ('rw_split_write_1');" 2>&1 | grep -v Warning
+          ${SANDBOX_DIR}/proxysql/use_proxy -e "CREATE DATABASE IF NOT EXISTS rw_split_test;" 2>&1 | { grep -v Warning || true; }
+          ${SANDBOX_DIR}/proxysql/use_proxy -e "CREATE TABLE IF NOT EXISTS rw_split_test.t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100));" 2>&1 | { grep -v Warning || true; }
+          ${SANDBOX_DIR}/proxysql/use_proxy -e "INSERT INTO rw_split_test.t1 (val) VALUES ('rw_split_write_1');" 2>&1 | { grep -v Warning || true; }
 
           echo "=== Run reads (SELECTs) through ProxySQL ==="
           for i in $(seq 1 5); do
@@ -123,13 +125,13 @@ jobs:
           echo "=== Check query counts increased ==="
           # Wait for HG0 (writer) query count to increase with retries
           for i in $(seq 1 10); do
-            HG0_AFTER=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(count_star),0) FROM stats_mysql_query_digest WHERE hostgroup=0;" 2>&1 | grep -v Warning)
+            HG0_AFTER=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(count_star),0) FROM stats_mysql_query_digest WHERE hostgroup=0;" 2>&1 | { grep -v Warning || true; })
             [ "$HG0_AFTER" -gt "$HG0_BEFORE" ] && break
             sleep 2
           done
           # Wait for HG1 (reader) query count to increase with retries
           for i in $(seq 1 10); do
-            HG1_AFTER=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(count_star),0) FROM stats_mysql_query_digest WHERE hostgroup=1;" 2>&1 | grep -v Warning)
+            HG1_AFTER=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(count_star),0) FROM stats_mysql_query_digest WHERE hostgroup=1;" 2>&1 | { grep -v Warning || true; })
             [ "$HG1_AFTER" -gt "$HG1_BEFORE" ] && break
             sleep 2
           done
