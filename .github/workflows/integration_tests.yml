@@ -274,6 +274,9 @@ jobs:
           export HOME="$GITHUB_WORKSPACE/home"
           mkdir -p "$HOME/sandboxes" "$HOME/.dbdeployer"
           echo '{}' > "$HOME/.dbdeployer/sandboxes.json"
+          # Symlink so ts tests find binaries at ~/opt/mysql
+          mkdir -p "$HOME/opt"
+          ln -sf "$SANDBOX_BINARY" "$HOME/opt/mysql"
           export PATH="$GITHUB_WORKSPACE:$PATH"
           go test ./ts/ -v -count=1 -run TestReplication -timeout 30m
 
