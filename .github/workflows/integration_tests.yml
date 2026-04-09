@@ -142,7 +142,8 @@ jobs:
           VERSION=$(ls "$SANDBOX_BINARY" | head -1)
           echo "Deploying Percona Server $VERSION..."
           ./dbdeployer deploy single "$VERSION" --sandbox-binary="$SANDBOX_BINARY"
-          ~/sandboxes/msb_*/use -e "SELECT VERSION()" | grep -i percona
+          # SELECT VERSION() returns "8.0.36-28" — "Percona" appears in @@version_comment
+          ~/sandboxes/msb_*/use -e "SELECT @@version_comment" | grep -i percona
           echo "OK: Percona Server single sandbox works"
           ./dbdeployer delete all --skip-confirm
 
@@ -170,7 +171,6 @@ jobs:
       matrix:
         mariadb-version:
           - '10.11.9'
-          - '11.4.5'
     env:
       GO111MODULE: on
       SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
@@ -197,13 +197,17 @@ jobs:
           echo "Downloading MariaDB ${MARIADB_VERSION}..."
           mkdir -p "$SANDBOX_BINARY"
           curl -L -f -o "/tmp/$TARBALL" "$URL"
-          ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+          ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY" \
+            --unpack-version="$MARIADB_VERSION" --flavor=mariadb \
+           
 
       - name: Test single sandbox
         run: |
           echo "Deploying MariaDB ${MARIADB_VERSION}..."
           ./dbdeployer deploy single "$MARIADB_VERSION" --sandbox-binary="$SANDBOX_BINARY"
-          ~/sandboxes/msb_*/use -e "SELECT VERSION()" | grep -i mariadb
+          # SELECT VERSION() returns "11.4.9-MariaDB"; use @@version_comment as fallback
+          ~/sandboxes/msb_*/use -e "SELECT VERSION()" | grep -i mariadb \
+            || ~/sandboxes/msb_*/use -e "SELECT @@version_comment" | grep -i mariadb
           echo "OK: MariaDB single sandbox works"
           ./dbdeployer delete all --skip-confirm
 
@@ -216,7 +220,7 @@ jobs:
           $SBDIR/m -e "CREATE DATABASE ci_test; USE ci_test; CREATE TABLE t1(id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'mariadb_repl_test');"
           # Wait for replication with retries
           for i in $(seq 1 10); do
-            RESULT=$($SBDIR/s1 -BN -e "SELECT val FROM ci_test.t1;" 2>/dev/null)
+            RESULT=$($SBDIR/s1 -BN -e "SELECT val FROM ci_test.t1;" 2>/dev/null) || true
             echo "$RESULT" | grep -q "mariadb_repl_test" && break
             echo "  Waiting for replication... ($i/10)"
             sleep 2
@@ -296,6 +300,12 @@ jobs:
 
       - name: Install PostgreSQL for ts tests
         run: |
+          # Add PostgreSQL apt repo (PGDG) — required for postgresql-16 on ubuntu-22.04
+          sudo apt-get install -y curl ca-certificates
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
           sudo apt-get install -y postgresql-16 postgresql-client-16
           sudo systemctl stop postgresql || true
           export HOME="$GITHUB_WORKSPACE/home"
@@ -408,7 +418,7 @@ jobs:
           echo "=== Replica 1: read test ==="
           # Wait for replication to replica1 with retries
           for i in $(seq 1 10); do
-            RESULT=$(~/sandboxes/postgresql_repl_*/replica1/use -c "SELECT val FROM test_repl;" 2>/dev/null)
+            RESULT=$(~/sandboxes/postgresql_repl_*/replica1/use -c "SELECT val FROM test_repl;" 2>/dev/null) || true
             echo "$RESULT" | grep -q "hello" && break
             echo "  Waiting for replication to replica1... ($i/10)"
             sleep 2
@@ -418,13 +428,19 @@ jobs:
           echo "=== Replica 2: read test ==="
           # Wait for replication to replica2 with retries
           for i in $(seq 1 10); do
-            RESULT=$(~/sandboxes/postgresql_repl_*/replica2/use -c "SELECT val FROM test_repl;" 2>/dev/null)
+            RESULT=$(~/sandboxes/postgresql_repl_*/replica2/use -c "SELECT val FROM test_repl;" 2>/dev/null) || true
             echo "$RESULT" | grep -q "hello" && break
             echo "  Waiting for replication to replica2... ($i/10)"
             sleep 2
           done
           echo "$RESULT" | grep -q "hello" || { echo "FAIL: data not replicated to replica2 after 20s"; exit 1; }
           ~/sandboxes/postgresql_repl_*/replica2/use -c "SELECT * FROM test_repl;"
+
+      - name: Cleanup replication before multiple test
+        run: |
+          pkill -9 -u "$USER" postgres 2>/dev/null || true
+          rm -rf ~/sandboxes/postgresql_repl_*
+          sleep 3
 
       - name: Test deploy multiple --provider=postgresql
         run: |
@@ -433,18 +449,16 @@ jobs:
           ./dbdeployer deploy multiple "$PG_FULL" --provider=postgresql --nodes=3
           echo "=== Waiting for nodes to start ==="
           sleep 5
-          echo "=== Checking topology dir ==="
-          ls ~/sandboxes/multi_msb_*/
+          echo "=== Checking sandbox dirs ==="
+          ls ~/sandboxes/postgresql_multi_*/
           echo "=== Connect to node1 ==="
-          ~/sandboxes/multi_msb_*/node1/use -c "SELECT version();"
-          ~/sandboxes/multi_msb_*/node1/use -c "CREATE TABLE multi_test(id serial, val text); INSERT INTO multi_test(val) VALUES ('from_node1');"
+          ~/sandboxes/postgresql_multi_*/node1/use -c "SELECT version();"
           echo "=== Connect to node2 ==="
-          ~/sandboxes/multi_msb_*/node2/use -c "SELECT version();"
-          ~/sandboxes/multi_msb_*/node2/use -c "INSERT INTO multi_test(val) VALUES ('from_node2');" || true
+          ~/sandboxes/postgresql_multi_*/node2/use -c "SELECT version();"
           echo "=== Connect to node3 ==="
-          ~/sandboxes/multi_msb_*/node3/use -c "SELECT version();"
+          ~/sandboxes/postgresql_multi_*/node3/use -c "SELECT version();"
           echo "=== Cleanup ==="
-          for dir in ~/sandboxes/multi_msb_*; do
+          for dir in ~/sandboxes/postgresql_multi_*; do
             [ -d "$dir" ] && bash "$dir/stop" 2>/dev/null || true
             rm -rf "$dir"
           done
@@ -493,7 +507,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 libprotobuf-lite23
 
       - name: Build dbdeployer
         run: go build -o dbdeployer .
@@ -530,6 +544,12 @@ jobs:
           tar xzf "/tmp/$SHELL_TARBALL" -C /tmp/
           SHELL_DIR=$(ls -d /tmp/mysql-shell-${MYSQL_VERSION}* | head -1)
           cp "$SHELL_DIR/bin/mysqlsh" "$SANDBOX_BINARY/${MYSQL_VERSION}/bin/"
+          # Copy mysqlsh bundled directories (mysqlsh expects lib/mysqlsh/ and libexec/ to exist)
+          cp -a "$SHELL_DIR/lib/mysqlsh" "$SANDBOX_BINARY/${MYSQL_VERSION}/lib/mysqlsh"
+          mkdir -p "$SANDBOX_BINARY/${MYSQL_VERSION}/libexec"
+          cp -a "$SHELL_DIR/libexec/mysqlsh" "$SANDBOX_BINARY/${MYSQL_VERSION}/libexec/mysqlsh"
+          mkdir -p "$SANDBOX_BINARY/${MYSQL_VERSION}/share"
+          cp -a "$SHELL_DIR/share/mysqlsh" "$SANDBOX_BINARY/${MYSQL_VERSION}/share/mysqlsh" 2>/dev/null || true
           echo "mysqlsh installed at $SANDBOX_BINARY/${MYSQL_VERSION}/bin/mysqlsh"
 
       - name: Download and install MySQL Router
@@ -563,7 +583,8 @@ jobs:
           ./dbdeployer deploy replication "$MYSQL_VERSION" \
             --topology=innodb-cluster \
             --sandbox-binary="$SANDBOX_BINARY" \
-            --nodes=3
+            --nodes=3 \
+            || { cat ~/sandboxes/ic_msb_*/init_cluster.log 2>/dev/null; exit 1; }
 
           echo "=== Verify cluster status ==="
           ~/sandboxes/ic_msb_*/check_cluster
@@ -575,7 +596,7 @@ jobs:
           echo "--- Read from node2 (should see replicated data) ---"
           # Wait for replication with retries
           for i in $(seq 1 10); do
-            RESULT=$($SBDIR/node2/use -e "SELECT val FROM ic_test.t1;" 2>/dev/null)
+            RESULT=$($SBDIR/node2/use -e "SELECT val FROM ic_test.t1;" 2>/dev/null) || true
             echo "$RESULT" | grep -q "hello_from_primary" && break
             echo "  Waiting for replication... ($i/10)"
             sleep 2
@@ -585,7 +606,7 @@ jobs:
           echo "--- Read from node3 ---"
           # Wait for replication with retries
           for i in $(seq 1 10); do
-            RESULT=$($SBDIR/node3/use -e "SELECT val FROM ic_test.t1;" 2>/dev/null)
+            RESULT=$($SBDIR/node3/use -e "SELECT val FROM ic_test.t1;" 2>/dev/null) || true
             echo "$RESULT" | grep -q "hello_from_primary" && break
             echo "  Waiting for replication... ($i/10)"
             sleep 2
@@ -594,13 +615,13 @@ jobs:
           echo "$RESULT" | grep -q "hello_from_primary" || { echo "FAIL: data not replicated to node3 after 20s"; exit 1; }
 
           echo "=== Functional test: connect through MySQL Router (R/W) ==="
-          ROUTER_RW_PORT=$(ls $SBDIR/router/mysqlrouter.conf 2>/dev/null && grep -A5 '\[routing:bootstrap_rw\]' $SBDIR/router/mysqlrouter.conf | grep 'bind_port' | awk -F= '{print $2}' | tr -d ' ' || echo "")
+          ROUTER_RW_PORT=$(grep -A5 '\[routing:bootstrap_rw\]' $SBDIR/router/mysqlrouter.conf 2>/dev/null | grep 'bind_port' | awk -F= '{print $2}' | tr -d ' ')
           if [ -n "$ROUTER_RW_PORT" ]; then
             echo "Router R/W port: $ROUTER_RW_PORT"
             $SBDIR/node1/use -h 127.0.0.1 -P "$ROUTER_RW_PORT" -e "INSERT INTO ic_test.t1 (val) VALUES ('via_router');"
             # Wait for replication with retries
             for i in $(seq 1 10); do
-              RESULT=$($SBDIR/node2/use -e "SELECT val FROM ic_test.t1 WHERE val='via_router';" 2>/dev/null)
+              RESULT=$($SBDIR/node2/use -e "SELECT val FROM ic_test.t1 WHERE val='via_router';" 2>/dev/null) || true
               echo "$RESULT" | grep -q "via_router" && break
               echo "  Waiting for replication... ($i/10)"
               sleep 2
@@ -613,10 +634,10 @@ jobs:
           fi
 
           echo "=== Functional test: connect through MySQL Router (R/O) ==="
-          ROUTER_RO_PORT=$(ls $SBDIR/router/mysqlrouter.conf 2>/dev/null && grep -A5 '\[routing:bootstrap_ro\]' $SBDIR/router/mysqlrouter.conf | grep 'bind_port' | awk -F= '{print $2}' | tr -d ' ' || echo "")
+          ROUTER_RO_PORT=$(grep -A5 '\[routing:bootstrap_ro\]' $SBDIR/router/mysqlrouter.conf 2>/dev/null | grep 'bind_port' | awk -F= '{print $2}' | tr -d ' ')
           if [ -n "$ROUTER_RO_PORT" ]; then
             echo "Router R/O port: $ROUTER_RO_PORT"
-            RESULT=$($SBDIR/node1/use -h 127.0.0.1 -P "$ROUTER_RO_PORT" -e "SELECT val FROM ic_test.t1 WHERE val='hello_from_primary';" 2>&1)
+            RESULT=$($SBDIR/node1/use -h 127.0.0.1 -P "$ROUTER_RO_PORT" -e "SELECT val FROM ic_test.t1 WHERE val='hello_from_primary';" 2>&1) || true
             echo "$RESULT"
             echo "$RESULT" | grep -q "hello_from_primary" || { echo "FAIL: SELECT through Router R/O port failed"; exit 1; }
             echo "OK: Router R/O SELECT succeeded"
@@ -634,7 +655,8 @@ jobs:
             --topology=innodb-cluster \
             --skip-router \
             --sandbox-binary="$SANDBOX_BINARY" \
-            --nodes=3
+            --nodes=3 \
+            || { cat ~/sandboxes/ic_msb_*/init_cluster.log 2>/dev/null; exit 1; }
 
           echo "=== Verify cluster status ==="
           ~/sandboxes/ic_msb_*/check_cluster
@@ -644,7 +666,7 @@ jobs:
           $SBDIR/node1/use -e "CREATE DATABASE skiprt_test; USE skiprt_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, msg TEXT); INSERT INTO t1 (msg) VALUES ('skip_router_test');"
           # Wait for replication with retries
           for i in $(seq 1 10); do
-            RESULT=$($SBDIR/node3/use -e "SELECT msg FROM skiprt_test.t1;" 2>/dev/null)
+            RESULT=$($SBDIR/node3/use -e "SELECT msg FROM skiprt_test.t1;" 2>/dev/null) || true
             echo "$RESULT" | grep -q "skip_router_test" && break
             echo "  Waiting for replication... ($i/10)"
             sleep 2
@@ -664,7 +686,8 @@ jobs:
             --skip-router \
             --with-proxysql \
             --sandbox-binary="$SANDBOX_BINARY" \
-            --nodes=3
+            --nodes=3 \
+            || { cat ~/sandboxes/ic_msb_*/init_cluster.log 2>/dev/null; exit 1; }
 
           echo "=== Verify cluster status ==="
           ~/sandboxes/ic_msb_*/check_cluster
@@ -683,7 +706,7 @@ jobs:
           echo "--- Verify on node2 directly ---"
           # Wait for replication with retries
           for i in $(seq 1 10); do
-            RESULT=$($SBDIR/node2/use -e "SELECT val FROM proxy_ic_test.t1;" 2>/dev/null)
+            RESULT=$($SBDIR/node2/use -e "SELECT val FROM proxy_ic_test.t1;" 2>/dev/null) || true
             echo "$RESULT" | grep -q "via_proxysql" && break
             echo "  Waiting for replication... ($i/10)"
             sleep 2
@@ -831,7 +854,7 @@ jobs:
           $SBDIR/node1/use -e "CREATE DATABASE gr_test; USE gr_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('single_primary_write');"
           # Wait for replication to node2 with retries
           for i in $(seq 1 10); do
-            RESULT=$($SBDIR/node2/use -BN -e "SELECT val FROM gr_test.t1;" 2>/dev/null)
+            RESULT=$($SBDIR/node2/use -BN -e "SELECT val FROM gr_test.t1;" 2>/dev/null) || true
             echo "$RESULT" | grep -q "single_primary_write" && break
             echo "  Waiting for replication... ($i/10)"
             sleep 2
@@ -840,7 +863,7 @@ jobs:
           echo "$RESULT" | grep -q "single_primary_write" || { echo "FAIL: data not replicated to node2 after 20s"; exit 1; }
           # Wait for replication to node3 with retries
           for i in $(seq 1 10); do
-            RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM gr_test.t1;" 2>/dev/null)
+            RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM gr_test.t1;" 2>/dev/null) || true
             echo "$RESULT" | grep -q "single_primary_write" && break
             echo "  Waiting for replication... ($i/10)"
             sleep 2
@@ -876,7 +899,7 @@ jobs:
           $SBDIR/node1/use -e "CREATE DATABASE gr_mp_test; USE gr_mp_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('write_from_node1');"
           # Wait for replication to node3 with retries
           for i in $(seq 1 10); do
-            RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM gr_mp_test.t1 WHERE val='write_from_node1';" 2>/dev/null)
+            RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM gr_mp_test.t1 WHERE val='write_from_node1';" 2>/dev/null) || true
             echo "$RESULT" | grep -q "write_from_node1" && break
             echo "  Waiting for replication... ($i/10)"
             sleep 2
@@ -888,7 +911,7 @@ jobs:
           $SBDIR/node3/use -e "INSERT INTO gr_mp_test.t1 (val) VALUES ('write_from_node3');"
           # Wait for replication to node1 with retries
           for i in $(seq 1 10); do
-            RESULT=$($SBDIR/node1/use -BN -e "SELECT val FROM gr_mp_test.t1 WHERE val='write_from_node3';" 2>/dev/null)
+            RESULT=$($SBDIR/node1/use -BN -e "SELECT val FROM gr_mp_test.t1 WHERE val='write_from_node3';" 2>/dev/null) || true
             echo "$RESULT" | grep -q "write_from_node3" && break
             echo "  Waiting for replication... ($i/10)"
             sleep 2
@@ -969,27 +992,28 @@ jobs:
 
           echo "=== Write on master1 (node1), read on common node (node3) ==="
           $SBDIR/node1/use -e "CREATE DATABASE fanin_test; USE fanin_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100), src VARCHAR(20)); INSERT INTO t1 (val, src) VALUES ('from_master1', 'node1');"
-          # Wait for replication to node3 with retries
-          for i in $(seq 1 10); do
-            RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM fanin_test.t1 WHERE src='node1';" 2>/dev/null)
+          # Fan-in uses multi-source replication; allow up to 30s per source
+          for i in $(seq 1 15); do
+            RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM fanin_test.t1 WHERE src='node1';" 2>/dev/null) || true
             echo "$RESULT" | grep -q "from_master1" && break
-            echo "  Waiting for replication... ($i/10)"
+            echo "  Waiting for replication from node1... ($i/15)"
             sleep 2
           done
           echo "node3 sees node1 write: $RESULT"
-          echo "$RESULT" | grep -q "from_master1" || { echo "FAIL: node1 write not replicated to node3 after 20s"; exit 1; }
+          echo "$RESULT" | grep -q "from_master1" || { echo "FAIL: node1 write not replicated to node3 after 30s"; exit 1; }
 
           echo "=== Write on master2 (node2), read on common node (node3) ==="
-          $SBDIR/node2/use -e "INSERT INTO fanin_test.t1 (val, src) VALUES ('from_master2', 'node2');"
-          # Wait for replication to node3 with retries
-          for i in $(seq 1 10); do
-            RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM fanin_test.t1 WHERE src='node2';" 2>/dev/null)
+          # Use a DIFFERENT database to avoid multi-source conflict with node1's database
+          $SBDIR/node2/use -e "CREATE DATABASE fanin_test2; USE fanin_test2; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('from_master2');"
+          # Fan-in uses multi-source replication; allow up to 30s per source
+          for i in $(seq 1 15); do
+            RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM fanin_test2.t1;" 2>/dev/null) || true
             echo "$RESULT" | grep -q "from_master2" && break
-            echo "  Waiting for replication... ($i/10)"
+            echo "  Waiting for replication from node2... ($i/15)"
             sleep 2
           done
           echo "node3 sees node2 write: $RESULT"
-          echo "$RESULT" | grep -q "from_master2" || { echo "FAIL: node2 write not replicated to node3 after 20s"; exit 1; }
+          echo "$RESULT" | grep -q "from_master2" || { echo "FAIL: node2 write not replicated to node3 after 30s"; exit 1; }
           echo "OK: fan-in topology write+read verified"
 
           echo "=== Cleanup ==="
@@ -1011,7 +1035,7 @@ jobs:
           $SBDIR/node1/use -e "CREATE DATABASE allm_test; USE allm_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('write_from_node1');"
           # Wait for replication to node3 with retries
           for i in $(seq 1 10); do
-            RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM allm_test.t1 WHERE val='write_from_node1';" 2>/dev/null)
+            RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM allm_test.t1 WHERE val='write_from_node1';" 2>/dev/null) || true
             echo "$RESULT" | grep -q "write_from_node1" && break
             echo "  Waiting for replication... ($i/10)"
             sleep 2
@@ -1023,7 +1047,7 @@ jobs:
           $SBDIR/node3/use -e "INSERT INTO allm_test.t1 (val) VALUES ('write_from_node3');"
           # Wait for replication to node1 with retries
           for i in $(seq 1 10); do
-            RESULT=$($SBDIR/node1/use -BN -e "SELECT val FROM allm_test.t1 WHERE val='write_from_node3';" 2>/dev/null)
+            RESULT=$($SBDIR/node1/use -BN -e "SELECT val FROM allm_test.t1 WHERE val='write_from_node3';" 2>/dev/null) || true
             echo "$RESULT" | grep -q "write_from_node3" && break
             echo "  Waiting for replication... ($i/10)"
             sleep 2

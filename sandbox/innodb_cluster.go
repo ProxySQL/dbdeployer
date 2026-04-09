@@ -18,6 +18,7 @@ package sandbox
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"time"
@@ -247,6 +248,7 @@ func CreateInnoDBCluster(sandboxDef SandboxDef, origin string, nodes int, master
 		"StopNodeList":      stopNodeList,
 		"Nodes":             []common.StringMap{},
 		// InnoDB Cluster specific
+		"Basedir":     sandboxDef.Basedir,
 		"MysqlShell":  mysqlshPath,
 		"PrimaryPort": basePort + 1,
 		"ClusterName": "mySandboxCluster",
@@ -552,15 +554,11 @@ func CreateInnoDBCluster(sandboxDef SandboxDef, origin string, nodes int, master
 	concurrent.RunParallelTasksByPriority(execLists)
 
 	if !sandboxDef.SkipStart {
-		// First, run the standard GR initialization
-		common.CondPrintln(path.Join(common.ReplaceLiteralHome(sandboxDef.SandboxDir), globals.ScriptInitializeNodes))
-		logger.Printf("Running group replication initialization script\n")
-		_, err := common.RunCmd(path.Join(sandboxDef.SandboxDir, globals.ScriptInitializeNodes))
-		if err != nil {
-			return fmt.Errorf("error initializing group replication for InnoDB Cluster: %s", err)
-		}
+		// For InnoDB Cluster, skip the standard GR initialization.
+		// MySQL Shell's dba.createCluster() manages group replication itself.
+		// Running initialize_nodes would start GR before mysqlsh, causing conflicts.
 
-		// Then bootstrap the cluster via MySQL Shell
+		// Bootstrap the cluster via MySQL Shell
 		common.CondPrintln(path.Join(common.ReplaceLiteralHome(sandboxDef.SandboxDir), globals.ScriptInitCluster))
 		logger.Printf("Running InnoDB Cluster initialization script\n")
 		_, err = common.RunCmd(path.Join(sandboxDef.SandboxDir, globals.ScriptInitCluster))
@@ -605,10 +603,13 @@ func bootstrapRouter(mysqlrouterPath, routerDir string, primaryPort int, dbPassw
 		return fmt.Errorf("mysqlrouter bootstrap failed: %s", err)
 	}
 
-	// Start the router
-	startScript := path.Join(routerDir, "start.sh")
-	if common.FileExists(startScript) {
-		_, err = common.RunCmd(startScript)
+	// Start the router directly (not via start.sh, which backgrounds the
+	// process but inherits pipes — causing RunCmd to block forever).
+	confFile := path.Join(routerDir, "mysqlrouter.conf")
+	if common.FileExists(confFile) {
+		cmd := exec.Command(mysqlrouterPath, "-c", confFile)
+		cmd.Env = append(os.Environ(), fmt.Sprintf("ROUTER_PID=%s/mysqlrouter.pid", routerDir))
+		err = cmd.Start()
 		if err != nil {
 			return fmt.Errorf("error starting MySQL Router: %s", err)
 		}
