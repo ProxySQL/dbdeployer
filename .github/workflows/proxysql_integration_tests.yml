@@ -103,17 +103,25 @@ jobs:
 
           echo "=== Run a write (INSERT) through ProxySQL ==="
           ${SANDBOX_DIR}/proxysql/use_proxy -e "CREATE DATABASE IF NOT EXISTS rw_split_test; CREATE TABLE IF NOT EXISTS rw_split_test.t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO rw_split_test.t1 (val) VALUES ('rw_split_write_1');" 2>&1 | grep -v Warning
-          sleep 2
 
           echo "=== Run reads (SELECTs) through ProxySQL ==="
           for i in $(seq 1 5); do
             ${SANDBOX_DIR}/proxysql/use_proxy -BN -e "SELECT val FROM rw_split_test.t1;" > /dev/null 2>&1 || true
           done
-          sleep 2
 
           echo "=== Check query counts increased ==="
-          HG0_AFTER=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(Queries),0) FROM stats_mysql_connection_pool WHERE hostgroup=0;" 2>&1 | grep -v Warning)
-          HG1_AFTER=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(Queries),0) FROM stats_mysql_connection_pool WHERE hostgroup=1;" 2>&1 | grep -v Warning)
+          # Wait for HG0 (writer) query count to increase with retries
+          for i in $(seq 1 10); do
+            HG0_AFTER=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(Queries),0) FROM stats_mysql_connection_pool WHERE hostgroup=0;" 2>&1 | grep -v Warning)
+            [ "$HG0_AFTER" -gt "$HG0_BEFORE" ] && break
+            sleep 2
+          done
+          # Wait for HG1 (reader) query count to increase with retries
+          for i in $(seq 1 10); do
+            HG1_AFTER=$(${SANDBOX_DIR}/proxysql/use -BN -e "SELECT COALESCE(SUM(Queries),0) FROM stats_mysql_connection_pool WHERE hostgroup=1;" 2>&1 | grep -v Warning)
+            [ "$HG1_AFTER" -gt "$HG1_BEFORE" ] && break
+            sleep 2
+          done
           echo "HG0 queries after: $HG0_AFTER (was $HG0_BEFORE)"
           echo "HG1 queries after: $HG1_AFTER (was $HG1_BEFORE)"
 
@@ -203,10 +211,15 @@ jobs:
 
           echo "=== Functional test: verify PostgreSQL replication works ==="
           $SBDIR/primary/use -c "CREATE TABLE proxy_test(id serial, val text); INSERT INTO proxy_test(val) VALUES ('pg_proxysql_test');"
-          sleep 2
-          RESULT=$($SBDIR/replica1/use -c "SELECT val FROM proxy_test;" 2>&1)
+          # Wait for replication with retries
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/replica1/use -c "SELECT val FROM proxy_test;" 2>/dev/null)
+            echo "$RESULT" | grep -q "pg_proxysql_test" && break
+            echo "  Waiting for replication... ($i/10)"
+            sleep 2
+          done
           echo "$RESULT"
-          echo "$RESULT" | grep -q "pg_proxysql_test" || { echo "FAIL: PG replication not working"; exit 1; }
+          echo "$RESULT" | grep -q "pg_proxysql_test" || { echo "FAIL: PG replication not working after 20s"; exit 1; }
           echo "OK: PostgreSQL replication verified with ProxySQL deployed"
 
           echo "=== ProxySQL proxy connection test (pgsql auth WIP) ==="

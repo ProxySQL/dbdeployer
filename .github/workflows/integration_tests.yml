@@ -214,10 +214,15 @@ jobs:
           SBDIR=$(ls -d ~/sandboxes/rsandbox_*)
           # Write on master, verify on slave
           $SBDIR/m -e "CREATE DATABASE ci_test; USE ci_test; CREATE TABLE t1(id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'mariadb_repl_test');"
-          sleep 2
-          RESULT=$($SBDIR/s1 -BN -e "SELECT val FROM ci_test.t1;")
+          # Wait for replication with retries
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/s1 -BN -e "SELECT val FROM ci_test.t1;" 2>/dev/null)
+            echo "$RESULT" | grep -q "mariadb_repl_test" && break
+            echo "  Waiting for replication... ($i/10)"
+            sleep 2
+          done
           echo "Replica result: $RESULT"
-          echo "$RESULT" | grep -q "mariadb_repl_test" || { echo "FAIL: data not replicated"; exit 1; }
+          echo "$RESULT" | grep -q "mariadb_repl_test" || { echo "FAIL: data not replicated after 20s"; exit 1; }
           echo "OK: MariaDB replication works"
           ./dbdeployer delete all --skip-confirm
 
@@ -376,8 +381,13 @@ jobs:
           echo "=== Stop + Start ==="
           ~/sandboxes/pg_sandbox_*/stop
           ~/sandboxes/pg_sandbox_*/start
-          sleep 2
-          ~/sandboxes/pg_sandbox_*/use -c "SELECT 1;"
+          # Wait for PostgreSQL to be ready with retries
+          for i in $(seq 1 10); do
+            ~/sandboxes/pg_sandbox_*/use -c "SELECT 1;" 2>/dev/null && break
+            echo "  Waiting for PostgreSQL to start... ($i/10)"
+            sleep 2
+          done
+          ~/sandboxes/pg_sandbox_*/use -c "SELECT 1;" || { echo "FAIL: PostgreSQL not ready after 20s"; exit 1; }
           echo "=== Cleanup ==="
           ~/sandboxes/pg_sandbox_*/stop
           rm -rf ~/sandboxes/pg_sandbox_*
@@ -395,10 +405,25 @@ jobs:
           bash ~/sandboxes/postgresql_repl_*/check_recovery || true
           echo "=== Primary: write test ==="
           ~/sandboxes/postgresql_repl_*/primary/use -c "CREATE TABLE test_repl(id serial, val text); INSERT INTO test_repl(val) VALUES ('hello');"
-          sleep 2
           echo "=== Replica 1: read test ==="
+          # Wait for replication to replica1 with retries
+          for i in $(seq 1 10); do
+            RESULT=$(~/sandboxes/postgresql_repl_*/replica1/use -c "SELECT val FROM test_repl;" 2>/dev/null)
+            echo "$RESULT" | grep -q "hello" && break
+            echo "  Waiting for replication to replica1... ($i/10)"
+            sleep 2
+          done
+          echo "$RESULT" | grep -q "hello" || { echo "FAIL: data not replicated to replica1 after 20s"; exit 1; }
           ~/sandboxes/postgresql_repl_*/replica1/use -c "SELECT * FROM test_repl;"
           echo "=== Replica 2: read test ==="
+          # Wait for replication to replica2 with retries
+          for i in $(seq 1 10); do
+            RESULT=$(~/sandboxes/postgresql_repl_*/replica2/use -c "SELECT val FROM test_repl;" 2>/dev/null)
+            echo "$RESULT" | grep -q "hello" && break
+            echo "  Waiting for replication to replica2... ($i/10)"
+            sleep 2
+          done
+          echo "$RESULT" | grep -q "hello" || { echo "FAIL: data not replicated to replica2 after 20s"; exit 1; }
           ~/sandboxes/postgresql_repl_*/replica2/use -c "SELECT * FROM test_repl;"
 
       - name: Test deploy multiple --provider=postgresql
@@ -547,25 +572,41 @@ jobs:
           # Find the primary node (node1)
           SBDIR=$(ls -d ~/sandboxes/ic_msb_*)
           $SBDIR/node1/use -e "CREATE DATABASE ic_test; USE ic_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('hello_from_primary');"
-          sleep 3
           echo "--- Read from node2 (should see replicated data) ---"
-          RESULT=$($SBDIR/node2/use -e "SELECT val FROM ic_test.t1;" 2>&1)
+          # Wait for replication with retries
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/node2/use -e "SELECT val FROM ic_test.t1;" 2>/dev/null)
+            echo "$RESULT" | grep -q "hello_from_primary" && break
+            echo "  Waiting for replication... ($i/10)"
+            sleep 2
+          done
           echo "$RESULT"
-          echo "$RESULT" | grep -q "hello_from_primary" || { echo "FAIL: data not replicated to node2"; exit 1; }
+          echo "$RESULT" | grep -q "hello_from_primary" || { echo "FAIL: data not replicated to node2 after 20s"; exit 1; }
           echo "--- Read from node3 ---"
-          RESULT=$($SBDIR/node3/use -e "SELECT val FROM ic_test.t1;" 2>&1)
+          # Wait for replication with retries
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/node3/use -e "SELECT val FROM ic_test.t1;" 2>/dev/null)
+            echo "$RESULT" | grep -q "hello_from_primary" && break
+            echo "  Waiting for replication... ($i/10)"
+            sleep 2
+          done
           echo "$RESULT"
-          echo "$RESULT" | grep -q "hello_from_primary" || { echo "FAIL: data not replicated to node3"; exit 1; }
+          echo "$RESULT" | grep -q "hello_from_primary" || { echo "FAIL: data not replicated to node3 after 20s"; exit 1; }
 
           echo "=== Functional test: connect through MySQL Router (R/W) ==="
           ROUTER_RW_PORT=$(ls $SBDIR/router/mysqlrouter.conf 2>/dev/null && grep -A5 '\[routing:bootstrap_rw\]' $SBDIR/router/mysqlrouter.conf | grep 'bind_port' | awk -F= '{print $2}' | tr -d ' ' || echo "")
           if [ -n "$ROUTER_RW_PORT" ]; then
             echo "Router R/W port: $ROUTER_RW_PORT"
             $SBDIR/node1/use -h 127.0.0.1 -P "$ROUTER_RW_PORT" -e "INSERT INTO ic_test.t1 (val) VALUES ('via_router');"
-            sleep 2
-            RESULT=$($SBDIR/node2/use -e "SELECT val FROM ic_test.t1 WHERE val='via_router';" 2>&1)
+            # Wait for replication with retries
+            for i in $(seq 1 10); do
+              RESULT=$($SBDIR/node2/use -e "SELECT val FROM ic_test.t1 WHERE val='via_router';" 2>/dev/null)
+              echo "$RESULT" | grep -q "via_router" && break
+              echo "  Waiting for replication... ($i/10)"
+              sleep 2
+            done
             echo "$RESULT"
-            echo "$RESULT" | grep -q "via_router" || { echo "FAIL: write through Router not replicated"; exit 1; }
+            echo "$RESULT" | grep -q "via_router" || { echo "FAIL: write through Router not replicated after 20s"; exit 1; }
             echo "OK: Router R/W connection works and replication verified"
           else
             echo "WARN: Could not determine Router R/W port, skipping Router R/W connection test"
@@ -601,10 +642,15 @@ jobs:
           echo "=== Functional test: write/read across cluster ==="
           SBDIR=$(ls -d ~/sandboxes/ic_msb_*)
           $SBDIR/node1/use -e "CREATE DATABASE skiprt_test; USE skiprt_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, msg TEXT); INSERT INTO t1 (msg) VALUES ('skip_router_test');"
-          sleep 3
-          RESULT=$($SBDIR/node3/use -e "SELECT msg FROM skiprt_test.t1;" 2>&1)
+          # Wait for replication with retries
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/node3/use -e "SELECT msg FROM skiprt_test.t1;" 2>/dev/null)
+            echo "$RESULT" | grep -q "skip_router_test" && break
+            echo "  Waiting for replication... ($i/10)"
+            sleep 2
+          done
           echo "$RESULT"
-          echo "$RESULT" | grep -q "skip_router_test" || { echo "FAIL: data not replicated"; exit 1; }
+          echo "$RESULT" | grep -q "skip_router_test" || { echo "FAIL: data not replicated after 20s"; exit 1; }
           echo "OK: InnoDB Cluster replication works without Router"
 
           echo "=== Cleanup ==="
@@ -634,11 +680,16 @@ jobs:
 
           echo "=== Functional test: write through ProxySQL ==="
           $SBDIR/proxysql/use_proxy -e "CREATE DATABASE proxy_ic_test; USE proxy_ic_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('via_proxysql');"
-          sleep 3
           echo "--- Verify on node2 directly ---"
-          RESULT=$($SBDIR/node2/use -e "SELECT val FROM proxy_ic_test.t1;" 2>&1)
+          # Wait for replication with retries
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/node2/use -e "SELECT val FROM proxy_ic_test.t1;" 2>/dev/null)
+            echo "$RESULT" | grep -q "via_proxysql" && break
+            echo "  Waiting for replication... ($i/10)"
+            sleep 2
+          done
           echo "$RESULT"
-          echo "$RESULT" | grep -q "via_proxysql" || { echo "FAIL: write through ProxySQL not replicated"; exit 1; }
+          echo "$RESULT" | grep -q "via_proxysql" || { echo "FAIL: write through ProxySQL not replicated after 20s"; exit 1; }
           echo "OK: ProxySQL -> InnoDB Cluster write + replication verified"
 
       - name: Cleanup
@@ -778,13 +829,24 @@ jobs:
 
           echo "=== Write on primary (node1), read on secondary (node2) ==="
           $SBDIR/node1/use -e "CREATE DATABASE gr_test; USE gr_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('single_primary_write');"
-          sleep 3
-          RESULT=$($SBDIR/node2/use -BN -e "SELECT val FROM gr_test.t1;" 2>&1)
+          # Wait for replication to node2 with retries
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/node2/use -BN -e "SELECT val FROM gr_test.t1;" 2>/dev/null)
+            echo "$RESULT" | grep -q "single_primary_write" && break
+            echo "  Waiting for replication... ($i/10)"
+            sleep 2
+          done
           echo "node2 result: $RESULT"
-          echo "$RESULT" | grep -q "single_primary_write" || { echo "FAIL: data not replicated to node2"; exit 1; }
-          RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM gr_test.t1;" 2>&1)
+          echo "$RESULT" | grep -q "single_primary_write" || { echo "FAIL: data not replicated to node2 after 20s"; exit 1; }
+          # Wait for replication to node3 with retries
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM gr_test.t1;" 2>/dev/null)
+            echo "$RESULT" | grep -q "single_primary_write" && break
+            echo "  Waiting for replication... ($i/10)"
+            sleep 2
+          done
           echo "node3 result: $RESULT"
-          echo "$RESULT" | grep -q "single_primary_write" || { echo "FAIL: data not replicated to node3"; exit 1; }
+          echo "$RESULT" | grep -q "single_primary_write" || { echo "FAIL: data not replicated to node3 after 20s"; exit 1; }
           echo "OK: group replication single-primary write+read verified"
 
           echo "=== Cleanup ==="
@@ -812,17 +874,27 @@ jobs:
 
           echo "=== Write on node1, read on node3 ==="
           $SBDIR/node1/use -e "CREATE DATABASE gr_mp_test; USE gr_mp_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('write_from_node1');"
-          sleep 3
-          RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM gr_mp_test.t1 WHERE val='write_from_node1';" 2>&1)
+          # Wait for replication to node3 with retries
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM gr_mp_test.t1 WHERE val='write_from_node1';" 2>/dev/null)
+            echo "$RESULT" | grep -q "write_from_node1" && break
+            echo "  Waiting for replication... ($i/10)"
+            sleep 2
+          done
           echo "node3 sees node1 write: $RESULT"
-          echo "$RESULT" | grep -q "write_from_node1" || { echo "FAIL: node1 write not replicated to node3"; exit 1; }
+          echo "$RESULT" | grep -q "write_from_node1" || { echo "FAIL: node1 write not replicated to node3 after 20s"; exit 1; }
 
           echo "=== Write on node3, read on node1 ==="
           $SBDIR/node3/use -e "INSERT INTO gr_mp_test.t1 (val) VALUES ('write_from_node3');"
-          sleep 3
-          RESULT=$($SBDIR/node1/use -BN -e "SELECT val FROM gr_mp_test.t1 WHERE val='write_from_node3';" 2>&1)
+          # Wait for replication to node1 with retries
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/node1/use -BN -e "SELECT val FROM gr_mp_test.t1 WHERE val='write_from_node3';" 2>/dev/null)
+            echo "$RESULT" | grep -q "write_from_node3" && break
+            echo "  Waiting for replication... ($i/10)"
+            sleep 2
+          done
           echo "node1 sees node3 write: $RESULT"
-          echo "$RESULT" | grep -q "write_from_node3" || { echo "FAIL: node3 write not replicated to node1"; exit 1; }
+          echo "$RESULT" | grep -q "write_from_node3" || { echo "FAIL: node3 write not replicated to node1 after 20s"; exit 1; }
           echo "OK: group replication multi-primary write+read verified"
 
           echo "=== Cleanup ==="
@@ -897,17 +969,27 @@ jobs:
 
           echo "=== Write on master1 (node1), read on common node (node3) ==="
           $SBDIR/node1/use -e "CREATE DATABASE fanin_test; USE fanin_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100), src VARCHAR(20)); INSERT INTO t1 (val, src) VALUES ('from_master1', 'node1');"
-          sleep 3
-          RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM fanin_test.t1 WHERE src='node1';" 2>&1)
+          # Wait for replication to node3 with retries
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM fanin_test.t1 WHERE src='node1';" 2>/dev/null)
+            echo "$RESULT" | grep -q "from_master1" && break
+            echo "  Waiting for replication... ($i/10)"
+            sleep 2
+          done
           echo "node3 sees node1 write: $RESULT"
-          echo "$RESULT" | grep -q "from_master1" || { echo "FAIL: node1 write not replicated to node3"; exit 1; }
+          echo "$RESULT" | grep -q "from_master1" || { echo "FAIL: node1 write not replicated to node3 after 20s"; exit 1; }
 
           echo "=== Write on master2 (node2), read on common node (node3) ==="
           $SBDIR/node2/use -e "INSERT INTO fanin_test.t1 (val, src) VALUES ('from_master2', 'node2');"
-          sleep 3
-          RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM fanin_test.t1 WHERE src='node2';" 2>&1)
+          # Wait for replication to node3 with retries
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM fanin_test.t1 WHERE src='node2';" 2>/dev/null)
+            echo "$RESULT" | grep -q "from_master2" && break
+            echo "  Waiting for replication... ($i/10)"
+            sleep 2
+          done
           echo "node3 sees node2 write: $RESULT"
-          echo "$RESULT" | grep -q "from_master2" || { echo "FAIL: node2 write not replicated to node3"; exit 1; }
+          echo "$RESULT" | grep -q "from_master2" || { echo "FAIL: node2 write not replicated to node3 after 20s"; exit 1; }
           echo "OK: fan-in topology write+read verified"
 
           echo "=== Cleanup ==="
@@ -927,17 +1009,27 @@ jobs:
 
           echo "=== Write on node1, read on node3 ==="
           $SBDIR/node1/use -e "CREATE DATABASE allm_test; USE allm_test; CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, val VARCHAR(100)); INSERT INTO t1 (val) VALUES ('write_from_node1');"
-          sleep 3
-          RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM allm_test.t1 WHERE val='write_from_node1';" 2>&1)
+          # Wait for replication to node3 with retries
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/node3/use -BN -e "SELECT val FROM allm_test.t1 WHERE val='write_from_node1';" 2>/dev/null)
+            echo "$RESULT" | grep -q "write_from_node1" && break
+            echo "  Waiting for replication... ($i/10)"
+            sleep 2
+          done
           echo "node3 sees node1 write: $RESULT"
-          echo "$RESULT" | grep -q "write_from_node1" || { echo "FAIL: node1 write not replicated to node3"; exit 1; }
+          echo "$RESULT" | grep -q "write_from_node1" || { echo "FAIL: node1 write not replicated to node3 after 20s"; exit 1; }
 
           echo "=== Write on node3, read on node1 ==="
           $SBDIR/node3/use -e "INSERT INTO allm_test.t1 (val) VALUES ('write_from_node3');"
-          sleep 3
-          RESULT=$($SBDIR/node1/use -BN -e "SELECT val FROM allm_test.t1 WHERE val='write_from_node3';" 2>&1)
+          # Wait for replication to node1 with retries
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/node1/use -BN -e "SELECT val FROM allm_test.t1 WHERE val='write_from_node3';" 2>/dev/null)
+            echo "$RESULT" | grep -q "write_from_node3" && break
+            echo "  Waiting for replication... ($i/10)"
+            sleep 2
+          done
           echo "node1 sees node3 write: $RESULT"
-          echo "$RESULT" | grep -q "write_from_node3" || { echo "FAIL: node3 write not replicated to node1"; exit 1; }
+          echo "$RESULT" | grep -q "write_from_node3" || { echo "FAIL: node3 write not replicated to node1 after 20s"; exit 1; }
           echo "OK: all-masters topology write+read verified"
 
           echo "=== Cleanup ==="
