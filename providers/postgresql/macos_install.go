@@ -72,6 +72,13 @@ func parseAssetsFromURL(apiURL string) ([]PostgresAppAsset, error) {
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("User-Agent", "dbdeployer")
+	// Unauthenticated GitHub API is rate-limited to 60 req/hour per IP.
+	// Shared CI runners routinely exhaust this. If GITHUB_TOKEN is set
+	// in the environment (as it is on every GitHub Actions runner by
+	// default), send it to get a 5000 req/hour limit.
+	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)

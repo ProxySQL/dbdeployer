@@ -553,6 +553,8 @@ jobs:
         run: go build -o dbdeployer .
 
       - name: init --provider=postgresql (downloads Postgres.app)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Clean slate — no ~/opt/postgresql yet.
           rm -rf "$HOME/opt/postgresql" "$HOME/sandboxes-pg-mac"
