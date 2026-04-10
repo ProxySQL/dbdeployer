@@ -187,6 +187,9 @@ func DeleteTarball(tarballs []TarballDescription, tarballName string) ([]Tarball
 
 func CompareTarballChecksum(tarball TarballDescription, fileName string) error {
 	if tarball.Checksum == "" {
+		fmt.Fprintf(os.Stderr,
+			"WARNING: no checksum available for %s — download integrity cannot be verified\n",
+			tarball.Name)
 		return nil
 	}
 	reCRC := regexp.MustCompile(`(MD5|SHA1|SHA256|SHA512)\s*:\s*(\S+)`)

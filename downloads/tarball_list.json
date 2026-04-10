@@ -2222,7 +2222,8 @@
       "short_version": "8.4",
       "version": "8.4.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:243d84f7eceef8564d49cbfa8b1d09de"
     },
     {
       "name": "mysql-8.4.0-linux-glibc2.17-x86_64-minimal.tar.xz",
@@ -2235,7 +2236,8 @@
       "short_version": "8.4",
       "version": "8.4.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:9c59dfc42f6998b94b4d03ad7a1afad8"
     },
     {
       "name": "mysql-8.4.0-linux-glibc2.28-aarch64.tar.xz",
@@ -2248,7 +2250,8 @@
       "short_version": "8.4",
       "version": "8.4.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:d2f528255f380ae9b1c088b12939e609"
     },
     {
       "name": "mysql-8.4.0-macos14-arm64.tar.gz",
@@ -2261,7 +2264,8 @@
       "short_version": "8.4",
       "version": "8.4.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:a1e2b046b03812884a0ef0bbfd628f58"
     },
     {
       "name": "mysql-8.4.0-macos14-x86_64.tar.gz",
@@ -2274,7 +2278,8 @@
       "short_version": "8.4",
       "version": "8.4.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:a1db269018bd9fa816ae68cd3aa39750"
     },
     {
       "name": "mysql-8.4.2-linux-glibc2.17-x86_64.tar.xz",
@@ -2287,7 +2292,8 @@
       "short_version": "8.4",
       "version": "8.4.2",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:cc7a578851feb8f05f7cbcaff94a5254"
     },
     {
       "name": "mysql-8.4.2-linux-glibc2.17-x86_64-minimal.tar.xz",
@@ -2300,7 +2306,8 @@
       "short_version": "8.4",
       "version": "8.4.2",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:ad70726bfb4089620d03772e36238e0c"
     },
     {
       "name": "mysql-8.4.2-linux-glibc2.28-aarch64.tar.xz",
@@ -2313,7 +2320,8 @@
       "short_version": "8.4",
       "version": "8.4.2",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:7539453bc941f194d5e85eda31fd7c45"
     },
     {
       "name": "mysql-8.4.2-macos14-arm64.tar.gz",
@@ -2326,7 +2334,8 @@
       "short_version": "8.4",
       "version": "8.4.2",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:503babfaceedf024c99f722824ab054c"
     },
     {
       "name": "mysql-8.4.2-macos14-x86_64.tar.gz",
@@ -2339,7 +2348,8 @@
       "short_version": "8.4",
       "version": "8.4.2",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:f8226460536f4b4f21ceff20cd419944"
     },
     {
       "name": "mysql-8.4.3-linux-glibc2.17-x86_64.tar.xz",
@@ -2352,7 +2362,8 @@
       "short_version": "8.4",
       "version": "8.4.3",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:bb4832299aba5ce4a4f40f34870bdbff"
     },
     {
       "name": "mysql-8.4.3-linux-glibc2.17-x86_64-minimal.tar.xz",
@@ -2365,7 +2376,8 @@
       "short_version": "8.4",
       "version": "8.4.3",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:465fa52c59b1cee6e15849e97fa51607"
     },
     {
       "name": "mysql-8.4.3-linux-glibc2.28-aarch64.tar.xz",
@@ -2378,7 +2390,8 @@
       "short_version": "8.4",
       "version": "8.4.3",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:2a6d55fdfacc5f945ebe5af52a974abe"
     },
     {
       "name": "mysql-8.4.3-macos14-arm64.tar.gz",
@@ -2391,7 +2404,8 @@
       "short_version": "8.4",
       "version": "8.4.3",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:1f02612a8ec99e8da8520232919efa6b"
     },
     {
       "name": "mysql-8.4.3-macos14-x86_64.tar.gz",
@@ -2404,7 +2418,8 @@
       "short_version": "8.4",
       "version": "8.4.3",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:516cdd560af2715da00189aeef4804cd"
     },
     {
       "name": "mysql-8.4.4-linux-glibc2.17-x86_64.tar.xz",
@@ -2417,7 +2432,8 @@
       "short_version": "8.4",
       "version": "8.4.4",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:683db607b34406af7fc9080690776df1"
     },
     {
       "name": "mysql-8.4.4-linux-glibc2.17-x86_64-minimal.tar.xz",
@@ -2430,7 +2446,8 @@
       "short_version": "8.4",
       "version": "8.4.4",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:7269a8e3a6ba247265f6c6cebdfe1f93"
     },
     {
       "name": "mysql-8.4.4-linux-glibc2.28-aarch64.tar.xz",
@@ -2443,7 +2460,8 @@
       "short_version": "8.4",
       "version": "8.4.4",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:6eb39e595f4d17da299bc04af891643f"
     },
     {
       "name": "mysql-8.4.4-macos15-arm64.tar.gz",
@@ -2456,7 +2474,8 @@
       "short_version": "8.4",
       "version": "8.4.4",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:364611026f551df1fa5e1696f9902796"
     },
     {
       "name": "mysql-8.4.4-macos15-x86_64.tar.gz",
@@ -2469,7 +2488,8 @@
       "short_version": "8.4",
       "version": "8.4.4",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:58aaf915e17b7095ae8ce9ca6d6d38a7"
     },
     {
       "name": "mysql-8.4.5-linux-glibc2.17-x86_64.tar.xz",
@@ -2482,7 +2502,8 @@
       "short_version": "8.4",
       "version": "8.4.5",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:8c7573c055a38821f8e65946f48a07ae"
     },
     {
       "name": "mysql-8.4.5-linux-glibc2.17-x86_64-minimal.tar.xz",
@@ -2495,7 +2516,8 @@
       "short_version": "8.4",
       "version": "8.4.5",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:802284d974bbb7709ec10ea29229c489"
     },
     {
       "name": "mysql-8.4.5-linux-glibc2.28-aarch64.tar.xz",
@@ -2508,7 +2530,8 @@
       "short_version": "8.4",
       "version": "8.4.5",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:d62f0051b47d298c506a92806d70c2f3"
     },
     {
       "name": "mysql-8.4.5-macos15-arm64.tar.gz",
@@ -2521,7 +2544,8 @@
       "short_version": "8.4",
       "version": "8.4.5",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:22f91512e1f5c5a78ac1f67722f2da68"
     },
     {
       "name": "mysql-8.4.5-macos15-x86_64.tar.gz",
@@ -2534,7 +2558,8 @@
       "short_version": "8.4",
       "version": "8.4.5",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:57936471cb813b20f32b6ddca61c2756"
     },
     {
       "name": "mysql-8.4.6-linux-glibc2.17-x86_64.tar.xz",
@@ -2547,7 +2572,8 @@
       "short_version": "8.4",
       "version": "8.4.6",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:51b6576dedc974e255461cbefa246785"
     },
     {
       "name": "mysql-8.4.6-linux-glibc2.17-x86_64-minimal.tar.xz",
@@ -2560,7 +2586,8 @@
       "short_version": "8.4",
       "version": "8.4.6",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:a02644e50bd395dc8b6b3174ed060e98"
     },
     {
       "name": "mysql-8.4.6-linux-glibc2.28-aarch64.tar.xz",
@@ -2573,7 +2600,8 @@
       "short_version": "8.4",
       "version": "8.4.6",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:2a5c6e6b77a3e43674b36c0e4c4e9cab"
     },
     {
       "name": "mysql-8.4.6-macos15-arm64.tar.gz",
@@ -2586,7 +2614,8 @@
       "short_version": "8.4",
       "version": "8.4.6",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:f297e6f92c9c2d8df7e6ee437639286a"
     },
     {
       "name": "mysql-8.4.6-macos15-x86_64.tar.gz",
@@ -2599,7 +2628,8 @@
       "short_version": "8.4",
       "version": "8.4.6",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:e48f65c6d56e5b42efd1867d3097a58d"
     },
     {
       "name": "mysql-8.4.7-linux-glibc2.17-x86_64.tar.xz",
@@ -2612,7 +2642,8 @@
       "short_version": "8.4",
       "version": "8.4.7",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:186fd13eac6e12391eb63c78d735d3f6"
     },
     {
       "name": "mysql-8.4.7-linux-glibc2.17-x86_64-minimal.tar.xz",
@@ -2625,7 +2656,8 @@
       "short_version": "8.4",
       "version": "8.4.7",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:6442e8c50350e97bce838abeb56df731"
     },
     {
       "name": "mysql-8.4.7-linux-glibc2.28-aarch64.tar.xz",
@@ -2638,7 +2670,8 @@
       "short_version": "8.4",
       "version": "8.4.7",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:3c27d74b07571bb3d4c2bc959901e806"
     },
     {
       "name": "mysql-8.4.7-macos15-arm64.tar.gz",
@@ -2651,7 +2684,8 @@
       "short_version": "8.4",
       "version": "8.4.7",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:1382f2d2c54c1a7c8389b61d1241fea9"
     },
     {
       "name": "mysql-8.4.7-macos15-x86_64.tar.gz",
@@ -2664,7 +2698,8 @@
       "short_version": "8.4",
       "version": "8.4.7",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:ae5c826e3f55e52c8e3cdbd9a4aa5312"
     },
     {
       "name": "mysql-9.0.1-linux-glibc2.17-x86_64.tar.xz",
@@ -2677,7 +2712,8 @@
       "short_version": "9.0",
       "version": "9.0.1",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:7e2bb87060bd8a989ca9115780ef3c88"
     },
     {
       "name": "mysql-9.0.1-linux-glibc2.17-x86_64-minimal.tar.xz",
@@ -2690,7 +2726,8 @@
       "short_version": "9.0",
       "version": "9.0.1",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:6d1b40d3f39f0cc098fcfe846c52008c"
     },
     {
       "name": "mysql-9.0.1-linux-glibc2.28-aarch64.tar.xz",
@@ -2703,7 +2740,8 @@
       "short_version": "9.0",
       "version": "9.0.1",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:8e55202205dacd0a9ce578d17fb474ea"
     },
     {
       "name": "mysql-9.0.1-macos14-arm64.tar.gz",
@@ -2716,7 +2754,8 @@
       "short_version": "9.0",
       "version": "9.0.1",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:1d447e95e748b2d8d7f07986aa2318e9"
     },
     {
       "name": "mysql-9.0.1-macos14-x86_64.tar.gz",
@@ -2729,7 +2768,8 @@
       "short_version": "9.0",
       "version": "9.0.1",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:8b578fc73c854a2bef1dd8ee1cc50ffd"
     },
     {
       "name": "mysql-9.1.0-linux-glibc2.17-x86_64.tar.xz",
@@ -2742,7 +2782,8 @@
       "short_version": "9.1",
       "version": "9.1.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:73a8ccb3dd8ce8be0d327356cc728598"
     },
     {
       "name": "mysql-9.1.0-linux-glibc2.17-x86_64-minimal.tar.xz",
@@ -2755,7 +2796,8 @@
       "short_version": "9.1",
       "version": "9.1.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:ae94e2660381b52a39808eba43350cde"
     },
     {
       "name": "mysql-9.1.0-linux-glibc2.28-aarch64.tar.xz",
@@ -2768,7 +2810,8 @@
       "short_version": "9.1",
       "version": "9.1.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:487436b5777870b5a42ecce40d465ba3"
     },
     {
       "name": "mysql-9.1.0-macos14-arm64.tar.gz",
@@ -2781,7 +2824,8 @@
       "short_version": "9.1",
       "version": "9.1.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:829b9ba32331d5e4477815fe449d5105"
     },
     {
       "name": "mysql-9.1.0-macos14-x86_64.tar.gz",
@@ -2794,7 +2838,8 @@
       "short_version": "9.1",
       "version": "9.1.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:85f4b284e5f98ed76ce7c34ca4d46663"
     },
     {
       "name": "mysql-9.2.0-linux-glibc2.17-x86_64.tar.xz",
@@ -2807,7 +2852,8 @@
       "short_version": "9.2",
       "version": "9.2.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:3240cf4f1864e4a8f28634e3a52f7871"
     },
     {
       "name": "mysql-9.2.0-linux-glibc2.17-x86_64-minimal.tar.xz",
@@ -2820,7 +2866,8 @@
       "short_version": "9.2",
       "version": "9.2.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:37e2cf3d385d0b5f02fa090b495615de"
     },
     {
       "name": "mysql-9.2.0-linux-glibc2.28-aarch64.tar.xz",
@@ -2833,7 +2880,8 @@
       "short_version": "9.2",
       "version": "9.2.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:ae16f8ee0290d9d98015104287f129f8"
     },
     {
       "name": "mysql-9.2.0-macos15-arm64.tar.gz",
@@ -2846,7 +2894,8 @@
       "short_version": "9.2",
       "version": "9.2.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:d284fb682bcb76aa4083b0c9b930123c"
     },
     {
       "name": "mysql-9.2.0-macos15-x86_64.tar.gz",
@@ -2859,7 +2908,8 @@
       "short_version": "9.2",
       "version": "9.2.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:3370cf67a346415da567619c25f30b16"
     },
     {
       "name": "mysql-9.3.0-linux-glibc2.17-x86_64.tar.xz",
@@ -2872,7 +2922,8 @@
       "short_version": "9.3",
       "version": "9.3.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:e585a7e718c542bf0fe000df708573ab"
     },
     {
       "name": "mysql-9.3.0-linux-glibc2.17-x86_64-minimal.tar.xz",
@@ -2885,7 +2936,8 @@
       "short_version": "9.3",
       "version": "9.3.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:c24ef84be1f80790d7a81419b1728191"
     },
     {
       "name": "mysql-9.3.0-linux-glibc2.28-aarch64.tar.xz",
@@ -2898,7 +2950,8 @@
       "short_version": "9.3",
       "version": "9.3.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:f6fc416fdbbb76c79ad5398e9e517b17"
     },
     {
       "name": "mysql-9.3.0-macos15-arm64.tar.gz",
@@ -2911,7 +2964,8 @@
       "short_version": "9.3",
       "version": "9.3.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:cbcb56c277a4220b2d953d042e7d97d6"
     },
     {
       "name": "mysql-9.3.0-macos15-x86_64.tar.gz",
@@ -2924,7 +2978,8 @@
       "short_version": "9.3",
       "version": "9.3.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:7685098d3eb1ea6b9cde439eb805d009"
     },
     {
       "name": "mysql-9.4.0-linux-glibc2.17-x86_64.tar.xz",
@@ -2937,7 +2992,8 @@
       "short_version": "9.4",
       "version": "9.4.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:b5b178b82657498a8020ff80cf3c5a63"
     },
     {
       "name": "mysql-9.4.0-linux-glibc2.17-x86_64-minimal.tar.xz",
@@ -2950,7 +3006,8 @@
       "short_version": "9.4",
       "version": "9.4.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:3bd75f440f0ecb518b89aa4cabd728fe"
     },
     {
       "name": "mysql-9.4.0-linux-glibc2.28-aarch64.tar.xz",
@@ -2963,7 +3020,8 @@
       "short_version": "9.4",
       "version": "9.4.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:5d740da908019bfadf5d1b5f3df6f80c"
     },
     {
       "name": "mysql-9.4.0-macos15-arm64.tar.gz",
@@ -2976,7 +3034,8 @@
       "short_version": "9.4",
       "version": "9.4.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:09ceb4b5238470b8fe4b76e5919e483b"
     },
     {
       "name": "mysql-9.4.0-macos15-x86_64.tar.gz",
@@ -2989,7 +3048,8 @@
       "short_version": "9.4",
       "version": "9.4.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:99b09d78a26cf0d83aef76d4698e4171"
     },
     {
       "name": "mysql-9.5.0-linux-glibc2.17-x86_64.tar.xz",
@@ -3002,7 +3062,8 @@
       "short_version": "9.5",
       "version": "9.5.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:c49ad0f418f3e64f576c3286037b37c0"
     },
     {
       "name": "mysql-9.5.0-linux-glibc2.17-x86_64-minimal.tar.xz",
@@ -3015,7 +3076,8 @@
       "short_version": "9.5",
       "version": "9.5.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:8f003e3ca95a03a8bac8dfec2b2ab724"
     },
     {
       "name": "mysql-9.5.0-linux-glibc2.28-aarch64.tar.xz",
@@ -3028,7 +3090,8 @@
       "short_version": "9.5",
       "version": "9.5.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:a5d2dfe6827243c2c98b3d7bf2b55377"
     },
     {
       "name": "mysql-9.5.0-macos15-arm64.tar.gz",
@@ -3041,7 +3104,8 @@
       "short_version": "9.5",
       "version": "9.5.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:15d626a071c5d7d888c7ec9545b813a7"
     },
     {
       "name": "mysql-9.5.0-macos15-x86_64.tar.gz",
@@ -3054,7 +3118,8 @@
       "short_version": "9.5",
       "version": "9.5.0",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:1e991181f51da2194d684ee27a343172"
     },
     {
       "name": "mysql-8.4.8-linux-glibc2.17-x86_64.tar.xz",
@@ -3067,7 +3132,8 @@
       "short_version": "8.4",
       "version": "8.4.8",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:43cd4e14b688e9364ec4dbd58dd37437"
     },
     {
       "name": "mysql-8.4.8-linux-glibc2.17-x86_64-minimal.tar.xz",
@@ -3080,7 +3146,8 @@
       "short_version": "8.4",
       "version": "8.4.8",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:bbf8084d8be89b5a5d65ba14f476dc08"
     },
     {
       "name": "mysql-8.4.8-linux-glibc2.28-aarch64.tar.xz",
@@ -3093,7 +3160,8 @@
       "short_version": "8.4",
       "version": "8.4.8",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:e3c492b66f39e981ace5794a9a1300ee"
     },
     {
       "name": "mysql-8.4.8-macos15-arm64.tar.gz",
@@ -3106,7 +3174,8 @@
       "short_version": "8.4",
       "version": "8.4.8",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:5e278c89e880b9f11c6797bbad8baeee"
     },
     {
       "name": "mysql-8.4.8-macos15-x86_64.tar.gz",
@@ -3119,7 +3188,8 @@
       "short_version": "8.4",
       "version": "8.4.8",
       "notes": "added with version 2.0.0",
-      "date_added": "2026-03-24 00:00"
+      "date_added": "2026-03-24 00:00",
+      "checksum": "MD5:221c146bac3838bca1c1e1628599f50e"
     },
     {
       "name": "Percona-Server-5.7.41-44-Linux.x86_64.glibc2.17-minimal.tar.gz",
@@ -3132,7 +3202,8 @@
       "short_version": "5.7",
       "version": "5.7.41",
       "notes": "added with version 2.1.1",
-      "date_added": "2026-04-05 00:00"
+      "date_added": "2026-04-05 00:00",
+      "checksum": "SHA256:6278946df96972588b6b50e706ed2cbc5e2dba0e60e05bf78a8a9cfb2ad3df99"
     },
     {
       "name": "Percona-Server-5.7.42-46-Linux.x86_64.glibc2.17-minimal.tar.gz",
@@ -3145,7 +3216,8 @@
       "short_version": "5.7",
       "version": "5.7.42",
       "notes": "added with version 2.1.1",
-      "date_added": "2026-04-05 00:00"
+      "date_added": "2026-04-05 00:00",
+      "checksum": "SHA256:2812e9b3bb87a5e716259aaefa913e49486f3a4efd049dc5aa55de3b8c1d34b5"
     },
     {
       "name": "Percona-Server-5.7.43-47-Linux.x86_64.glibc2.17-minimal.tar.gz",
@@ -3158,7 +3230,8 @@
       "short_version": "5.7",
       "version": "5.7.43",
       "notes": "added with version 2.1.1",
-      "date_added": "2026-04-05 00:00"
+      "date_added": "2026-04-05 00:00",
+      "checksum": "SHA256:d22af9fda2b0bb3cfa066d333f5d774be9193b90d44ff5b70aa31262c3218e51"
     },
     {
       "name": "Percona-Server-5.7.44-48-Linux.x86_64.glibc2.17-minimal.tar.gz",
@@ -3171,7 +3244,8 @@
       "short_version": "5.7",
       "version": "5.7.44",
       "notes": "added with version 2.1.1",
-      "date_added": "2026-04-05 00:00"
+      "date_added": "2026-04-05 00:00",
+      "checksum": "SHA256:2aec67e7d23cf0cf54ebc2603d38359982967536bec5750842665641feec10d0"
     },
     {
       "name": "Percona-Server-8.0.33-25-Linux.x86_64.glibc2.17-minimal.tar.gz",
@@ -3184,7 +3258,8 @@
       "short_version": "8.0",
       "version": "8.0.33",
       "notes": "added with version 2.1.1",
-      "date_added": "2026-04-05 00:00"
+      "date_added": "2026-04-05 00:00",
+      "checksum": "SHA256:9af96d33b4472f7bdd2ca63fa95b5f93eebe084d76afecfd4721f6c45a61fa4a"
     },
     {
       "name": "Percona-Server-8.0.34-26-Linux.x86_64.glibc2.17-minimal.tar.gz",
@@ -3197,7 +3272,8 @@
       "short_version": "8.0",
       "version": "8.0.34",
       "notes": "added with version 2.1.1",
-      "date_added": "2026-04-05 00:00"
+      "date_added": "2026-04-05 00:00",
+      "checksum": "SHA256:a7135886018276abe49813cf45fd1f0caa6b67151028314fbfe37550e1061598"
     },
     {
       "name": "Percona-Server-8.0.35-27-Linux.x86_64.glibc2.17-minimal.tar.gz",
@@ -3210,7 +3286,8 @@
       "short_version": "8.0",
       "version": "8.0.35",
       "notes": "added with version 2.1.1",
-      "date_added": "2026-04-05 00:00"
+      "date_added": "2026-04-05 00:00",
+      "checksum": "SHA256:94b40d59d26373880c7288bacf5259afa3d276247d5b0855e597277ee9cba20f"
     },
     {
       "name": "Percona-Server-8.0.36-28-Linux.x86_64.glibc2.17-minimal.tar.gz",
@@ -3223,7 +3300,8 @@
       "short_version": "8.0",
       "version": "8.0.36",
       "notes": "added with version 2.1.1",
-      "date_added": "2026-04-05 00:00"
+      "date_added": "2026-04-05 00:00",
+      "checksum": "SHA256:11d87ec3620befa14f08be6ee4161968081c61104ac9df89d49f577f449bc204"
     },
     {
       "name": "Percona-Server-8.0.39-30-Linux.x86_64.glibc2.35-minimal.tar.gz",
@@ -3236,7 +3314,8 @@
       "short_version": "8.0",
       "version": "8.0.39",
       "notes": "added with version 2.1.1",
-      "date_added": "2026-04-05 00:00"
+      "date_added": "2026-04-05 00:00",
+      "checksum": "SHA256:8ea8fa21d3dc58040692bece5c0ccbf4e2c30195577361cb4d4dba0ef835281c"
     },
     {
       "name": "Percona-Server-8.0.40-31-Linux.x86_64.glibc2.35-minimal.tar.gz",
@@ -3249,7 +3328,8 @@
       "short_version": "8.0",
       "version": "8.0.40",
       "notes": "added with version 2.1.1",
-      "date_added": "2026-04-05 00:00"
+      "date_added": "2026-04-05 00:00",
+      "checksum": "SHA256:173c74e4e5551f2e1037dabc7b2d54e0a7d1c64740bc097ea07aefbb3d838feb"
     },
     {
       "name": "Percona-Server-8.4.0-1-Linux.x86_64.glibc2.17-minimal.tar.gz",
@@ -3262,7 +3342,8 @@
       "short_version": "8.4",
       "version": "8.4.0",
       "notes": "added with version 2.1.1",
-      "date_added": "2026-04-05 00:00"
+      "date_added": "2026-04-05 00:00",
+      "checksum": "SHA256:521687713f78bb72ec91cac8082b98a89f4a2a95ff1ffdb60a2914bb7920992d"
     },
     {
       "name": "Percona-Server-8.4.2-2-Linux.x86_64.glibc2.17-minimal.tar.gz",
@@ -3275,7 +3356,8 @@
       "short_version": "8.4",
       "version": "8.4.2",
       "notes": "added with version 2.1.1",
-      "date_added": "2026-04-05 00:00"
+      "date_added": "2026-04-05 00:00",
+      "checksum": "SHA256:c7f3b985bf4f0488ef2db0ac730a1eabaaab0b82fd0c28965b8d51121895f1b9"
     },
     {
       "name": "Percona-Server-8.4.3-3-Linux.x86_64.glibc2.35-minimal.tar.gz",
@@ -3288,7 +3370,8 @@
       "short_version": "8.4",
       "version": "8.4.3",
       "notes": "added with version 2.1.1",
-      "date_added": "2026-04-05 00:00"
+      "date_added": "2026-04-05 00:00",
+      "checksum": "SHA256:54ee4ae2e8ad4161abef10737ee4d9b4a57714df7e6f9f6ba29d3ec23d5e15b0"
     },
     {
       "name": "Percona-Server-8.4.4-4-Linux.x86_64.glibc2.35-minimal.tar.gz",
@@ -3301,7 +3384,8 @@
       "short_version": "8.4",
       "version": "8.4.4",
       "notes": "added with version 2.1.1",
-      "date_added": "2026-04-05 00:00"
+      "date_added": "2026-04-05 00:00",
+      "checksum": "SHA256:3af319cb8f1d0ee2c0cea1751ef939035cd39f6596ce048de5de0173a48d4f44"
     },
     {
       "name": "mariadb-10.6.9-linux-systemd-x86_64.tar.gz",
@@ -3314,7 +3398,8 @@
       "short_version": "10.6",
       "version": "10.6.9",
       "notes": "archive.mariadb.org LTS",
-      "date_added": "2026-04-02 00:00"
+      "date_added": "2026-04-02 00:00",
+      "checksum": "SHA256:7c0ab150f8ea4114f6a488e03b73fbb7a9ee1d973749f7f567028e42535564fd"
     },
     {
       "name": "mariadb-10.11.9-linux-systemd-x86_64.tar.gz",
@@ -3327,7 +3412,8 @@
       "short_version": "10.11",
       "version": "10.11.9",
       "notes": "archive.mariadb.org LTS",
-      "date_added": "2026-04-02 00:00"
+      "date_added": "2026-04-02 00:00",
+      "checksum": "SHA256:c45becf9f8e9e90d9e32d5f2b4378cac971ef7a54c2ba4b668625e203285b5cb"
     },
     {
       "name": "mariadb-11.4.5-linux-systemd-x86_64.tar.gz",
@@ -3340,7 +3426,8 @@
       "short_version": "11.4",
       "version": "11.4.5",
       "notes": "archive.mariadb.org LTS",
-      "date_added": "2026-04-02 00:00"
+      "date_added": "2026-04-02 00:00",
+      "checksum": "SHA256:2a44cb70a87dba7eb2cab3b5af2c0416a0204d93a8fda387b4b70c9f1bab7bd6"
     },
     {
       "name": "mariadb-11.4.9-linux-systemd-x86_64.tar.gz",
@@ -3353,7 +3440,8 @@
       "short_version": "11.4",
       "version": "11.4.9",
       "notes": "archive.mariadb.org LTS",
-      "date_added": "2026-04-02 00:00"
+      "date_added": "2026-04-02 00:00",
+      "checksum": "SHA256:c079403239fa74900c18ae0f2d99806625b3ae936c8983dd39a96c8b237072da"
     },
     {
       "name": "mariadb-11.8.6-linux-systemd-x86_64.tar.gz",
@@ -3366,7 +3454,8 @@
       "short_version": "11.8",
       "version": "11.8.6",
       "notes": "archive.mariadb.org short-term",
-      "date_added": "2026-04-02 00:00"
+      "date_added": "2026-04-02 00:00",
+      "checksum": "SHA256:9367b26f63a7f4936acf914a987d15f37e2449ef568552b70d3c4ffa48896f8b"
     }
   ]
 }
