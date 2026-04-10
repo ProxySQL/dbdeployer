@@ -1,0 +1,57 @@
+name: Install Script Test
+
+# Tests the documented installation flow:
+#   curl -s https://raw.githubusercontent.com/ProxySQL/dbdeployer/master/scripts/dbdeployer-install.sh | bash
+#
+# This catches release-asset mismatches (wrong file naming, missing
+# checksums.txt, missing tarballs) that would break the install script
+# for end users. Runs automatically after a release is published, on a
+# weekly schedule, and on manual dispatch.
+#
+# Security note: this workflow uses no user-controlled inputs (issue
+# bodies, PR titles, commit messages, etc.). The matrix values are
+# hardcoded here and matrix.os is safe to interpolate.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 4 * * 1'
+
+jobs:
+  install-script:
+    name: Install on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04, macos-13, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Prepare a PATH directory the install script will accept
+        run: |
+          mkdir -p "$HOME/bin"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+
+      - name: Run the documented install command
+        run: |
+          curl -s https://raw.githubusercontent.com/ProxySQL/dbdeployer/master/scripts/dbdeployer-install.sh | bash
+
+      - name: Verify dbdeployer runs and version matches common/VERSION
+        run: |
+          which dbdeployer
+          dbdeployer --version
+          INSTALLED_VERSION=$(dbdeployer --version | awk '{print $NF}')
+          EXPECTED_VERSION=$(curl -s https://raw.githubusercontent.com/ProxySQL/dbdeployer/master/common/VERSION)
+          echo "Installed: $INSTALLED_VERSION"
+          echo "Expected:  $EXPECTED_VERSION"
+          [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION" ] || {
+            echo "FAIL: installed version does not match common/VERSION"
+            exit 1
+          }
+
+      - name: Smoke test basic commands
+        run: |
+          dbdeployer --help > /dev/null
+          dbdeployer versions > /dev/null || true
+          dbdeployer defaults show > /dev/null
