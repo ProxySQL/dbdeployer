@@ -379,6 +379,51 @@ jobs:
           cp -a /usr/share/postgresql/${PG_VERSION}/. ~/opt/postgresql/${PG_FULL}/share/
           ls ~/opt/postgresql/${PG_FULL}/bin/
 
+      - name: Test init --provider=postgresql
+        run: |
+          # Run init against isolated dirs, verify it creates them and
+          # prints the PostgreSQL setup instructions.
+          OUT=$(./dbdeployer init --provider=postgresql \
+            --sandbox-binary=/tmp/init-pg-bin \
+            --sandbox-home=/tmp/init-pg-home \
+            --skip-shell-completion 2>&1)
+          echo "$OUT"
+
+          # Verify directories were created
+          [ -d /tmp/init-pg-bin ] || { echo "FAIL: sandbox-binary not created"; exit 1; }
+          [ -d /tmp/init-pg-home ] || { echo "FAIL: sandbox-home not created"; exit 1; }
+
+          # Verify the PostgreSQL setup instructions were printed
+          echo "$OUT" | grep -q "PostgreSQL binaries are not auto-downloaded" || {
+            echo "FAIL: expected PostgreSQL setup instructions in output"
+            exit 1
+          }
+          echo "$OUT" | grep -q "dbdeployer unpack --provider=postgresql" || {
+            echo "FAIL: expected unpack instructions in output"
+            exit 1
+          }
+
+          # Verify it didn't try to download a MySQL tarball
+          echo "$OUT" | grep -q "mysql-" && {
+            echo "FAIL: output references mysql tarball"
+            exit 1
+          }
+
+          # Sanity: invalid provider should fail
+          ./dbdeployer init --provider=oracle --dry-run \
+            --sandbox-binary=/tmp/init-bad \
+            --sandbox-home=/tmp/init-bad-home 2>&1 | grep -q "unknown provider" || {
+            echo "FAIL: invalid provider did not error as expected"
+            exit 1
+          }
+
+          # Cleanup init side-effects so the rest of the job uses its own dirs
+          rm -rf /tmp/init-pg-bin /tmp/init-pg-home /tmp/init-bad /tmp/init-bad-home
+          # Restore sandbox defaults so subsequent steps find ~/opt/postgresql
+          ./dbdeployer defaults update sandbox-binary "$HOME/opt/mysql"
+          ./dbdeployer defaults update sandbox-home "$HOME/sandboxes"
+          echo "OK: dbdeployer init --provider=postgresql works"
+
       - name: Test deploy postgresql (single)
         run: |
           PG_FULL=$(ls ~/opt/postgresql/ | head -1)

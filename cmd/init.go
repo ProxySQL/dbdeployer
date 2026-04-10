@@ -31,6 +31,7 @@ func initEnvironment(cmd *cobra.Command, args []string) error {
 	skipDownloads, _ := flags.GetBool(globals.SkipAllDownloadsLabel)
 	skipTarballDownload, _ := flags.GetBool(globals.SkipTarballDownloadLabel)
 	skipCompletion, _ := flags.GetBool(globals.SkipShellCompletionLabel)
+	provider, _ := flags.GetString(globals.ProviderLabel)
 
 	return ops.InitEnvironment(ops.InitOptions{
 		SandboxBinary:       sandboxBinary,
@@ -39,23 +40,26 @@ func initEnvironment(cmd *cobra.Command, args []string) error {
 		SkipDownloads:       skipDownloads,
 		SkipTarballDownload: skipTarballDownload,
 		SkipCompletion:      skipCompletion,
+		Provider:            provider,
 	})
 }
 
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "initializes dbdeployer environment",
-	Long: `Initializes dbdeployer environment: 
+	Long: `Initializes dbdeployer environment:
 * creates $SANDBOX_HOME and $SANDBOX_BINARY directories
-* downloads and expands the latest MySQL tarball
+* downloads and expands the latest MySQL tarball (default provider)
+  or prints PostgreSQL setup instructions (--provider=postgresql)
 * installs shell completion file`,
 	RunE: initEnvironment,
 }
 
 func init() {
 	rootCmd.AddCommand(initCmd)
-	initCmd.PersistentFlags().Bool(globals.SkipAllDownloadsLabel, false, "Do not download any file (skip both MySQL tarball and shell completion file)")
-	initCmd.PersistentFlags().Bool(globals.SkipTarballDownloadLabel, false, "Do not download MySQL tarball")
+	initCmd.PersistentFlags().Bool(globals.SkipAllDownloadsLabel, false, "Do not download any file (skip both tarball and shell completion file)")
+	initCmd.PersistentFlags().Bool(globals.SkipTarballDownloadLabel, false, "Do not download the database tarball")
 	initCmd.PersistentFlags().Bool(globals.SkipShellCompletionLabel, false, "Do not download shell completion file")
 	initCmd.PersistentFlags().Bool(globals.DryRunLabel, false, "Show operations but don't run them")
+	initCmd.PersistentFlags().String(globals.ProviderLabel, globals.ProviderValue, "Database provider (mysql, postgresql)")
 }

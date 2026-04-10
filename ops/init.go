@@ -36,6 +36,7 @@ type InitOptions struct {
 	SkipDownloads       bool
 	SkipTarballDownload bool
 	SkipCompletion      bool
+	Provider            string
 }
 
 func verifyInitOptions(options InitOptions) error {
@@ -58,6 +59,24 @@ func InitEnvironment(options InitOptions) error {
 	dryRun := options.DryRun
 	skipDownloads := options.SkipDownloads
 	skipCompletion := options.SkipCompletion
+	provider := options.Provider
+	if provider == "" {
+		provider = "mysql"
+	}
+	if provider != "mysql" && provider != "postgresql" {
+		return fmt.Errorf("unknown provider %q: supported values are 'mysql' and 'postgresql'", provider)
+	}
+
+	// For PostgreSQL, point sandbox-binary at ~/opt/postgresql instead of
+	// the MySQL default, unless the user explicitly overrode it via
+	// --sandbox-binary.
+	if provider == "postgresql" && sandboxBinary == defaults.Defaults().SandboxBinary {
+		home, herr := os.UserHomeDir()
+		if herr != nil {
+			return fmt.Errorf("cannot determine home directory: %s", herr)
+		}
+		sandboxBinary = path.Join(home, "opt", "postgresql")
+	}
 
 	sandboxHome, err = common.AbsolutePath(sandboxHome)
 	if err != nil {
@@ -164,9 +183,13 @@ func InitEnvironment(options InitOptions) error {
 	fmt.Println()
 
 	if needDownload {
-		err = initDownloadTarball(options)
-		if err != nil {
-			return err
+		if provider == "postgresql" {
+			printPostgreSQLSetupInstructions(sandboxBinary)
+		} else {
+			err = initDownloadTarball(options)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if !common.DirExists(defaults.ConfigurationDir) {
@@ -230,4 +253,26 @@ func initDownloadTarball(options InitOptions) error {
 		}
 	}
 	return nil
+}
+
+// printPostgreSQLSetupInstructions explains how to populate the PostgreSQL
+// sandbox-binary directory, since dbdeployer does not (yet) auto-download
+// PostgreSQL packages. The user provides the .deb files and runs
+// `dbdeployer unpack --provider=postgresql`.
+func printPostgreSQLSetupInstructions(sandboxBinary string) {
+	fmt.Println(globals.DashLine)
+	fmt.Println("PostgreSQL binaries are not auto-downloaded.")
+	fmt.Println("Fetch the server + client .deb packages from either:")
+	fmt.Println("  - https://apt.postgresql.org/pub/repos/apt/pool/main/p/postgresql-16/")
+	fmt.Println("  - your distribution's PostgreSQL package mirror")
+	fmt.Println()
+	fmt.Println("Then unpack them into the sandbox-binary directory:")
+	fmt.Printf("  dbdeployer unpack --provider=postgresql \\\n")
+	fmt.Printf("      postgresql-16_*.deb postgresql-client-16_*.deb\n")
+	fmt.Println()
+	fmt.Printf("Binaries will be installed under %s/<version>/\n", sandboxBinary)
+	fmt.Println()
+	fmt.Println("Once unpacked, you can deploy PostgreSQL sandboxes with:")
+	fmt.Println("  dbdeployer deploy postgresql <version>")
+	fmt.Println("  dbdeployer deploy replication <version> --provider=postgresql")
 }
