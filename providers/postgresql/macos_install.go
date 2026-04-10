@@ -203,10 +203,9 @@ func InstallFromPostgresAppDMG(asset PostgresAppAsset, sandboxBinaryDir string) 
 	}
 
 	// Copy bin/, lib/, share/, include/ preserving symlinks and modes.
-	// Postgres.app's layout already places share/postgresql/ at the path
-	// that postgres expects after relocation (prefix stripping of the
-	// compiled-in bindir, then appending the compiled-in sharedir). No
-	// additional compat path is needed on macOS.
+	// Postgres.app's `share/postgresql/` contains the datadir contents
+	// (postgres.bki, timezonesets, ...) — this is where the `postgres`
+	// binary looks for them at runtime after compiled-in path relocation.
 	for _, sub := range []string{"bin", "lib", "share", "include"} {
 		src := filepath.Join(versionDir, sub)
 		dst := filepath.Join(targetDir, sub)
@@ -219,6 +218,22 @@ func InstallFromPostgresAppDMG(asset PostgresAppAsset, sandboxBinaryDir string) 
 		cpCmd := exec.Command("cp", "-a", src+"/.", dst+"/") //nolint:gosec // paths come from mounted DMG
 		if out, err := cpCmd.CombinedOutput(); err != nil {
 			return "", fmt.Errorf("copying %s to %s: %s: %w", src, dst, string(out), err)
+		}
+	}
+
+	// dbdeployer invokes `initdb -L <basedir>/share` (see
+	// providers/postgresql/sandbox.go). `initdb` then looks for
+	// postgres.bki directly under that path, but Postgres.app keeps
+	// datadir files at `share/postgresql/`. Flatten them into
+	// `<basedir>/share/` alongside the nested copy so both initdb (flat)
+	// and the postgres runtime (nested, via compiled-in sharedir
+	// relocation) find what they need.
+	srcDataDir := filepath.Join(versionDir, "share", "postgresql")
+	dstShare := filepath.Join(targetDir, "share")
+	if _, err := os.Stat(srcDataDir); err == nil {
+		flatCmd := exec.Command("cp", "-a", srcDataDir+"/.", dstShare+"/") //nolint:gosec // paths come from mounted DMG
+		if out, err := flatCmd.CombinedOutput(); err != nil {
+			return "", fmt.Errorf("flattening share/postgresql/ into share/: %s: %w", string(out), err)
 		}
 	}
 
