@@ -60,6 +60,23 @@ dbdeployer deploy replication 16.13 --provider=postgresql
 
 > **Note:** The `apt-get download` command downloads `.deb` files to the current directory without installing anything. Your system is untouched. See the [PostgreSQL provider guide](https://proxysql.github.io/dbdeployer/providers/postgresql/) for details and alternative installation methods.
 
+### VillageSQL
+
+[VillageSQL](https://github.com/villagesql/villagesql-server) is a MySQL drop-in replacement with extensions (custom types, VDFs). Since it uses its own version scheme, unpack with `--unpack-version` mapped to the MySQL base version:
+
+```bash
+# Download from GitHub Releases
+curl -L -o villagesql-dev-server-0.0.3-dev-linux-x86_64.tar.gz \
+  https://github.com/villagesql/villagesql-server/releases/download/0.0.3/villagesql-dev-server-0.0.3-dev-linux-x86_64.tar.gz
+
+# Unpack with MySQL 8.0 version mapping (required for capabilities)
+dbdeployer unpack villagesql-dev-server-0.0.3-dev-linux-x86_64.tar.gz --unpack-version=8.0.40
+
+# Deploy
+dbdeployer deploy single 8.0.40
+~/sandboxes/msb_8_0_40/use -e "SELECT VERSION();"
+```
+
 ## Supported Databases
 
 | Provider | Single | Replication | Group Replication | ProxySQL Wiring |
@@ -71,6 +88,7 @@ dbdeployer deploy replication 16.13 --provider=postgresql
 | MariaDB | ✓ | ✓ | — | ✓ |
 | NDB Cluster | ✓ | ✓ | — | — |
 | Percona XtraDB Cluster | ✓ | ✓ | — | — |
+| VillageSQL | ✓ | ✓ | — | — |
 
 ## Key Features
 

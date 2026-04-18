@@ -30,6 +30,8 @@ type TestCapabilities struct {
 func TestHasCapability(t *testing.T) {
 	var capabilitiesList = []TestCapabilities{
 		{[]string{MySQLFlavor, MariaDbFlavor, PerconaServerFlavor}, InstallDb, "5.1.72", true},
+		{[]string{VillageSQLFlavor}, InstallDb, "5.1.72", true},
+		{[]string{VillageSQLFlavor}, InstallDb, "5.7.0", false},
 		{[]string{MariaDbFlavor}, InstallDb, "5.5.0", true},
 		{[]string{MariaDbFlavor}, InstallDb, "10.0.0", true},
 		{[]string{MariaDbFlavor}, InstallDb, "10.1.0", true},
@@ -52,6 +54,7 @@ func TestHasCapability(t *testing.T) {
 		{[]string{MySQLFlavor, PerconaServerFlavor, MariaDbFlavor}, SemiSynch, "5.5.40", true},
 		{[]string{MySQLFlavor}, MySQLX, "5.5.40", false},
 		{[]string{MySQLFlavor}, MySQLX, "5.7.40", true},
+		{[]string{VillageSQLFlavor}, MySQLX, "5.7.40", true},
 		{[]string{MySQLFlavor, PerconaServerFlavor}, MySQLXDefault, "5.7.40", false},
 		{[]string{MySQLFlavor, PerconaServerFlavor}, MySQLXDefault, "8.0.40", true},
 		{[]string{MySQLFlavor, PerconaServerFlavor, MariaDbFlavor}, DynVariables, "5.1.72", true},
@@ -63,6 +66,7 @@ func TestHasCapability(t *testing.T) {
 		{[]string{MySQLFlavor, PerconaServerFlavor}, EnhancedGTID, "5.7.40", true},
 		{[]string{MySQLFlavor, PerconaServerFlavor}, Initialize, "5.6.40", false},
 		{[]string{MySQLFlavor, PerconaServerFlavor}, Initialize, "5.7.40", true},
+		{[]string{VillageSQLFlavor}, Initialize, "5.7.40", true},
 		{[]string{MySQLFlavor, PerconaServerFlavor}, CreateUser, "5.6.40", false},
 		{[]string{MySQLFlavor, PerconaServerFlavor}, CreateUser, "5.7.40", true},
 		{[]string{MySQLFlavor, PerconaServerFlavor}, SuperReadOnly, "5.6.40", false},

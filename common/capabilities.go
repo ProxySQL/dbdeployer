@@ -52,6 +52,7 @@ const (
 	NdbFlavor           = "ndb"
 	PxcFlavor           = "pxc"
 	TiDbFlavor          = "tidb"
+	VillageSQLFlavor    = "villagesql"
 
 	// Feature names
 	InstallDb                   = "installdb"
@@ -258,6 +259,13 @@ var FlavorCompositionList = []flavorIndicator{
 	{
 		AllNeeded: false,
 		elements: []elementPath{
+			{"share", globals.FnVillagesqlSchema},
+		},
+		flavor: VillageSQLFlavor,
+	},
+	{
+		AllNeeded: false,
+		elements: []elementPath{
 			{"bin", globals.FnTiDbServer},
 		},
 		flavor: TiDbFlavor,
@@ -284,6 +292,12 @@ var FlavorCompositionList = []flavorIndicator{
 var PerconaCapabilities = Capabilities{
 	Flavor:      PerconaServerFlavor,
 	Description: "Percona Server",
+	Features:    MySQLCapabilities.Features,
+}
+
+var VillageSQLCapabilities = Capabilities{
+	Flavor:      VillageSQLFlavor,
+	Description: "VillageSQL server",
 	Features:    MySQLCapabilities.Features,
 }
 
@@ -382,6 +396,7 @@ var MySQLShellCapabilities = Capabilities{
 var AllCapabilities = map[string]Capabilities{
 	MySQLFlavor:         MySQLCapabilities,
 	PerconaServerFlavor: PerconaCapabilities,
+	VillageSQLFlavor:    VillageSQLCapabilities,
 	MariaDbFlavor:       MariadbCapabilities,
 	TiDbFlavor:          TiDBCapabilities,
 	NdbFlavor:           NdbCapabilities,

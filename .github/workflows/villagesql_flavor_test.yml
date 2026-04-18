@@ -1,0 +1,145 @@
+name: VillageSQL Flavor Test
+
+# Tests VillageSQL flavor detection, sandbox deployment, and capability
+# inheritance using the official VillageSQL 0.0.3 release tarball from
+# https://github.com/villagesql/villagesql-server/releases/tag/0.0.3
+#
+# The workflow verifies:
+#   1. dbdeployer unpack detects the flavor as "villagesql" via the
+#      share/villagesql_schema.sql marker file
+#   2. Single sandbox deployment works with --unpack-version mapping
+#   3. Replication deployment works with data verification
+#   4. VillageSQL capabilities correctly inherit MySQL capabilities
+#
+# Note: The 0.0.3 tarball contains two symlinks in
+# mysql-test/suite/villagesql/examples/ that point outside the extraction
+# directory. These are stripped before unpacking. See
+# https://github.com/villagesql/villagesql-server/issues/237
+#
+# Security note: this workflow uses no user-controlled inputs (issue
+# bodies, PR titles, commit messages, etc.). All values are hardcoded.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+env:
+  VILLAGESQL_VERSION: "0.0.3"
+  VILLAGESQL_SHA256: "8b15522a973b17b430ed9e64e8bdbf97bf858cef028bfbc7f9b9608002406393"
+  VILLAGESQL_TARBALL: "villagesql-dev-server-0.0.3-dev-linux-x86_64.tar.gz"
+  VILLAGESQL_URL: "https://github.com/villagesql/villagesql-server/releases/download/0.0.3/villagesql-dev-server-0.0.3-dev-linux-x86_64.tar.gz"
+  # VillageSQL uses its own version scheme (0.0.3). Map to MySQL 8.0.40 for
+  # capability lookups (mysqld --initialize, CREATE USER, GTID, etc.)
+  MYSQL_MAPPED_VERSION: "8.0.40"
+  GO111MODULE: on
+  SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+
+jobs:
+  villagesql-deploy:
+    name: Deploy (VillageSQL ${{ env.VILLAGESQL_VERSION }})
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Cache VillageSQL tarball
+        uses: actions/cache@v4
+        with:
+          path: /tmp/villagesql-tarball
+          key: villagesql-${{ env.VILLAGESQL_VERSION }}-linux-x86_64-v1
+
+      - name: Download and verify VillageSQL tarball
+        run: |
+          mkdir -p /tmp/villagesql-tarball
+          if [ ! -f "/tmp/villagesql-tarball/$VILLAGESQL_TARBALL" ]; then
+            echo "Downloading VillageSQL $VILLAGESQL_VERSION..."
+            curl -L -f -o "/tmp/villagesql-tarball/$VILLAGESQL_TARBALL" "$VILLAGESQL_URL"
+          fi
+          echo "Verifying checksum..."
+          echo "$VILLAGESQL_SHA256  /tmp/villagesql-tarball/$VILLAGESQL_TARBALL" | sha256sum -c
+          ls -lh "/tmp/villagesql-tarball/$VILLAGESQL_TARBALL"
+
+      - name: Repack tarball without broken symlinks
+        run: |
+          cd /tmp
+          mkdir -p villagesql-staging villagesql-clean
+          tar xzf "villagesql-tarball/$VILLAGESQL_TARBALL" -C villagesql-staging
+          INNER="villagesql-staging/villagesql-dev-server-$VILLAGESQL_VERSION-dev-linux-x86_64"
+          # Remove symlinks that point outside the extraction directory
+          # (https://github.com/villagesql/villagesql-server/issues/237)
+          rm -f "$INNER/mysql-test/suite/villagesql/examples/vsql-complex"
+          rm -f "$INNER/mysql-test/suite/villagesql/examples/vsql-tvector"
+          tar czf "villagesql-clean/$VILLAGESQL_TARBALL" -C villagesql-staging \
+            "villagesql-dev-server-$VILLAGESQL_VERSION-dev-linux-x86_64"
+          rm -rf villagesql-staging
+
+      - name: Test unpack with --unpack-version
+        run: |
+          mkdir -p "$SANDBOX_BINARY"
+          ./dbdeployer unpack "/tmp/villagesql-clean/$VILLAGESQL_TARBALL" \
+            --sandbox-binary="$SANDBOX_BINARY" \
+            --unpack-version="$MYSQL_MAPPED_VERSION"
+
+          # Verify flavor detected as villagesql
+          FLAVOR_FILE="$SANDBOX_BINARY/$MYSQL_MAPPED_VERSION/FLAVOR"
+          [ -f "$FLAVOR_FILE" ] || { echo "FAIL: No FLAVOR file"; exit 1; }
+          FLAVOR=$(cat "$FLAVOR_FILE")
+          echo "Detected flavor: $FLAVOR"
+          [ "$FLAVOR" = "villagesql" ] || { echo "FAIL: expected 'villagesql', got '$FLAVOR'"; exit 1; }
+
+          # Verify marker file
+          MARKER="$SANDBOX_BINARY/$MYSQL_MAPPED_VERSION/share/villagesql_schema.sql"
+          [ -f "$MARKER" ] || { echo "FAIL: marker file not found"; exit 1; }
+          echo "OK: flavor=villagesql, marker file present"
+
+      - name: Test deploy single sandbox
+        run: |
+          ./dbdeployer deploy single "$MYSQL_MAPPED_VERSION" --sandbox-binary="$SANDBOX_BINARY"
+          VERSION=$(~/sandboxes/msb_*/use -BN -e "SELECT VERSION();")
+          echo "Server version: $VERSION"
+          echo "$VERSION" | grep -qi villagesql || { echo "FAIL: expected villagesql in VERSION()"; exit 1; }
+          echo "OK: VillageSQL single sandbox running"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Test deploy replication sandbox
+        run: |
+          ./dbdeployer deploy replication "$MYSQL_MAPPED_VERSION" --sandbox-binary="$SANDBOX_BINARY"
+          ~/sandboxes/rsandbox_*/check_slaves
+          ~/sandboxes/rsandbox_*/test_replication
+          echo "OK: VillageSQL replication sandbox works"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
+  villagesql-capabilities:
+    name: Capability Inheritance Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Run capability tests
+        run: go test ./common/... -v -run TestHasCapability -count=1
+
+      - name: Run copy capabilities tests
+        run: go test ./common/... -v -run TestCopyCapabilities -count=1

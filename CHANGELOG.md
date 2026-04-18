@@ -1,3 +1,133 @@
+## 2.2.2	18-Apr-2026
+
+## NEW FEATURES
+
+* Add VillageSQL flavor support. VillageSQL is a MySQL drop-in replacement
+  with extensions. Its tarballs are detected via the unique marker file
+  `share/villagesql_schema.sql` and reuse MySQL's sandbox lifecycle (init,
+  start, stop, grants, replication) unchanged. Because VillageSQL uses its
+  own version scheme (e.g. 0.0.3), unpacking requires `--unpack-version`
+  mapped to the MySQL base version (e.g. `--unpack-version=8.0.40`).
+* Add VillageSQL to CI: real tarball download, SHA256 checksum verification,
+  single and replication deployment tests, capability inheritance tests.
+
+## 2.2.1	09-Apr-2026
+
+## BUGS FIXED
+
+* Fix InnoDB Cluster deployment: let mysqlsh manage Group Replication from
+  scratch instead of conflicting with dbdeployer's GR setup
+* Fix InnoDB Cluster Basedir template pointing to wrong directory
+* Fix `--with-proxysql` failing for InnoDB Cluster (wrong sandbox path in
+  ProxySQL config)
+* Fix Router port extraction including config file path in the result
+* Fix Router start hanging forever when mysqlrouter process forks
+* Fix ProxySQL grep -v exiting under `set -e` in monitoring scripts
+* Fix ProxySQL GR monitor seeing all nodes as offline (hostgroup 3)
+* Fix fan-in CREATE DATABASE on node2 conflicting with node1's database
+* Fix copy of mysqlsh lib/mysqlsh/ directory (only .so files were copied)
+* Fix PostgreSQL multiple sandbox directory naming
+* Fix symlink opt/mysql for ts tests in CI (HOME path mismatch)
+* Remove MariaDB 11.4 from CI (authentication bug #82)
+
+## CI
+
+* Add install script test workflow (downloads and verifies dbdeployer install)
+* Drop macos-13 from install test (unsupported runner)
+* Replace sleep+check with retry loops for replication verification in CI
+
+## 2.2.0	08-Apr-2026
+
+## NEW FEATURES
+
+* Add MariaDB 10.6/10.11/11.4/11.7/11.8 and Percona Server 5.7/8.0/8.4
+  to tarball registry
+* Add ts replication test suite (MySQL 5.7, 8.0, 8.4, 9.5)
+* Add PostgreSQL ts testscript tests (single + replication)
+* Add MySQL 9.5 support for semisync and ts replication tests
+
+## BUGS FIXED
+
+* Use Slave|Replica pattern for IO/SQL thread status in multi-source
+  ts tests (compatibility with MySQL 8.x terminology)
+* Resolve CI failures for MariaDB, Percona, ts replication, and fan-in
+
+## CI
+
+* Add Percona Server and MariaDB integration tests
+* Add PostgreSQL ts testscript tests to CI
+* Add ts replication test suite to CI (5.7, 8.0, 8.4, 9.5)
+
+## 2.1.1	04-Apr-2026
+
+## BUGS FIXED
+
+* Fix macOS --minimal fallback and `--guess` using real URL patterns
+* Fix install script to download checksums.txt instead of per-file .sha256
+
+## 2.1.0	04-Apr-2026
+
+## NEW FEATURES
+
+* Add InnoDB Cluster topology (`--topology=innodb-cluster`) with MySQL Shell
+  and MySQL Router support
+* Add ProxySQL GR-aware hostgroups for InnoDB Cluster and Group Replication
+  (`--with-proxysql` configures reader/writer hostgroups automatically)
+* Add `--topology=group` single-primary and multi-primary Group Replication
+  with full CI coverage
+* Add fan-in and all-masters replication topologies with data verification
+* Add `downloads add-url` command for custom tarball URLs
+* Add MySQL 8.4-specific replication and group replication templates
+* Add ProxySQL PostgreSQL backend wiring (`pgsql_servers/pgsql_users`)
+* Add `--provider` flag and PostgreSQL routing to all deploy commands
+* Add `dbdeployer deploy postgresql` standalone command
+* Add `dbdeployer init --provider=postgresql` for one-command setup
+* Add macOS PostgreSQL support via Postgres.app binary detection
+* Add cross-database topology constraint validation
+* Add comprehensive topology/provider/proxy reference documentation
+* Add group replication, fan-in, all-masters, PostgreSQL multiple tests to CI
+* Add InnoDB Cluster integration tests (MySQL 8.4.8 + 9.5.0)
+* Add functional verification (write/read) to all integration tests
+* Add ProxySQL `--bootstrap` mode test script
+* Add admin web UI proof of concept
+
+## BUGS FIXED
+
+* Replace `\G` with `--vertical` in all replication templates (MySQL 9.5 compat)
+* Fix semisync template variable scoping and version detection
+* Fix PostgreSQL deb extraction version detection and binary setup
+* Fix PostgreSQL initdb requiring empty data dir (create log dir after initdb)
+* Fix PostgreSQL share files for deb-extracted binaries (timezonesets path)
+* Remove dead commented-out `semisync_master_enabled` from template
+* Fix `gosec` and `staticcheck` lint warnings in PostgreSQL and ProxySQL code
+
+## 2.0.0	24-Mar-2026
+
+Initial release under the ProxySQL organization. Forked from
+[datacharmer/dbdeployer](https://github.com/datacharmer/dbdeployer) v1.73.0
+with Giuseppe Maxia's blessing.
+
+## NEW FEATURES
+
+* PostgreSQL provider: full provider architecture with `initdb`, config
+  generation (`postgresql.conf`, `pg_hba.conf`), single sandbox deployment,
+  streaming replication via `pg_basebackup`, and monitoring scripts
+* PostgreSQL deb extraction for binary management (`unpack --provider=postgresql`)
+* ProxySQL provider: standalone and topology-integrated deployment
+  (`--with-proxysql` wires read/write split into any MySQL/PostgreSQL topology)
+* Provider interface with `SupportedTopologies` and `CreateReplica`
+* Add MySQL 8.4.0–8.4.8, 9.0.1, 9.1.0, 9.2.0, 9.3.0–9.5.0 to tarball registry
+* Add `dbdeployer init` with curl-based install script
+* Add admin web UI proof of concept
+* Add comprehensive website documentation at proxysql.github.io/dbdeployer
+
+## CI
+
+* Full GitHub Actions CI pipeline: lint, unit tests, build verification
+* Integration tests: MySQL, Percona Server, MariaDB, PostgreSQL, InnoDB Cluster,
+  Group Replication, fan-in, all-masters, ProxySQL wiring
+* Install script test workflow across multiple OS versions
+
 ## 1.73.0	09-Jul-2023
 
 ## NEW FEATURES
