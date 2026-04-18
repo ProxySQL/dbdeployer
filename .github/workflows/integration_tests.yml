@@ -379,6 +379,51 @@ jobs:
           cp -a /usr/share/postgresql/${PG_VERSION}/. ~/opt/postgresql/${PG_FULL}/share/
           ls ~/opt/postgresql/${PG_FULL}/bin/
 
+      - name: Test init --provider=postgresql
+        run: |
+          # Run init against isolated dirs, verify it creates them and
+          # prints the PostgreSQL setup instructions.
+          OUT=$(./dbdeployer init --provider=postgresql \
+            --sandbox-binary=/tmp/init-pg-bin \
+            --sandbox-home=/tmp/init-pg-home \
+            --skip-shell-completion 2>&1)
+          echo "$OUT"
+
+          # Verify directories were created
+          [ -d /tmp/init-pg-bin ] || { echo "FAIL: sandbox-binary not created"; exit 1; }
+          [ -d /tmp/init-pg-home ] || { echo "FAIL: sandbox-home not created"; exit 1; }
+
+          # Verify the Linux-specific PostgreSQL setup instructions were printed
+          echo "$OUT" | grep -q "PostgreSQL binaries are not auto-downloaded on Linux" || {
+            echo "FAIL: expected Linux PostgreSQL setup instructions in output"
+            exit 1
+          }
+          echo "$OUT" | grep -q "dbdeployer unpack --provider=postgresql" || {
+            echo "FAIL: expected unpack instructions in output"
+            exit 1
+          }
+
+          # Verify it didn't try to download a MySQL tarball
+          echo "$OUT" | grep -q "mysql-" && {
+            echo "FAIL: output references mysql tarball"
+            exit 1
+          }
+
+          # Sanity: invalid provider should fail
+          ./dbdeployer init --provider=oracle --dry-run \
+            --sandbox-binary=/tmp/init-bad \
+            --sandbox-home=/tmp/init-bad-home 2>&1 | grep -q "unknown provider" || {
+            echo "FAIL: invalid provider did not error as expected"
+            exit 1
+          }
+
+          # Cleanup init side-effects so the rest of the job uses its own dirs
+          rm -rf /tmp/init-pg-bin /tmp/init-pg-home /tmp/init-bad /tmp/init-bad-home
+          # Restore sandbox defaults so subsequent steps find ~/opt/postgresql
+          ./dbdeployer defaults update sandbox-binary "$HOME/opt/mysql"
+          ./dbdeployer defaults update sandbox-home "$HOME/sandboxes"
+          echo "OK: dbdeployer init --provider=postgresql works"
+
       - name: Test deploy postgresql (single)
         run: |
           PG_FULL=$(ls ~/opt/postgresql/ | head -1)
@@ -480,6 +525,86 @@ jobs:
           for dir in ~/sandboxes/pg_sandbox_* ~/sandboxes/postgresql_*; do
             [ -d "$dir" ] && bash "$dir/stop" 2>/dev/null || true
             rm -rf "$dir"
+          done 2>/dev/null || true
+          pkill -9 -u "$USER" postgres 2>/dev/null || true
+
+  # Test PostgreSQL support on macOS via Postgres.app (#85).
+  # `dbdeployer init --provider=postgresql` on macOS downloads a Postgres.app
+  # single-version .dmg, mounts it with hdiutil, and extracts bin/lib/share
+  # into ~/opt/postgresql/<major>/. This job verifies the full happy path
+  # end-to-end: init → directory layout → deploy single → SELECT.
+  postgresql-macos-test:
+    name: PostgreSQL on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-15]
+    env:
+      GO111MODULE: on
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: init --provider=postgresql (downloads Postgres.app)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Clean slate — no ~/opt/postgresql yet.
+          rm -rf "$HOME/opt/postgresql" "$HOME/sandboxes-pg-mac"
+          ./dbdeployer init --provider=postgresql \
+            --sandbox-home="$HOME/sandboxes-pg-mac" \
+            --skip-shell-completion
+
+          # Verify binaries landed under ~/opt/postgresql/<X.Y>/bin
+          INSTALL_DIR=$(ls -d "$HOME/opt/postgresql"/*/ 2>/dev/null | head -1)
+          [ -n "$INSTALL_DIR" ] || { echo "FAIL: no version directory under ~/opt/postgresql"; exit 1; }
+          echo "Install dir: $INSTALL_DIR"
+          for bin in postgres initdb pg_ctl psql pg_basebackup; do
+            [ -x "${INSTALL_DIR}bin/$bin" ] || { echo "FAIL: missing $bin at ${INSTALL_DIR}bin/"; exit 1; }
+          done
+          "${INSTALL_DIR}bin/postgres" --version
+          "${INSTALL_DIR}bin/psql" --version
+
+          # Check the directory name is in X.Y format
+          PG_VERSION=$(basename "${INSTALL_DIR%/}")
+          echo "$PG_VERSION" | grep -Eq '^[0-9]+\.[0-9]+$' || {
+            echo "FAIL: expected X.Y version dir, got: $PG_VERSION"
+            exit 1
+          }
+
+      - name: Deploy PostgreSQL single sandbox
+        run: |
+          # Discover the X.Y version that init installed
+          PG_VERSION=$(basename "$(ls -d "$HOME/opt/postgresql"/*/ | head -1 | sed 's:/$::')")
+          echo "Deploying PostgreSQL $PG_VERSION"
+          ./dbdeployer deploy postgresql "$PG_VERSION" \
+            --sandbox-home="$HOME/sandboxes-pg-mac"
+          # Discover the sandbox directory
+          SBDIR=$(ls -d "$HOME/sandboxes-pg-mac"/pg_sandbox_* | head -1)
+          echo "Sandbox: $SBDIR"
+          "$SBDIR/use" -c "SELECT version();"
+          "$SBDIR/status"
+
+      - name: Write + read smoke test
+        run: |
+          SBDIR=$(ls -d "$HOME/sandboxes-pg-mac"/pg_sandbox_* | head -1)
+          "$SBDIR/use" -c "CREATE TABLE mac_smoke(id serial, val text); INSERT INTO mac_smoke(val) VALUES ('hello_from_macos');"
+          RESULT=$("$SBDIR/use" -c "SELECT val FROM mac_smoke;" 2>&1)
+          echo "$RESULT"
+          echo "$RESULT" | grep -q "hello_from_macos" || { echo "FAIL: select did not return inserted row"; exit 1; }
+
+      - name: Cleanup
+        if: always()
+        run: |
+          for dir in "$HOME"/sandboxes-pg-mac/pg_sandbox_*; do
+            [ -d "$dir" ] && bash "$dir/stop" 2>/dev/null || true
           done 2>/dev/null || true
           pkill -9 -u "$USER" postgres 2>/dev/null || true
 

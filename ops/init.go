@@ -26,6 +26,7 @@ import (
 	"github.com/ProxySQL/dbdeployer/defaults"
 	"github.com/ProxySQL/dbdeployer/downloads"
 	"github.com/ProxySQL/dbdeployer/globals"
+	"github.com/ProxySQL/dbdeployer/providers/postgresql"
 	"github.com/ProxySQL/dbdeployer/rest"
 )
 
@@ -36,6 +37,7 @@ type InitOptions struct {
 	SkipDownloads       bool
 	SkipTarballDownload bool
 	SkipCompletion      bool
+	Provider            string
 }
 
 func verifyInitOptions(options InitOptions) error {
@@ -58,6 +60,24 @@ func InitEnvironment(options InitOptions) error {
 	dryRun := options.DryRun
 	skipDownloads := options.SkipDownloads
 	skipCompletion := options.SkipCompletion
+	provider := options.Provider
+	if provider == "" {
+		provider = "mysql"
+	}
+	if provider != "mysql" && provider != "postgresql" {
+		return fmt.Errorf("unknown provider %q: supported values are 'mysql' and 'postgresql'", provider)
+	}
+
+	// For PostgreSQL, point sandbox-binary at ~/opt/postgresql instead of
+	// the MySQL default, unless the user explicitly overrode it via
+	// --sandbox-binary.
+	if provider == "postgresql" && sandboxBinary == defaults.Defaults().SandboxBinary {
+		home, herr := os.UserHomeDir()
+		if herr != nil {
+			return fmt.Errorf("cannot determine home directory: %s", herr)
+		}
+		sandboxBinary = path.Join(home, "opt", "postgresql")
+	}
 
 	sandboxHome, err = common.AbsolutePath(sandboxHome)
 	if err != nil {
@@ -164,9 +184,16 @@ func InitEnvironment(options InitOptions) error {
 	fmt.Println()
 
 	if needDownload {
-		err = initDownloadTarball(options)
-		if err != nil {
-			return err
+		if provider == "postgresql" {
+			err = initInstallPostgreSQL(options, sandboxBinary)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = initDownloadTarball(options)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if !common.DirExists(defaults.ConfigurationDir) {
@@ -230,4 +257,81 @@ func initDownloadTarball(options InitOptions) error {
 		}
 	}
 	return nil
+}
+
+// initInstallPostgreSQL is the PostgreSQL equivalent of initDownloadTarball.
+//
+// On macOS, it downloads the latest Postgres.app .dmg (single-major-version
+// asset) and extracts bin/lib/share/include into sandboxBinary/<version>/.
+// No sudo, no GUI, no Homebrew.
+//
+// On Linux, dbdeployer has no automatic PostgreSQL download yet (the .deb
+// packaging is messy to resolve programmatically — architecture-specific,
+// Ubuntu-version-specific, and the PGDG repo has multiple build variants
+// per release). Instead, print clear instructions telling the user how
+// to obtain the .deb files and run `dbdeployer unpack --provider=postgresql`.
+func initInstallPostgreSQL(options InitOptions, sandboxBinary string) error {
+	if runtime.GOOS == "darwin" {
+		return initInstallPostgresApp(options, sandboxBinary)
+	}
+	printPostgreSQLSetupInstructions(sandboxBinary)
+	return nil
+}
+
+// initInstallPostgresApp picks the latest Postgres.app release, downloads
+// the most recent single-major-version .dmg, and extracts it under
+// sandboxBinary/<X.Y>/ where <X.Y> is the exact PostgreSQL version that
+// `postgres --version` reports. Honors --dry-run / --skip-tarball-download
+// / --skip-all-downloads.
+func initInstallPostgresApp(options InitOptions, sandboxBinary string) error {
+	fmt.Println(globals.DashLine)
+	fmt.Println("# Fetching latest Postgres.app release from GitHub")
+	assets, err := postgresql.LatestPostgresAppAssets()
+	if err != nil {
+		return fmt.Errorf("cannot discover Postgres.app release: %s", err)
+	}
+	// Pick the newest major version available.
+	asset := assets[0]
+	fmt.Printf("Postgres.app %s bundles PostgreSQL major %s\n", asset.AppVersion, asset.Major)
+	fmt.Printf("  URL:        %s\n", asset.URL)
+	fmt.Printf("  Size:       ~%d MB\n", asset.Size/(1024*1024))
+	fmt.Printf("  Target dir: %s/<X.Y>/\n", sandboxBinary)
+
+	if options.DryRun || options.SkipDownloads || options.SkipTarballDownload {
+		fmt.Println("(skipped: --dry-run / --skip-downloads / --skip-tarball-download)")
+		return nil
+	}
+
+	fullVersion, err := postgresql.InstallFromPostgresAppDMG(asset, sandboxBinary)
+	if err != nil {
+		return fmt.Errorf("installing Postgres.app: %s", err)
+	}
+	fmt.Println(globals.DashLine)
+	fmt.Printf("PostgreSQL %s binaries installed under %s/%s/\n", fullVersion, sandboxBinary, fullVersion)
+	fmt.Println("You can now deploy PostgreSQL sandboxes with:")
+	fmt.Printf("  dbdeployer deploy postgresql %s\n", fullVersion)
+	fmt.Printf("  dbdeployer deploy replication %s --provider=postgresql\n", fullVersion)
+	return nil
+}
+
+// printPostgreSQLSetupInstructions explains how to populate the PostgreSQL
+// sandbox-binary directory on Linux, where dbdeployer does not (yet)
+// auto-download PostgreSQL packages. The user provides the .deb files and
+// runs `dbdeployer unpack --provider=postgresql`.
+func printPostgreSQLSetupInstructions(sandboxBinary string) {
+	fmt.Println(globals.DashLine)
+	fmt.Println("PostgreSQL binaries are not auto-downloaded on Linux.")
+	fmt.Println("Fetch the server + client .deb packages from either:")
+	fmt.Println("  - https://apt.postgresql.org/pub/repos/apt/pool/main/p/postgresql-16/")
+	fmt.Println("  - your distribution's PostgreSQL package mirror")
+	fmt.Println()
+	fmt.Println("Then unpack them into the sandbox-binary directory:")
+	fmt.Printf("  dbdeployer unpack --provider=postgresql \\\n")
+	fmt.Printf("      postgresql-16_*.deb postgresql-client-16_*.deb\n")
+	fmt.Println()
+	fmt.Printf("Binaries will be installed under %s/<version>/\n", sandboxBinary)
+	fmt.Println()
+	fmt.Println("Once unpacked, you can deploy PostgreSQL sandboxes with:")
+	fmt.Println("  dbdeployer deploy postgresql <version>")
+	fmt.Println("  dbdeployer deploy replication <version> --provider=postgresql")
 }
