@@ -88,7 +88,7 @@ dbdeployer deploy single 8.0.40
 | MariaDB | ✓ | ✓ | — | ✓ |
 | NDB Cluster | ✓ | ✓ | — | — |
 | Percona XtraDB Cluster | ✓ | ✓ | — | — |
-| VillageSQL | ✓ | ✓ | ✓ | ✓ |
+| VillageSQL | ✓ | ✓ | — | — |
 
 ## Key Features
 
