@@ -154,6 +154,7 @@ func GetCompatibleClientVersion(basedir, serverVersion string) (string, error) {
 	compatibleFlavors := map[string]bool{
 		MySQLFlavor:         true,
 		PerconaServerFlavor: true,
+		VillageSQLFlavor:    true,
 	}
 	serverVersionList, err := VersionToList(serverVersion)
 	if err != nil {
@@ -875,6 +876,7 @@ func DetectTarballFlavor(tarballName string) string {
 		TiDbFlavor:          `tidb`,
 		PxcFlavor:           `Percona-XtraDB-Cluster`,
 		MySQLShellFlavor:    `mysql-shell`,
+		VillageSQLFlavor:    `villagesql`,
 		MySQLFlavor:         `mysql`,
 	}
 
@@ -887,6 +889,7 @@ func DetectTarballFlavor(tarballName string) string {
 		TiDbFlavor,
 		PxcFlavor,
 		MySQLShellFlavor,
+		VillageSQLFlavor,
 		MySQLFlavor,
 	}
 

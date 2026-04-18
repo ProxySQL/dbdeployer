@@ -475,6 +475,7 @@ const (
 	FnNdbdMtd                     = "ndbmtd"
 	FnTableH                      = "table.h"
 	FnTiDbServer                  = "tidb-server"
+	FnVillagesqlSchema            = "villagesql_schema.sql"
 )
 
 var AllowedTopologies = []string{

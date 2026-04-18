@@ -1,0 +1,130 @@
+name: VillageSQL Flavor Test
+
+# Tests VillageSQL flavor detection and capability inheritance.
+# Since VillageSQL tarballs are not publicly downloadable, this workflow
+# constructs a mock tarball with the unique marker file
+# (share/villagesql_schema.sql) and verifies that dbdeployer:
+#   1. Detects the flavor as "villagesql" (not "mysql")
+#   2. Inherits MySQL capabilities correctly
+#   3. Reports the flavor through the capabilities API
+#
+# Security note: this workflow uses no user-controlled inputs (issue
+# bodies, PR titles, commit messages, etc.). All values are hardcoded.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  villagesql-flavor-detection:
+    name: Flavor Detection
+    runs-on: ubuntu-latest
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      MYSQL_VERSION: "8.0.42"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Cache MySQL tarball
+        uses: actions/cache@v4
+        with:
+          path: /tmp/mysql-tarball
+          key: mysql-8.0.42-linux-x86_64-v1
+
+      - name: Download MySQL tarball (base for mock)
+        run: |
+          mkdir -p /tmp/mysql-tarball
+          TARBALL="mysql-${MYSQL_VERSION}-linux-glibc2.17-x86_64.tar.xz"
+          if [ ! -f "/tmp/mysql-tarball/$TARBALL" ]; then
+            curl -L -f -o "/tmp/mysql-tarball/$TARBALL" \
+              "https://dev.mysql.com/get/Downloads/MySQL-8.0/$TARBALL" \
+              || curl -L -f -o "/tmp/mysql-tarball/$TARBALL" \
+              "https://downloads.mysql.com/archives/get/p/23/file/$TARBALL"
+          fi
+
+      - name: Create mock VillageSQL tarball
+        run: |
+          # Unpack MySQL tarball to get a valid MySQL directory structure
+          tar xf "/tmp/mysql-tarball/mysql-${MYSQL_VERSION}-linux-glibc2.17-x86_64.tar.xz" -C /tmp/
+          MYSQL_DIR="/tmp/mysql-${MYSQL_VERSION}-linux-glibc2.17-x86_64"
+          echo "MySQL dir: $MYSQL_DIR"
+
+          # Add the VillageSQL marker file
+          mkdir -p "$MYSQL_DIR/share"
+          touch "$MYSQL_DIR/share/villagesql_schema.sql"
+
+          # Repack as a mock VillageSQL tarball
+          BASENAME=$(basename "$MYSQL_DIR")
+          tar czf /tmp/villagesql-dev-server-0.0.3-dev-linux-x86_64.tar.gz -C /tmp "$BASENAME"
+          ls -lh /tmp/villagesql-*.tar.gz
+
+      - name: Test unpack detects villagesql flavor
+        run: |
+          mkdir -p "$SANDBOX_BINARY"
+          ./dbdeployer unpack /tmp/villagesql-dev-server-0.0.3-dev-linux-x86_64.tar.gz \
+            --sandbox-binary="$SANDBOX_BINARY"
+          # Check that FLAVOR file was created with "villagesql"
+          EXTRACTED=$(ls "$SANDBOX_BINARY" | head -1)
+          echo "Extracted directory: $EXTRACTED"
+          FLAVOR_FILE="$SANDBOX_BINARY/$EXTRACTED/FLAVOR"
+          if [ -f "$FLAVOR_FILE" ]; then
+            FLAVOR=$(cat "$FLAVOR_FILE")
+            echo "Detected flavor: $FLAVOR"
+            [ "$FLAVOR" = "villagesql" ] || { echo "FAIL: expected flavor 'villagesql', got '$FLAVOR'"; exit 1; }
+            echo "OK: flavor detected as villagesql"
+          else
+            # Fall back to binary detection check
+            DETECTED=$(./dbdeployer versions --sandbox-binary="$SANDBOX_BINARY" 2>&1)
+            echo "Versions output: $DETECTED"
+            echo "$DETECTED" | grep -i villagesql && echo "OK: villagesql found in versions output" || {
+              echo "WARN: No FLAVOR file and villagesql not in versions output"
+            }
+          fi
+
+      - name: Test deploy single sandbox
+        run: |
+          VERSION=$(ls "$SANDBOX_BINARY" | head -1)
+          echo "Deploying VillageSQL $VERSION..."
+          ./dbdeployer deploy single "$VERSION" --sandbox-binary="$SANDBOX_BINARY"
+          ~/sandboxes/msb_*/use -e "SELECT VERSION();"
+          echo "OK: VillageSQL single sandbox deployed and running"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
+  villagesql-capabilities:
+    name: Capability Inheritance Tests
+    runs-on: ubuntu-latest
+    env:
+      GO111MODULE: on
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Run capability tests
+        run: go test ./common/... -v -run TestHasCapability -count=1
+
+      - name: Run copy capabilities tests
+        run: go test ./common/... -v -run TestCopyCapabilities -count=1

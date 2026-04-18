@@ -71,6 +71,7 @@ dbdeployer deploy replication 16.13 --provider=postgresql
 | MariaDB | ✓ | ✓ | — | ✓ |
 | NDB Cluster | ✓ | ✓ | — | — |
 | Percona XtraDB Cluster | ✓ | ✓ | — | — |
+| VillageSQL | ✓ | ✓ | ✓ | ✓ |
 
 ## Key Features
 

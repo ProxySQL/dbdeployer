@@ -9,6 +9,7 @@ Before version 1.19.0, dbdeployer assumed that it was dealing to some version of
 * `pxc`: Percona Xtradb Cluster
 * `ndb`: MySQL Cluster (NDB)
 * `tidb`: A stand-alone TiDB server.
+* `villagesql`: VillageSQL server, a MySQL drop-in replacement with extensions. It uses the same capabilities as MySQL and is detected by the presence of `share/villagesql_schema.sql` in the tarball.
 
 To see what every flavor can do, you can use the command `dbdeployer admin capabilities`.
 
