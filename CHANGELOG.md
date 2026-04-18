@@ -5,7 +5,9 @@
 * Add VillageSQL flavor support. VillageSQL is a MySQL drop-in replacement
   with extensions. Its tarballs are detected via the unique marker file
   `share/villagesql_schema.sql` and reuse MySQL's sandbox lifecycle (init,
-  start, stop, grants, replication) unchanged.
+  start, stop, grants, replication) unchanged. Because VillageSQL uses its
+  own version scheme (e.g. 0.0.3), unpacking requires `--unpack-version`
+  mapped to the MySQL base version (e.g. `--unpack-version=8.0.40`).
 
 ## 1.73.0	09-Jul-2023
 

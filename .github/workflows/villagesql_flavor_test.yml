@@ -1,24 +1,20 @@
 name: VillageSQL Flavor Test
 
-# Tests VillageSQL flavor detection and capability inheritance using the
-# official VillageSQL 0.0.3 release tarball from
+# Tests VillageSQL flavor detection, sandbox deployment, and capability
+# inheritance using the official VillageSQL 0.0.3 release tarball from
 # https://github.com/villagesql/villagesql-server/releases/tag/0.0.3
 #
 # The workflow verifies:
-#   1. dbdeployer unpack detects the flavor as "villagesql" (not "mysql")
-#      using the share/villagesql_schema.sql marker file
-#   2. The villagesql capabilities correctly inherit MySQL capabilities
-#   3. Unit tests for InstallDb, Initialize, MySQLX pass for villagesql
+#   1. dbdeployer unpack detects the flavor as "villagesql" via the
+#      share/villagesql_schema.sql marker file
+#   2. Single sandbox deployment works with --unpack-version mapping
+#   3. Replication deployment works with data verification
+#   4. VillageSQL capabilities correctly inherit MySQL capabilities
 #
-# Note: The VillageSQL tarball contains symlinks in
+# Note: The 0.0.3 tarball contains two symlinks in
 # mysql-test/suite/villagesql/examples/ that point outside the extraction
-# directory (vsql-complex, vsql-tvector). These are removed before unpacking
-# because dbdeployer's security check rejects them.
-#
-# Note: Sandbox deployment is not tested here because VillageSQL uses its own
-# version scheme (0.0.3) which does not map to MySQL's capability versions.
-# Deployment requires unpacking with a MySQL-compatible version, e.g.:
-#   dbdeployer unpack villagesql-*.tar.gz --unpack-version=8.0.40
+# directory. These are stripped before unpacking. See
+# https://github.com/villagesql/villagesql-server/issues/237
 #
 # Security note: this workflow uses no user-controlled inputs (issue
 # bodies, PR titles, commit messages, etc.). All values are hardcoded.
@@ -34,12 +30,15 @@ env:
   VILLAGESQL_SHA256: "8b15522a973b17b430ed9e64e8bdbf97bf858cef028bfbc7f9b9608002406393"
   VILLAGESQL_TARBALL: "villagesql-dev-server-0.0.3-dev-linux-x86_64.tar.gz"
   VILLAGESQL_URL: "https://github.com/villagesql/villagesql-server/releases/download/0.0.3/villagesql-dev-server-0.0.3-dev-linux-x86_64.tar.gz"
+  # VillageSQL uses its own version scheme (0.0.3). Map to MySQL 8.0.40 for
+  # capability lookups (mysqld --initialize, CREATE USER, GTID, etc.)
+  MYSQL_MAPPED_VERSION: "8.0.40"
   GO111MODULE: on
   SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
 
 jobs:
-  villagesql-flavor-detection:
-    name: Flavor Detection + Unpack
+  villagesql-deploy:
+    name: Deploy (VillageSQL ${{ env.VILLAGESQL_VERSION }})
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -47,6 +46,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
 
       - name: Build dbdeployer
         run: go build -o dbdeployer .
@@ -71,52 +75,58 @@ jobs:
       - name: Repack tarball without broken symlinks
         run: |
           cd /tmp
-          mkdir -p villagesql-staging
+          mkdir -p villagesql-staging villagesql-clean
           tar xzf "villagesql-tarball/$VILLAGESQL_TARBALL" -C villagesql-staging
           INNER="villagesql-staging/villagesql-dev-server-$VILLAGESQL_VERSION-dev-linux-x86_64"
           # Remove symlinks that point outside the extraction directory
-          # (mysql-test/suite/villagesql/examples/* -> ../../../../villagesql/...)
+          # (https://github.com/villagesql/villagesql-server/issues/237)
           rm -f "$INNER/mysql-test/suite/villagesql/examples/vsql-complex"
           rm -f "$INNER/mysql-test/suite/villagesql/examples/vsql-tvector"
-          mkdir -p villagesql-clean
           tar czf "villagesql-clean/$VILLAGESQL_TARBALL" -C villagesql-staging \
             "villagesql-dev-server-$VILLAGESQL_VERSION-dev-linux-x86_64"
           rm -rf villagesql-staging
 
-      - name: Test unpack detects villagesql flavor
+      - name: Test unpack with --unpack-version
         run: |
           mkdir -p "$SANDBOX_BINARY"
           ./dbdeployer unpack "/tmp/villagesql-clean/$VILLAGESQL_TARBALL" \
-            --sandbox-binary="$SANDBOX_BINARY"
-          EXTRACTED=$(ls "$SANDBOX_BINARY" | head -1)
-          echo "Extracted directory: $EXTRACTED"
-          FLAVOR_FILE="$SANDBOX_BINARY/$EXTRACTED/FLAVOR"
-          if [ -f "$FLAVOR_FILE" ]; then
-            FLAVOR=$(cat "$FLAVOR_FILE")
-            echo "Detected flavor: $FLAVOR"
-            [ "$FLAVOR" = "villagesql" ] || { echo "FAIL: expected flavor 'villagesql', got '$FLAVOR'"; exit 1; }
-            echo "OK: flavor detected as villagesql"
-          else
-            # Binary detection fallback
-            DETECTED=$(./dbdeployer versions --sandbox-binary="$SANDBOX_BINARY" 2>&1)
-            echo "Versions output: $DETECTED"
-            echo "FAIL: No FLAVOR file detected"
-            exit 1
-          fi
+            --sandbox-binary="$SANDBOX_BINARY" \
+            --unpack-version="$MYSQL_MAPPED_VERSION"
 
-      - name: Verify marker file present
-        run: |
-          EXTRACTED=$(ls "$SANDBOX_BINARY" | head -1)
-          MARKER="$SANDBOX_BINARY/$EXTRACTED/share/villagesql_schema.sql"
-          [ -f "$MARKER" ] || { echo "FAIL: marker file $MARKER not found"; exit 1; }
-          echo "OK: villagesql_schema.sql marker file found"
+          # Verify flavor detected as villagesql
+          FLAVOR_FILE="$SANDBOX_BINARY/$MYSQL_MAPPED_VERSION/FLAVOR"
+          [ -f "$FLAVOR_FILE" ] || { echo "FAIL: No FLAVOR file"; exit 1; }
+          FLAVOR=$(cat "$FLAVOR_FILE")
+          echo "Detected flavor: $FLAVOR"
+          [ "$FLAVOR" = "villagesql" ] || { echo "FAIL: expected 'villagesql', got '$FLAVOR'"; exit 1; }
 
-      - name: Verify MySQL binaries present
+          # Verify marker file
+          MARKER="$SANDBOX_BINARY/$MYSQL_MAPPED_VERSION/share/villagesql_schema.sql"
+          [ -f "$MARKER" ] || { echo "FAIL: marker file not found"; exit 1; }
+          echo "OK: flavor=villagesql, marker file present"
+
+      - name: Test deploy single sandbox
         run: |
-          EXTRACTED=$(ls "$SANDBOX_BINARY" | head -1)
-          [ -f "$SANDBOX_BINARY/$EXTRACTED/bin/mysqld" ] || { echo "FAIL: bin/mysqld not found"; exit 1; }
-          [ -f "$SANDBOX_BINARY/$EXTRACTED/bin/mysql" ] || { echo "FAIL: bin/mysql not found"; exit 1; }
-          echo "OK: MySQL-compatible binaries present"
+          ./dbdeployer deploy single "$MYSQL_MAPPED_VERSION" --sandbox-binary="$SANDBOX_BINARY"
+          VERSION=$(~/sandboxes/msb_*/use -BN -e "SELECT VERSION();")
+          echo "Server version: $VERSION"
+          echo "$VERSION" | grep -qi villagesql || { echo "FAIL: expected villagesql in VERSION()"; exit 1; }
+          echo "OK: VillageSQL single sandbox running"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Test deploy replication sandbox
+        run: |
+          ./dbdeployer deploy replication "$MYSQL_MAPPED_VERSION" --sandbox-binary="$SANDBOX_BINARY"
+          ~/sandboxes/rsandbox_*/check_slaves
+          ~/sandboxes/rsandbox_*/test_replication
+          echo "OK: VillageSQL replication sandbox works"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
 
   villagesql-capabilities:
     name: Capability Inheritance Tests
