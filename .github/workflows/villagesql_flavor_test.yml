@@ -38,7 +38,7 @@ env:
 
 jobs:
   villagesql-deploy:
-    name: Deploy (VillageSQL ${{ env.VILLAGESQL_VERSION }})
+    name: Deploy (VillageSQL 0.0.3)
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
