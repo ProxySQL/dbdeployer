@@ -1,5 +1,14 @@
 ## Unreleased
 
+## BUGS FIXED
+
+* Fail early when `mysqlsh` on PATH is too old for the target server
+  version (e.g. mysqlsh 8.0.x + MySQL Server 8.4+), instead of letting
+  the AdminAPI fail mid-deploy with "Unsupported server version"
+  (issue #87). dbdeployer now parses `mysqlsh --version`, compares its
+  major.minor to the server's, and emits an actionable error telling
+  the user to install a matching mysqlsh.
+
 ## DOCUMENTATION
 
 * Recommend `sudo cp` instead of `sudo mv` in manual install steps, so

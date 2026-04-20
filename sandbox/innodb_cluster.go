@@ -52,6 +52,56 @@ func findMysqlShell(basedir string) (string, error) {
 		"Install it from https://dev.mysql.com/downloads/shell/", basedir)
 }
 
+// mysqlShellVersionRegexp matches the "Ver X.Y.Z" token emitted by
+// `mysqlsh --version` (e.g. "mysqlsh   Ver 8.0.36 for Linux on x86_64 ...").
+var mysqlShellVersionRegexp = regexp.MustCompile(`Ver\s+(\d+\.\d+\.\d+)`)
+
+// getMysqlShellVersion runs `mysqlsh --version` and returns the parsed
+// X.Y.Z version string.
+func getMysqlShellVersion(mysqlshPath string) (string, error) {
+	out, err := common.RunCmdCtrlWithArgs(mysqlshPath, []string{"--version"}, true)
+	if err != nil {
+		return "", fmt.Errorf("running '%s --version': %s", mysqlshPath, err)
+	}
+	m := mysqlShellVersionRegexp.FindStringSubmatch(out)
+	if len(m) < 2 {
+		return "", fmt.Errorf("could not parse mysqlsh version from: %s", out)
+	}
+	return m[1], nil
+}
+
+// checkMysqlShellCompatibility verifies that a MySQL Shell at shellVersion
+// can drive a MySQL Server at serverVersion via AdminAPI. The rule is:
+// mysqlsh's major.minor must be >= the server's major.minor. In particular,
+// MySQL Shell 8.0.x refuses any server > 8.0 with
+// "Unsupported server version: AdminAPI operations in this version of
+// MySQL Shell support MySQL Server up to version 8.0".
+func checkMysqlShellCompatibility(shellVersion, serverVersion string) error {
+	shellList, err := common.VersionToList(shellVersion)
+	if err != nil {
+		return fmt.Errorf("invalid mysqlsh version '%s': %s", shellVersion, err)
+	}
+	serverList, err := common.VersionToList(serverVersion)
+	if err != nil {
+		return fmt.Errorf("invalid server version '%s': %s", serverVersion, err)
+	}
+	shellMajor, shellMinor := shellList[0], shellList[1]
+	serverMajor, serverMinor := serverList[0], serverList[1]
+	if shellMajor > serverMajor ||
+		(shellMajor == serverMajor && shellMinor >= serverMinor) {
+		return nil
+	}
+	return fmt.Errorf(
+		"MySQL Shell %s is too old for MySQL Server %s: "+
+			"the AdminAPI in mysqlsh %d.%d only supports MySQL Server up to %d.%d. "+
+			"Install mysqlsh >= %d.%d (see https://dev.mysql.com/downloads/shell/) "+
+			"and make sure it is the one found on $PATH, "+
+			"or place its 'mysqlsh' binary under <basedir>/bin/",
+		shellVersion, serverVersion,
+		shellMajor, shellMinor, shellMajor, shellMinor,
+		serverMajor, serverMinor)
+}
+
 // findMysqlRouter locates the mysqlrouter binary. It first checks the basedir/bin
 // directory, then falls back to the system PATH.
 func findMysqlRouter(basedir string) (string, error) {
@@ -115,6 +165,20 @@ func CreateInnoDBCluster(sandboxDef SandboxDef, origin string, nodes int, master
 		return err
 	}
 	logger.Printf("Using MySQL Shell: %s\n", mysqlshPath)
+
+	// Pre-flight: fail early if the mysqlsh AdminAPI can't manage this
+	// server version (e.g. mysqlsh 8.0.x + server 8.4.x). If parsing the
+	// shell's own --version fails for any reason, proceed — we don't want
+	// unknown output to block a valid deployment.
+	shellVersion, err := getMysqlShellVersion(mysqlshPath)
+	if err != nil {
+		logger.Printf("Warning: could not determine mysqlsh version: %s\n", err)
+	} else {
+		logger.Printf("Detected MySQL Shell version: %s\n", shellVersion)
+		if err := checkMysqlShellCompatibility(shellVersion, sandboxDef.Version); err != nil {
+			return err
+		}
+	}
 
 	// Find mysqlrouter - optional if --skip-router is set
 	var mysqlrouterPath string
