@@ -39,7 +39,10 @@ env:
 jobs:
   villagesql-deploy:
     name: Deploy (VillageSQL 0.0.3)
-    runs-on: ubuntu-22.04
+    # Requires ubuntu-24.04: the VillageSQL 0.0.3 tarball is linked against
+    # glibc 2.38 / GLIBCXX_3.4.32 and expects libaio.so.1t64, none of which
+    # are available on ubuntu-22.04.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -50,7 +53,9 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5
+          # Ubuntu 24.04 renamed libaio1 → libaio1t64 and dropped libncurses5
+          # (libncurses6 replaces it).
+          sudo apt-get install -y libaio1t64 libnuma1 libncurses6
 
       - name: Build dbdeployer
         run: go build -o dbdeployer .
