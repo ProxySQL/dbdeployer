@@ -1,3 +1,11 @@
+## Unreleased
+
+## DOCUMENTATION
+
+* Recommend `sudo cp` instead of `sudo mv` in manual install steps, so
+  the `dbdeployer` binary in `/usr/local/bin/` is owned by root rather
+  than the user who ran `wget`/`tar` (issue #89).
+
 ## 2.2.2	18-Apr-2026
 
 ## NEW FEATURES

@@ -82,7 +82,8 @@ For example:
     $ wget $origin/dbdeployer-$VERSION.$OS.tar.gz
     $ tar -xzf dbdeployer-$VERSION.$OS.tar.gz
     $ chmod +x dbdeployer-$VERSION.$OS
-    $ sudo mv dbdeployer-$VERSION.$OS /usr/local/bin/dbdeployer
+    $ sudo cp dbdeployer-$VERSION.$OS /usr/local/bin/dbdeployer
+    $ rm dbdeployer-$VERSION.$OS
 
 Of course, there are **prerequisites**: your machine must be able to run the MySQL server. Be aware that version 5.5 and higher require some libraries that are not installed by default in all flavors of Linux (libnuma, libaio.)
 
