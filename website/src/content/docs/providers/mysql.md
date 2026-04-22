@@ -85,7 +85,7 @@ dbdeployer deploy single lab_8.0.35
 
 | Series | Status | Topologies |
 |--------|--------|-----------|
-| 5.6.x | Legacy | single, replication (GTID 5.6.9+), fan-in/all-masters unsupported |
+| 5.6.x | Legacy | single, replication |
 | 5.7.x | Legacy | single, replication, group (5.7.17+) |
 | 8.0.x | Stable | all topologies |
 | 8.4.x | LTS (recommended) | all topologies |
@@ -97,8 +97,8 @@ All topologies are deployed with `dbdeployer deploy replication <version> --topo
 
 | Topology | Flag | Min Version |
 |----------|------|-------------|
-| Single | `deploy single` | 5.6 |
-| Master-slave | `--topology=master-slave` (default) | 5.6 |
+| Single | `deploy single` | any |
+| Master-slave | `--topology=master-slave` (default) | any |
 | Group Replication | `--topology=group` | 5.7.17 |
 | Single-primary GR | `--topology=group --single-primary` | 5.7.17 |
 | InnoDB Cluster | `--topology=innodb-cluster` | 8.0 |

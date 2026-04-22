@@ -48,7 +48,7 @@ jobs:
           path: /tmp/mysql-tarball
           key: mysql-${{ matrix.mysql-version }}-linux-x86_64-v1
 
-      - name: Download MySQL
+      - name: Resolve tarball name
         run: |
           SHORT_VER=$(echo "$MYSQL_VERSION" | grep -oP '^\d+\.\d+')
           # MySQL 5.6 ships as .tar.gz built against glibc2.12; 5.7+ ships
@@ -58,6 +58,11 @@ jobs:
           else
             TARBALL="mysql-${MYSQL_VERSION}-linux-glibc2.17-x86_64.tar.xz"
           fi
+          echo "SHORT_VER=$SHORT_VER" >> "$GITHUB_ENV"
+          echo "TARBALL=$TARBALL" >> "$GITHUB_ENV"
+
+      - name: Download MySQL
+        run: |
           mkdir -p /tmp/mysql-tarball
           if [ ! -f "/tmp/mysql-tarball/$TARBALL" ]; then
             echo "Downloading $TARBALL..."
@@ -71,12 +76,6 @@ jobs:
       - name: Unpack MySQL
         run: |
           mkdir -p "$SANDBOX_BINARY"
-          SHORT_VER=$(echo "$MYSQL_VERSION" | grep -oP '^\d+\.\d+')
-          if [ "$SHORT_VER" = "5.6" ]; then
-            TARBALL="mysql-${MYSQL_VERSION}-linux-glibc2.12-x86_64.tar.gz"
-          else
-            TARBALL="mysql-${MYSQL_VERSION}-linux-glibc2.17-x86_64.tar.xz"
-          fi
           ./dbdeployer unpack "/tmp/mysql-tarball/$TARBALL" \
             --sandbox-binary="$SANDBOX_BINARY"
 
