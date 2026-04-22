@@ -67,6 +67,19 @@ func writeTar(t *testing.T, path string, entries []tarEntry) {
 	}
 }
 
+// unpackTarForTest wraps UnpackTar so that the process cwd is restored after
+// the call. UnpackTar does os.Chdir(destination); without a restore, tests
+// that use t.TempDir() would leak a deleted cwd into subsequent tests.
+func unpackTarForTest(t *testing.T, tarPath, dest string) error {
+	t.Helper()
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get cwd: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+	return UnpackTar(tarPath, dest, SILENT)
+}
+
 // Test_symlinkChainEscape reproduces the PoC from the report: a chain of
 // dirN -> dirN-1/.. symlinks whose cumulative realpath climbs above the
 // extraction directory, followed by a pivot symlink with a path depth equal
@@ -98,7 +111,7 @@ func Test_symlinkChainEscape(t *testing.T) {
 	tarPath := filepath.Join(root, "archive.tar")
 	writeTar(t, tarPath, entries)
 
-	err := UnpackTar(tarPath, dest, SILENT)
+	err := unpackTarForTest(t, tarPath, dest)
 	if err == nil {
 		t.Fatalf("expected extraction to fail, but it succeeded")
 	}
@@ -128,7 +141,7 @@ func Test_symlinkSingleHopEscape(t *testing.T) {
 	tarPath := filepath.Join(root, "archive.tar")
 	writeTar(t, tarPath, entries)
 
-	if err := UnpackTar(tarPath, dest, SILENT); err == nil {
+	if err := unpackTarForTest(t, tarPath, dest); err == nil {
 		t.Fatalf("expected extraction to fail for escaping symlink")
 	}
 }
@@ -148,7 +161,7 @@ func Test_symlinkAbsoluteTarget(t *testing.T) {
 	tarPath := filepath.Join(root, "archive.tar")
 	writeTar(t, tarPath, entries)
 
-	if err := UnpackTar(tarPath, dest, SILENT); err == nil {
+	if err := unpackTarForTest(t, tarPath, dest); err == nil {
 		t.Fatalf("expected extraction to fail for absolute-path symlink")
 	}
 }
@@ -169,7 +182,7 @@ func Test_legitimateSymlinkPreserved(t *testing.T) {
 	tarPath := filepath.Join(root, "archive.tar")
 	writeTar(t, tarPath, entries)
 
-	if err := UnpackTar(tarPath, dest, SILENT); err != nil {
+	if err := unpackTarForTest(t, tarPath, dest); err != nil {
 		t.Fatalf("unexpected extraction failure: %v", err)
 	}
 	linkPath := filepath.Join(dest, "mysql", "lib", "libssl.dylib")
@@ -202,7 +215,7 @@ func Test_refuseOverwriteSymlinkWithRegular(t *testing.T) {
 	tarPath := filepath.Join(root, "archive.tar")
 	writeTar(t, tarPath, entries)
 
-	if err := UnpackTar(tarPath, dest, SILENT); err == nil {
+	if err := unpackTarForTest(t, tarPath, dest); err == nil {
 		t.Fatalf("expected extraction to fail when a regular file would overwrite a symlink")
 	}
 	body, err := os.ReadFile(filepath.Join(dest, "test", "target.txt"))
@@ -211,5 +224,38 @@ func Test_refuseOverwriteSymlinkWithRegular(t *testing.T) {
 	}
 	if string(body) != "original" {
 		t.Fatalf("target.txt was modified through symlink: got %q", string(body))
+	}
+}
+
+// Test_relativeDestination verifies that a caller may pass a relative
+// destination path. The canonicalization must happen before the internal
+// os.Chdir, otherwise the resolved extraction directory would be incorrect.
+func Test_relativeDestination(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "dest"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	entries := []tarEntry{
+		{Name: "mysql/lib/libssl.1.0.0.dylib", Typeflag: tar.TypeReg, Body: []byte("real")},
+		{Name: "mysql/lib/libssl.dylib", Linkname: "libssl.1.0.0.dylib", Typeflag: tar.TypeSymlink},
+	}
+	tarPath := filepath.Join(root, "archive.tar")
+	writeTar(t, tarPath, entries)
+
+	origCwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get cwd: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origCwd) })
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("chdir to root: %v", err)
+	}
+
+	if err := UnpackTar(tarPath, "dest", SILENT); err != nil {
+		t.Fatalf("unexpected extraction failure with relative destination: %v", err)
+	}
+	linkPath := filepath.Join(root, "dest", "mysql", "lib", "libssl.dylib")
+	if _, err := os.Lstat(linkPath); err != nil {
+		t.Fatalf("expected symlink at %s: %v", linkPath, err)
 	}
 }

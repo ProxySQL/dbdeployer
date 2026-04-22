@@ -96,6 +96,21 @@ func validSuffix(filename string) bool {
 	return false
 }
 
+// canonicalExtractDir returns an absolute, symlink-resolved path for the
+// extraction destination. It must be called before os.Chdir so that a relative
+// destination is resolved against the original working directory, not the
+// post-Chdir one.
+func canonicalExtractDir(destination string) (string, error) {
+	absDir, err := filepath.Abs(destination)
+	if err != nil {
+		return "", fmt.Errorf("error defining the absolute path of '%s': %s", destination, err)
+	}
+	if resolved, err := filepath.EvalSymlinks(absDir); err == nil {
+		return resolved, nil
+	}
+	return absDir, nil
+}
+
 func UnpackXzTar(filename string, destination string, verbosityLevel int) (err error) {
 	Verbose = verbosityLevel
 	if !common.FileExists(filename) {
@@ -108,7 +123,11 @@ func UnpackXzTar(filename string, destination string, verbosityLevel int) (err e
 	if err != nil {
 		return err
 	}
-	err = os.Chdir(destination)
+	destinationAbs, err := canonicalExtractDir(destination)
+	if err != nil {
+		return err
+	}
+	err = os.Chdir(destinationAbs)
 	if err != nil {
 		return errors.Wrapf(err, "error changing directory to %s", destination)
 	}
@@ -125,7 +144,7 @@ func UnpackXzTar(filename string, destination string, verbosityLevel int) (err e
 	}
 	// Create a tar Reader
 	tr := tar.NewReader(r)
-	return unpackTarFiles(tr, destination)
+	return unpackTarFiles(tr, destinationAbs)
 }
 
 func UnpackTar(filename string, destination string, verbosityLevel int) (err error) {
@@ -147,7 +166,11 @@ func UnpackTar(filename string, destination string, verbosityLevel int) (err err
 		return err
 	}
 	defer file.Close() // #nosec G307
-	err = os.Chdir(destination)
+	destinationAbs, err := canonicalExtractDir(destination)
+	if err != nil {
+		return err
+	}
+	err = os.Chdir(destinationAbs)
 	if err != nil {
 		return errors.Wrapf(err, "error changing directory to %s", destination)
 	}
@@ -165,21 +188,16 @@ func UnpackTar(filename string, destination string, verbosityLevel int) (err err
 	} else {
 		reader = tar.NewReader(fileReader)
 	}
-	return unpackTarFiles(reader, destination)
+	return unpackTarFiles(reader, destinationAbs)
 }
 
-func unpackTarFiles(reader *tar.Reader, extractDir string) error {
+// unpackTarFiles extracts reader's entries into extractAbsDir. The caller must
+// supply an absolute, symlink-resolved path (see canonicalExtractDir) so the
+// validation helpers can compare canonical paths for containment.
+func unpackTarFiles(reader *tar.Reader, extractAbsDir string) error {
 	const errLinkedDirectoryOutside = "linked directory '%s' is outside the extraction directory"
 	const errDirectoryOutside = "directory for entry '%s' is outside the extraction directory"
-	// Canonicalize the extraction directory so subsequent prefix comparisons work
-	// on macOS (/tmp -> /private/tmp) and other symlinked mount points.
-	extractAbsDir, err := filepath.EvalSymlinks(extractDir)
-	if err != nil {
-		extractAbsDir, err = filepath.Abs(extractDir)
-		if err != nil {
-			return fmt.Errorf("error defining the absolute path of '%s': %s", extractDir, err)
-		}
-	}
+	var err error
 	var header *tar.Header
 	var count int = 0
 	var reSlash = regexp.MustCompile(`/.*`)
@@ -338,35 +356,30 @@ func resolveInsideExtractDir(target, extractAbsDir string) (string, error) {
 		}
 		return resolved, nil
 	}
-	parent := target
-	suffix := ""
+	// Walk up one directory at a time using filepath.Dir so volume roots
+	// (e.g. "/" on POSIX, "C:\" on Windows) are handled portably. Terminate
+	// at the fixed point, where filepath.Dir no longer shortens the path.
+	parent := filepath.Dir(target)
 	for {
-		idx := strings.LastIndex(parent, string(os.PathSeparator))
-		if idx < 0 {
-			return "", fmt.Errorf("cannot resolve ancestors of '%s'", target)
-		}
-		if suffix == "" {
-			suffix = parent[idx+1:]
-		} else {
-			suffix = parent[idx+1:] + string(os.PathSeparator) + suffix
-		}
-		parent = parent[:idx]
-		if parent == "" {
-			parent = string(os.PathSeparator)
-		}
 		if resolved, err := filepath.EvalSymlinks(parent); err == nil {
 			if !pathInside(resolved, extractAbsDir) {
 				return "", fmt.Errorf("ancestor of '%s' resolves to '%s' outside extraction directory '%s'", target, resolved, extractAbsDir)
 			}
-			combined := filepath.Join(resolved, suffix)
+			rel, err := filepath.Rel(parent, target)
+			if err != nil {
+				return "", err
+			}
+			combined := filepath.Join(resolved, rel)
 			if !pathInside(combined, extractAbsDir) {
 				return "", fmt.Errorf("path '%s' would resolve to '%s' outside extraction directory '%s'", target, combined, extractAbsDir)
 			}
 			return combined, nil
 		}
-		if parent == string(os.PathSeparator) {
+		next := filepath.Dir(parent)
+		if next == parent {
 			return "", fmt.Errorf("cannot resolve any ancestor of '%s'", target)
 		}
+		parent = next
 	}
 }
 
