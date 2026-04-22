@@ -9,7 +9,7 @@ The MySQL provider is the core of dbdeployer. It supports MySQL Community Server
 
 | Flavor | Tarball prefix | Notes |
 |--------|---------------|-------|
-| MySQL Community Server | `mysql-` | Default; versions 5.7, 8.0, 8.4, 9.x |
+| MySQL Community Server | `mysql-` | Default; versions 5.6, 5.7, 8.0, 8.4, 9.x |
 | Percona Server | `Percona-Server-` | Drop-in MySQL replacement with extra features |
 | MariaDB | `mariadb-` | Compatible with MySQL 5.7 API; some features differ |
 
@@ -85,6 +85,7 @@ dbdeployer deploy single lab_8.0.35
 
 | Series | Status | Topologies |
 |--------|--------|-----------|
+| 5.6.x | Legacy | single, replication (GTID 5.6.9+), fan-in/all-masters unsupported |
 | 5.7.x | Legacy | single, replication, group (5.7.17+) |
 | 8.0.x | Stable | all topologies |
 | 8.4.x | LTS (recommended) | all topologies |
@@ -96,8 +97,8 @@ All topologies are deployed with `dbdeployer deploy replication <version> --topo
 
 | Topology | Flag | Min Version |
 |----------|------|-------------|
-| Single | `deploy single` | any |
-| Master-slave | `--topology=master-slave` (default) | any |
+| Single | `deploy single` | 5.6 |
+| Master-slave | `--topology=master-slave` (default) | 5.6 |
 | Group Replication | `--topology=group` | 5.7.17 |
 | Single-primary GR | `--topology=group --single-primary` | 5.7.17 |
 | InnoDB Cluster | `--topology=innodb-cluster` | 8.0 |
