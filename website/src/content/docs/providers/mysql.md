@@ -9,7 +9,7 @@ The MySQL provider is the core of dbdeployer. It supports MySQL Community Server
 
 | Flavor | Tarball prefix | Notes |
 |--------|---------------|-------|
-| MySQL Community Server | `mysql-` | Default; versions 5.7, 8.0, 8.4, 9.x |
+| MySQL Community Server | `mysql-` | Default; versions 5.6, 5.7, 8.0, 8.4, 9.x |
 | Percona Server | `Percona-Server-` | Drop-in MySQL replacement with extra features |
 | MariaDB | `mariadb-` | Compatible with MySQL 5.7 API; some features differ |
 
@@ -85,6 +85,7 @@ dbdeployer deploy single lab_8.0.35
 
 | Series | Status | Topologies |
 |--------|--------|-----------|
+| 5.6.x | Legacy | single, replication |
 | 5.7.x | Legacy | single, replication, group (5.7.17+) |
 | 8.0.x | Stable | all topologies |
 | 8.4.x | LTS (recommended) | all topologies |

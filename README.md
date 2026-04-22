@@ -81,7 +81,7 @@ dbdeployer deploy single 8.0.40
 
 | Provider | Single | Replication | Group Replication | ProxySQL Wiring |
 |----------|:------:|:-----------:|:-----------------:|:---------------:|
-| **MySQL** (8.0, 8.4, 9.x) | ✓ | ✓ | ✓ | ✓ |
+| **MySQL** (5.6, 5.7, 8.0, 8.4, 9.x) | ✓ | ✓ | ✓ (5.7.17+) | ✓ |
 | **PostgreSQL** (12+) | ✓ | ✓ (streaming) | — | ✓ |
 | **ProxySQL** | ✓ | — | — | — |
 | Percona Server | ✓ | ✓ | ✓ | ✓ |
