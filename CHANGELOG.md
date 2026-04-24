@@ -1,5 +1,23 @@
 ## Unreleased
 
+## 2.2.3	24-Apr-2026
+
+## SECURITY
+
+* Fix arbitrary file write via chain-symlink path traversal during tar
+  extraction. A malicious archive could bypass the earlier symlink
+  guard added for CVE-2020-26277 by chaining relative
+  `dirN -> dirN-1/..` symlinks whose cumulative realpath escaped the
+  extraction directory; a later regular-file entry could then be
+  written through the escaping symlink. Each entry's path and each
+  symlink's would-be target are now resolved through the filesystem
+  with `filepath.EvalSymlinks` and rejected if they leave the
+  extraction directory; dbdeployer also refuses to overwrite an
+  existing symlink with a regular file. Only malicious archives are
+  affected: officially distributed MySQL / MariaDB / Percona / etc.
+  tarballs do not contain such symlink chains. Reported responsibly
+  by an external security researcher (PR #92).
+
 ## BUGS FIXED
 
 * Fail early when `mysqlsh` on PATH is too old for the target server
