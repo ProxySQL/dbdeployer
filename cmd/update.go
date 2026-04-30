@@ -56,6 +56,11 @@ func updateDbDeployer(cmd *cobra.Command, args []string) {
 	if currentOS == "macos" || currentOS == "darwin" {
 		currentOS = "osx"
 	}
+	arch := ""
+	if OS == "linux" {
+		// check the architecture
+		arch = runtime.GOARCH
+	}
 	if dryRun {
 		verbose = true
 	}
@@ -106,9 +111,15 @@ func updateDbDeployer(cmd *cobra.Command, args []string) {
 		docsLabel = "-docs"
 	}
 
-	fileName := fmt.Sprintf("dbdeployer-%s%s.%s", tag, docsLabel, OS)
-	tarballName := fileName + ".tar.gz"
+	fileNameLong := ""
+	if OS == "linux" {
+		fileNameLong = fmt.Sprintf("dbdeployer-%s%s.%s_%s", tag, docsLabel, OS, arch)
+	} else {
+		fileNameLong = fmt.Sprintf("dbdeployer-%s%s.%s", tag, docsLabel, OS)
+	}
+	tarballName := fileNameLong + ".tar.gz"
 	signatureName := tarballName + ".sha256"
+	fileName := "dbdeployer"
 
 	fileUrl := ""
 	signatureUrl := ""
@@ -243,7 +254,7 @@ var updateCmd = &cobra.Command{
 	Long:  `Updates dbdeployer in place using the latest version (or one of your choice)`,
 	Example: `
 $ dbdeployer update
-# gets the latest release, overwrites current dbdeployer binaries 
+# gets the latest release, overwrites current dbdeployer binaries
 
 $ dbdeployer update --dry-run
 # shows what it will do, but does not do it

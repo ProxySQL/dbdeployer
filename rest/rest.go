@@ -221,7 +221,7 @@ func getReleaseText(tag string) ([]byte, error) {
 	if tag != "" && tag != "latest" {
 		tag = "tags/" + tag
 	}
-	releaseUrl := fmt.Sprintf("https://api.github.com/repos/datacharmer/dbdeployer/releases%s%s", endUrl, tag)
+	releaseUrl := fmt.Sprintf("https://api.github.com/repos/ProxySQL/dbdeployer/releases%s%s", endUrl, tag)
 	if os.Getenv("SBDEBUG") != "" {
 		fmt.Printf("%s\n", releaseUrl)
 	}
