@@ -56,11 +56,7 @@ func updateDbDeployer(cmd *cobra.Command, args []string) {
 	if currentOS == "macos" || currentOS == "darwin" {
 		currentOS = "osx"
 	}
-	arch := ""
-	if OS == "linux" {
-		// check the architecture
-		arch = runtime.GOARCH
-	}
+	arch := runtime.GOARCH
 	if dryRun {
 		verbose = true
 	}
