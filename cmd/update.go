@@ -108,7 +108,7 @@ func updateDbDeployer(cmd *cobra.Command, args []string) {
 	}
 
 	fileNameLong := ""
-	if OS == "linux" {
+	if OS == "linux" || OS == "osx" {
 		fileNameLong = fmt.Sprintf("dbdeployer-%s%s.%s_%s", tag, docsLabel, OS, arch)
 	} else {
 		fileNameLong = fmt.Sprintf("dbdeployer-%s%s.%s", tag, docsLabel, OS)
