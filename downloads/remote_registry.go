@@ -27,10 +27,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/araddon/dateparse"
 	"github.com/ProxySQL/dbdeployer/common"
 	"github.com/ProxySQL/dbdeployer/defaults"
 	"github.com/ProxySQL/dbdeployer/globals"
+	"github.com/araddon/dateparse"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -271,16 +271,16 @@ func FindOrGuessTarballByVersionFlavorOS(version, flavor, OS, arch string, minim
 		if minimal && OS == "darwin" {
 			return FindOrGuessTarballByVersionFlavorOS(version, flavor, OS, arch, false, newest, guess)
 		}
+		// Use the MariADB Foundation API if we want to download MariaDB Server
+		if flavor == "mariadb" {
+			fmt.Printf("Version %q not found in registry. Attempting to retrieve from MariaDB API...\n", version)
+			return GetMariaDBTarballFromAPI(version, OS, arch, minimal)
+		}
 		// If still no match and the version is allowed for guessing,
 		// retry with --guess enabled so the download URL can be constructed
 		// from templates rather than requiring an exact registry entry.
 		if !guess && isAllowedForGuessing(version) {
 			return FindOrGuessTarballByVersionFlavorOS(version, flavor, OS, arch, minimal, newest, true)
-		}
-                // In case we are trying to download MariaDB, then we use the download REST API
-                if flavor == "mariadb" {
-			fmt.Printf("Version %q not found in registry. Attempting to retrieve from MariaDB API...\n", version)
-			return GetMariaDBTarballFromAPI(version, OS, arch, minimal)
 		}
 		return TarballDescription{}, fmt.Errorf("version %q not found in registry and cannot be guessed", version)
 	}
@@ -611,14 +611,14 @@ func ParseTarballUrlInfo(tarballUrl string) (TarballDescription, error) {
 	minimal := strings.Contains(strings.ToLower(fileName), "minimal")
 
 	return TarballDescription{
-		Name:         fileName,
-		Url:          tarballUrl,
-		Flavor:       flavor,
-		Version:      version,
-		ShortVersion: shortVersion,
+		Name:            fileName,
+		Url:             tarballUrl,
+		Flavor:          flavor,
+		Version:         version,
+		ShortVersion:    shortVersion,
 		OperatingSystem: OS,
-		Arch:         arch,
-		Minimal:      minimal,
+		Arch:            arch,
+		Minimal:         minimal,
 	}, nil
 }
 

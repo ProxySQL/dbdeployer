@@ -71,6 +71,9 @@ func (r mariaDBAPIResponse) releaseMap() map[string]mariaDBAPIRelease {
 // GetMariaDBTarballFromAPI returns a new TarballDescription for a MariaDB release
 // discovered via the MariaDB downloads REST API.
 func GetMariaDBTarballFromAPI(version, OS, arch string, minimal bool) (TarballDescription, error) {
+	if minimal {
+		return TarballDescription{}, fmt.Errorf("minimal tarballs are not available for MariaDB Server")
+	}
 	url := buildMariaDBAPIURL(version)
 	apiResponse, err := getMariaDBAPIResponse(url)
 	if err != nil {
