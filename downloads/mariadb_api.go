@@ -169,12 +169,6 @@ func getBestReleaseFromMariaDBResponse(apiResponse mariaDBAPIResponse) (string, 
 	}
 
 	if bestReleaseID == "" {
-		for releaseID, releaseInfo := range releaseMap {
-			return releaseID, releaseInfo, nil
-		}
-	}
-
-	if bestReleaseID == "" {
 		return "", mariaDBAPIRelease{}, fmt.Errorf("could not determine release from MariaDB API response")
 	}
 
@@ -246,7 +240,7 @@ func getTarballDescriptionFromMariaDBFile(apiFile mariaDBAPIFile) (TarballDescri
 		Name:            apiFile.FileName,
 		Checksum:        getPreferredMariaDBChecksum(apiFile.Checksum),
 		OperatingSystem: normalizeDBDeployerOS(valueOrEmpty(apiFile.OS)),
-		Arch:            archNormalize(normalizeMariaDBArch(valueOrEmpty(apiFile.CPU))),
+		Arch:            normalizeMariaDBArch(valueOrEmpty(apiFile.CPU)),
 		Url:             normalizeMariaDBDownloadURL(apiFile.FileDownloadURL),
 		Flavor:          flavor,
 		Minimal:         strings.Contains(strings.ToLower(apiFile.FileName), "minimal"),
@@ -303,7 +297,7 @@ func normalizeMariaDBOS(OS string) string {
 	case "linux":
 		return "Linux"
 	case "darwin", "macos", "osx":
-		return "darwin"
+		return "Darwin"
 	case "windows":
 		return "Windows"
 	default:
@@ -314,7 +308,7 @@ func normalizeMariaDBOS(OS string) string {
 func normalizeMariaDBArch(arch string) string {
 	switch strings.ToLower(arch) {
 	case "x86_64", "x86-64", "amd64":
-		return "x86_64"
+		return "amd64"
 	case "aarch64", "arm64":
 		return "arm64"
 	default:
