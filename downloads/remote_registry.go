@@ -277,6 +277,11 @@ func FindOrGuessTarballByVersionFlavorOS(version, flavor, OS, arch string, minim
 		if !guess && isAllowedForGuessing(version) {
 			return FindOrGuessTarballByVersionFlavorOS(version, flavor, OS, arch, minimal, newest, true)
 		}
+                // In case we are trying to download MariaDB, then we use the download REST API
+                if flavor == "mariadb" {
+			fmt.Printf("Version %q not found in registry. Attempting to retrieve from MariaDB API...\n", version)
+			return GetMariaDBTarballFromAPI(version, OS, arch, minimal)
+		}
 		return TarballDescription{}, fmt.Errorf("version %q not found in registry and cannot be guessed", version)
 	}
 	newestVersion := fmt.Sprintf("%d.%d.%d", newestVersionList[0], newestVersionList[1], newestVersionList[2])
