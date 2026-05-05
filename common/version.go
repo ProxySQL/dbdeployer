@@ -23,8 +23,9 @@ import (
 	"strings"
 )
 
-//go:embed VERSION
-var VersionDef string
+// VersionDef is set to the git tag at build time via -ldflags.
+// Defaults to "dev" for local builds.
+var VersionDef = "dev"
 
 // CompatibleVersion is the version used to mark compatible archives (templates, configuration).
 // It is usually major.minor.0, except when we are at version 0.x, when
