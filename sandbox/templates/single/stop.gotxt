@@ -4,7 +4,12 @@
 source {{.SandboxDir}}/sb_include
 export LD_LIBRARY_PATH=$CLIENT_LD_LIBRARY_PATH
 
+FLAVOR={{.Flavor}}
 MYSQL_ADMIN="$CLIENT_BASEDIR/bin/mysqladmin"
+if [ "$FLAVOR" == "mariadb" ]
+then
+    MYSQL_ADMIN="$CLIENT_BASEDIR/bin/mariadb-admin"
+fi
 
 if [ -n "$(is_running)" ]
 then
