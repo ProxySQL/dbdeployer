@@ -48,10 +48,112 @@ jobs:
       - name: Unit tests
         run: ./test/go-unit-tests.sh
 
+  pxc-test:
+    name: PXC deployment
+    runs-on: ubuntu-22.04
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      PXC_VERSION: '8.0.27-18.1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Download and unpack PXC
+        run: |
+          TARBALL="Percona-XtraDB-Cluster_${PXC_VERSION}_Linux.x86_64.glibc2.17-minimal.tar.gz"
+          URL="https://downloads.percona.com/downloads/Percona-XtraDB-Cluster-LATEST/Percona-XtraDB-Cluster-8.0.27/binary/tarball/$TARBALL"
+          mkdir -p "$SANDBOX_BINARY"
+          curl -L -f -o "/tmp/$TARBALL" "$URL"
+          ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Test PXC replication deployment
+        run: |
+          VERSION=$(ls "$SANDBOX_BINARY" | head -1)
+          ./dbdeployer deploy replication "$VERSION" --topology=pxc --sandbox-binary="$SANDBOX_BINARY"
+          SBDIR=$(ls -d ~/sandboxes/pxc_msb_*)
+          "$SBDIR/check_nodes"
+          "$SBDIR/n1" -e "CREATE DATABASE ci_test; USE ci_test; CREATE TABLE t1(id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'pxc_ci_test');"
+          for i in $(seq 1 10); do
+            RESULT=$("$SBDIR/n3" -BN -e "SELECT val FROM ci_test.t1;" 2>/dev/null) || true
+            echo "$RESULT" | grep -q "pxc_ci_test" && break
+            sleep 2
+          done
+          echo "$RESULT" | grep -q "pxc_ci_test"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
+  mariadb-galera-test:
+    name: MariaDB Galera deployment
+    runs-on: ubuntu-22.04
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      MARIADB_GALERA_VERSION: '10.11.16'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Download and unpack MariaDB Galera tarball
+        run: |
+          TARBALL="mariadb-${MARIADB_GALERA_VERSION}-linux-systemd-x86_64.tar.gz"
+          URL="https://archive.mariadb.org/mariadb-${MARIADB_GALERA_VERSION}/bintar-linux-systemd-x86_64/$TARBALL"
+          mkdir -p "$SANDBOX_BINARY"
+          curl -L -f -o "/tmp/$TARBALL" "$URL"
+          ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Test MariaDB Galera replication deployment
+        run: |
+          VERSION=$(ls "$SANDBOX_BINARY" | head -1)
+          ./dbdeployer deploy replication "$VERSION" --topology=galera --sandbox-binary="$SANDBOX_BINARY"
+          SBDIR=$(ls -d ~/sandboxes/galera_msb_*)
+          "$SBDIR/check_nodes"
+          "$SBDIR/n1" -e "CREATE DATABASE ci_test; USE ci_test; CREATE TABLE t1(id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'galera_ci_test');"
+          for i in $(seq 1 10); do
+            RESULT=$("$SBDIR/n3" -BN -e "SELECT val FROM ci_test.t1;" 2>/dev/null) || true
+            echo "$RESULT" | grep -q "galera_ci_test" && break
+            sleep 2
+          done
+          echo "$RESULT" | grep -q "galera_ci_test"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [lint, test, pxc-test, mariadb-galera-test]
     env:
       GO111MODULE: on
     steps:

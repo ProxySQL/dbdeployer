@@ -328,7 +328,8 @@ var replicationCmd = &cobra.Command{
 	Long: `The replication command allows you to deploy several nodes in replication.
 Allowed topologies are "master-slave" for all versions, and  "group", "all-masters", "fan-in"
 for  5.7.17+.
-Topologies "pxc" and "ndb" are available for binaries of type Percona Xtradb Cluster and MySQL Cluster.
+Topologies "pxc", "galera", and "ndb" are available for binaries of type Percona Xtradb Cluster,
+MariaDB Galera, and MySQL Cluster.
 Topology "innodb-cluster" deploys Group Replication managed by MySQL Shell AdminAPI with optional
 MySQL Router for connection routing (requires MySQL 8.0.11+ and mysqlsh).
 For this command to work, there must be a directory $HOME/opt/mysql/5.7.21, containing
@@ -354,6 +355,7 @@ Use the "unpack" command to get the tarball into the right directory.
 		$ dbdeployer deploy --topology=all-masters replication 5.7
 		$ dbdeployer deploy --topology=fan-in replication 5.7
 		$ dbdeployer deploy --topology=pxc replication pxc5.7.25
+		$ dbdeployer deploy --topology=galera replication 10.11.21
 		$ dbdeployer deploy --topology=ndb replication ndb8.0.14
 		$ dbdeployer deploy --topology=innodb-cluster replication 8.4.4
 		$ dbdeployer deploy --topology=innodb-cluster replication 8.4.4 --skip-router

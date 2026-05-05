@@ -18,6 +18,7 @@ package common
 import (
 	"fmt"
 	"github.com/ProxySQL/dbdeployer/compare"
+	"github.com/ProxySQL/dbdeployer/globals"
 	"testing"
 )
 
@@ -216,4 +217,15 @@ func TestFindSandbox(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestAllowedTopologiesIncludeGalera(t *testing.T) {
+	found := false
+	for _, topology := range globals.AllowedTopologies {
+		if topology == globals.GaleraLabel {
+			found = true
+			break
+		}
+	}
+	compare.OkEqualBool("galera topology is allowed", true, found, t)
 }

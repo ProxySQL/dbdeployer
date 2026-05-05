@@ -90,6 +90,8 @@ dbdeployer deploy single 8.0.40
 | Percona XtraDB Cluster | ✓ | ✓ | — | — |
 | VillageSQL | ✓ | ✓ | — | — |
 
+MariaDB tarballs can also be deployed with the `--topology=galera` flag when the tarball includes Galera support.
+
 ## Key Features
 
 - **Any topology** — single, replication, group replication, fan-in, all-masters
@@ -114,6 +116,7 @@ Full documentation is available at **[proxysql.github.io/dbdeployer](https://pro
 - [MySQL Provider](https://proxysql.github.io/dbdeployer/providers/mysql/) — tarballs, flavors, all topologies
 - [PostgreSQL Provider](https://proxysql.github.io/dbdeployer/providers/postgresql/) — deb binaries, streaming replication, limitations
 - [ProxySQL Provider](https://proxysql.github.io/dbdeployer/providers/proxysql/) — standalone and topology-integrated deployment
+- [MariaDB Galera](https://proxysql.github.io/dbdeployer/providers/galera/) — MariaDB Galera topology
 - [Provider Comparison](https://proxysql.github.io/dbdeployer/providers/) — capabilities matrix
 
 ### Deploying
@@ -126,6 +129,7 @@ Full documentation is available at **[proxysql.github.io/dbdeployer](https://pro
 - [Fan-In & All-Masters](https://proxysql.github.io/dbdeployer/deploying/fan-in-all-masters/) — multi-source replication
 - [NDB Cluster](https://proxysql.github.io/dbdeployer/deploying/ndb-cluster/)
 - [Percona XtraDB Cluster](https://proxysql.github.io/dbdeployer/providers/pxc/)
+- [MariaDB Galera](https://proxysql.github.io/dbdeployer/providers/galera/)
 
 ### Reference
 

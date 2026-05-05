@@ -41,6 +41,7 @@ type DbdeployerDefaults struct {
 	AllMastersReplicationBasePort int    `json:"all-masters-replication-base-port"`
 	MultipleBasePort              int    `json:"multiple-base-port"`
 	PxcBasePort                   int    `json:"pxc-base-port"`
+	GaleraBasePort                int    `json:"galera-base-port"`
 	NdbBasePort                   int    `json:"ndb-base-port"`
 	NdbClusterPort                int    `json:"ndb-cluster-port"`
 	GroupPortDelta                int    `json:"group-port-delta"`
@@ -65,6 +66,7 @@ type DbdeployerDefaults struct {
 	RemoteCompletionUrl           string `json:"remote-completion-url"`
 	RemoteTarballUrl              string `json:"remote-tarball-url"`
 	PxcPrefix                     string `json:"pxc-prefix"`
+	GaleraPrefix                  string `json:"galera-prefix"`
 	NdbPrefix                     string `json:"ndb-prefix"`
 	InnoDBClusterPrefix           string `json:"innodb-cluster-prefix"`
 	InnoDBClusterBasePort         int    `json:"innodb-cluster-base-port"`
@@ -111,6 +113,7 @@ var (
 		AllMastersReplicationBasePort: 15000,
 		MultipleBasePort:              16000,
 		PxcBasePort:                   18000,
+		GaleraBasePort:                18100,
 		NdbBasePort:                   19000,
 		NdbClusterPort:                20000,
 		GroupPortDelta:                125,
@@ -136,6 +139,7 @@ var (
 		RemoteTarballUrl:              "https://raw.githubusercontent.com/datacharmer/dbdeployer/master/downloads/tarball_list.json",
 		NdbPrefix:                     "ndb_msb_",
 		PxcPrefix:                     "pxc_msb_",
+		GaleraPrefix:                  "galera_msb_",
 		InnoDBClusterPrefix:           "ic_msb_",
 		InnoDBClusterBasePort:         21000,
 		DefaultSandboxExecutable:      "default",
@@ -202,6 +206,16 @@ func replaceLiteralEnvValues(defaults DbdeployerDefaults) DbdeployerDefaults {
 	return defaults
 }
 
+func normalizeDefaults(defaults DbdeployerDefaults) DbdeployerDefaults {
+	if defaults.GaleraBasePort == 0 {
+		defaults.GaleraBasePort = factoryDefaults.GaleraBasePort
+	}
+	if defaults.GaleraPrefix == "" {
+		defaults.GaleraPrefix = factoryDefaults.GaleraPrefix
+	}
+	return defaults
+}
+
 func ReadDefaultsFile(filename string) (defaults DbdeployerDefaults) {
 	defaultsBlob, err := common.SlurpAsBytes(filename)
 	common.ErrCheckExitf(err, 1, "error reading defaults file %s: %s", filename, err)
@@ -209,6 +223,7 @@ func ReadDefaultsFile(filename string) (defaults DbdeployerDefaults) {
 	err = json.Unmarshal(defaultsBlob, &defaults)
 	common.ErrCheckExitf(err, 1, globals.ErrEncodingDefaults, err)
 	defaults = expandEnvironmentVariables(defaults)
+	defaults = normalizeDefaults(defaults)
 	return
 }
 
@@ -228,6 +243,7 @@ func ValidateDefaults(nd DbdeployerDefaults) bool {
 		checkInt("fan-in-base-port", nd.FanInReplicationBasePort, minPortValue, maxPortValue) &&
 		checkInt("all-masters-base-port", nd.AllMastersReplicationBasePort, minPortValue, maxPortValue) &&
 		checkInt("pxc-base-port", nd.PxcBasePort, minPortValue, maxPortValue) &&
+		checkInt("galera-base-port", nd.GaleraBasePort, minPortValue, maxPortValue) &&
 		checkInt("ndb-base-port", nd.NdbBasePort, minPortValue, maxPortValue) &&
 		checkInt("ndb-cluster-port", nd.NdbClusterPort, minPortValue, maxPortValue) &&
 		checkInt("innodb-cluster-base-port", nd.InnoDBClusterBasePort, minPortValue, maxPortValue) &&
@@ -245,6 +261,8 @@ func ValidateDefaults(nd DbdeployerDefaults) bool {
 		nd.MultipleBasePort != nd.NdbBasePort &&
 		nd.MultipleBasePort != nd.NdbClusterPort &&
 		nd.MultipleBasePort != nd.PxcBasePort &&
+		nd.MultipleBasePort != nd.GaleraBasePort &&
+		nd.PxcBasePort != nd.GaleraBasePort &&
 		nd.MultiplePrefix != nd.GroupSpPrefix &&
 		nd.MultiplePrefix != nd.GroupPrefix &&
 		nd.MultiplePrefix != nd.MasterSlavePrefix &&
@@ -255,6 +273,8 @@ func ValidateDefaults(nd DbdeployerDefaults) bool {
 		nd.MasterAbbr != nd.SlaveAbbr &&
 		nd.MultiplePrefix != nd.NdbPrefix &&
 		nd.MultiplePrefix != nd.PxcPrefix &&
+		nd.MultiplePrefix != nd.GaleraPrefix &&
+		nd.PxcPrefix != nd.GaleraPrefix &&
 		nd.MultiplePrefix != nd.InnoDBClusterPrefix &&
 		nd.SandboxHome != nd.SandboxBinary
 	if !noConflicts {
@@ -275,6 +295,7 @@ func ValidateDefaults(nd DbdeployerDefaults) bool {
 		nd.GroupSpPrefix != "" &&
 		nd.MultiplePrefix != "" &&
 		nd.PxcPrefix != "" &&
+		nd.GaleraPrefix != "" &&
 		nd.NdbPrefix != "" &&
 		nd.InnoDBClusterPrefix != "" &&
 		nd.DefaultSandboxExecutable != "" &&
@@ -364,6 +385,8 @@ func UpdateDefaults(label, value string, storeDefaults bool) {
 		newDefaults.NdbClusterPort = common.Atoi(value)
 	case "pxc-base-port":
 		newDefaults.PxcBasePort = common.Atoi(value)
+	case "galera-base-port":
+		newDefaults.GaleraBasePort = common.Atoi(value)
 	case "group-port-delta":
 		newDefaults.GroupPortDelta = common.Atoi(value)
 	case "mysqlx-port-delta":
@@ -408,6 +431,8 @@ func UpdateDefaults(label, value string, storeDefaults bool) {
 		newDefaults.ReservedPorts = strToSlice("reserved-ports", value)
 	case "pxc-prefix":
 		newDefaults.PxcPrefix = value
+	case "galera-prefix":
+		newDefaults.GaleraPrefix = value
 	case "ndb-prefix":
 		newDefaults.NdbPrefix = value
 	case "innodb-cluster-prefix":
@@ -497,6 +522,8 @@ func DefaultsToMap() common.StringMap {
 		"multiple-base-port":                currentDefaults.MultipleBasePort,
 		"PxcBasePort":                       currentDefaults.PxcBasePort,
 		"pxc-base-port":                     currentDefaults.PxcBasePort,
+		"GaleraBasePort":                    currentDefaults.GaleraBasePort,
+		"galera-base-port":                  currentDefaults.GaleraBasePort,
 		"NdbBasePort":                       currentDefaults.NdbBasePort,
 		"ndb-base-port":                     currentDefaults.NdbBasePort,
 		"NdbClusterPort":                    currentDefaults.NdbClusterPort,
@@ -547,6 +574,8 @@ func DefaultsToMap() common.StringMap {
 		"remote-github":                     currentDefaults.RemoteTarballUrl,
 		"PxcPrefix":                         currentDefaults.PxcPrefix,
 		"pxc-prefix":                        currentDefaults.PxcPrefix,
+		"GaleraPrefix":                      currentDefaults.GaleraPrefix,
+		"galera-prefix":                     currentDefaults.GaleraPrefix,
 		"NdbPrefix":                         currentDefaults.NdbPrefix,
 		"ndb-prefix":                        currentDefaults.NdbPrefix,
 		"InnoDBClusterPrefix":               currentDefaults.InnoDBClusterPrefix,

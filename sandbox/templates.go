@@ -460,6 +460,7 @@ var (
 		"replication": ReplicationTemplates,
 		"group":       GroupTemplates,
 		"pxc":         PxcTemplates,
+		"galera":      GaleraTemplates,
 		"ndb":         NdbTemplates,
 		"cluster":     InnoDBClusterTemplates,
 	}

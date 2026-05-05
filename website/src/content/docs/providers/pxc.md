@@ -5,6 +5,8 @@ description: Deploy Percona XtraDB Cluster (PXC) sandboxes with dbdeployer using
 
 Percona XtraDB Cluster (PXC) is a high-availability MySQL solution built on Galera replication. Unlike asynchronous MySQL replication, Galera replicates synchronously — every node has the same data at all times, and all nodes are writable. dbdeployer can deploy PXC clusters for development and testing.
 
+If you need MariaDB's Galera topology, use [MariaDB Galera](/dbdeployer/providers/galera) instead.
+
 ## Requirements
 
 PXC requires a **PXC-specific tarball** — the standard MySQL or Percona Server tarballs will not work. PXC binaries include the Galera library and the `wsrep` plugin.

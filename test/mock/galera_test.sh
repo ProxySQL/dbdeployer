@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#unset DBDEPLOYER_LOGGING
 test_dir=$(dirname $0)
 cd $test_dir || (echo "error changing directory to $mock_dir" ; exit 1)
 test_dir=$PWD
@@ -37,12 +36,9 @@ source set-mock.sh
 export SHOW_CHANGED_PORTS=1
 start_timer
 
-# Creates a zero-length catalog file.
-# Sandbox creation should not fail
 mkdir -p $mock_dir/home/.dbdeployer
 touch $mock_dir/home/.dbdeployer/sandboxes.json
 
-# Creates a fake $HOME/bin directory, containing the required executables for PXC
 mkdir $mock_dir/home/bin
 export PATH=$PATH:$mock_dir/home/bin
 dbdeployer defaults templates show no_op_mock > $mock_dir/home/bin/socat
@@ -50,17 +46,11 @@ dbdeployer defaults templates show no_op_mock > $mock_dir/home/bin/rsync
 dbdeployer defaults templates show no_op_mock > $mock_dir/home/bin/lsof
 chmod +x $mock_dir/home/bin/*
 
+versions=(10.4.21 10.5.21 10.11.21)
 
-versions=(pxc5.6 pxc5.7 pxc8.0)
-rev_list="21 99"
-
-for rev in $rev_list
+for version in ${versions[*]}
 do
-    for vers in ${versions[*]}
-    do
-        version=${vers}.${rev}
-        create_mock_pxc_version $version 
-    done
+    create_mock_galera_version $version
 done
 
 function check_sst_method {
@@ -76,45 +66,29 @@ function check_sst_method {
 }
 
 run dbdeployer available
-for vers in ${versions[*]}
+for version in ${versions[*]}
 do
-    for rev in $rev_list
-    do
-        version=${vers}.${rev}
-        version_name=$(echo $version | tr '.' '_')
-        run dbdeployer deploy replication $version --topology=pxc
+    version_name=$(echo $version | tr '.' '_')
+    run dbdeployer deploy replication $version --topology=galera
 
-        # Check existence 
-        test_completeness $version pxc_msb_ multiple
+    test_completeness $version galera_msb_ multiple
+    check_sst_method galera_msb_$version_name rsync
+    ok_dir_exists "$SANDBOX_HOME/galera_msb_$version_name"
 
-        # Check SST method
-        if [ "$vers" == "pxc8.0" ]
-        then
-            expected=xtrabackup-v2
-        else
-            expected=rsync
-        fi
-        check_sst_method pxc_msb_$version_name $expected
+    if dbdeployer deploy replication $version --topology=pxc >/tmp/galera-pxc-reject.log 2>&1
+    then
+        echo "not ok - expected pxc topology to reject mariadb galera version $version"
+        fail=$((fail+1))
+    else
+        echo "ok - pxc topology rejects mariadb galera version $version"
+        pass=$((pass+1))
+    fi
+    tests=$((tests+1))
 
-        ok_dir_exists "$SANDBOX_HOME/pxc_msb_$version_name"
-
-        if dbdeployer deploy replication $version --topology=galera >/tmp/pxc-galera-reject.log 2>&1
-        then
-            echo "not ok - expected galera topology to reject pxc version $version"
-            fail=$((fail+1))
-        else
-            echo "ok - galera topology rejects pxc version $version"
-            pass=$((pass+1))
-        fi
-        tests=$((tests+1))
-
-        results "$version"
-    done
+    run dbdeployer delete ALL --skip-confirm
+    results "$version"
 done
 
-run dbdeployer delete ALL --skip-confirm
-
-results "After deletion"
 cd $test_dir || (echo "error changing directory to $mock_dir" ; exit 1)
 
 run du -sh $mock_dir

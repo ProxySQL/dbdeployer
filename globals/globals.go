@@ -121,6 +121,9 @@ const (
 	ProviderLabel = "provider"
 	ProviderValue = "mysql" // default provider
 
+	// Topology labels
+	GaleraLabel = "galera"
+
 	// Instantiated in cmd/info.go
 	EarliestLabel = "earliest"
 	LimitLabel    = "limit"
@@ -427,6 +430,7 @@ var (
 	MaximumNdbInstallDb                       = NumericVersion{7, 4, 99}
 	MinimumNdbInitialize                      = NumericVersion{7, 5, 0}
 	MinimumRootAuthVersion                    = NumericVersion{10, 4, 3}
+	MinimumMariaDbGaleraVersion               = NumericVersion{10, 0, 0}
 	MinimumAdminAddressVersion                = NumericVersion{8, 0, 14}
 	MinimumMySQLShellEmbed                    = NumericVersion{8, 0, 4}
 	MinimumShowReplicaStatusVersion           = NumericVersion{8, 0, 22}
@@ -482,6 +486,7 @@ var AllowedTopologies = []string{
 	MasterSlaveLabel,
 	GroupLabel,
 	PxcLabel,
+	GaleraLabel,
 	FanInLabel,
 	AllMastersLabel,
 	NdbLabel,
@@ -527,6 +532,8 @@ var (
 	}
 	// Extra executables needed for PXC
 	NeededPxcExecutables = []string{"rsync", "lsof", "socat"}
+	// Extra executables needed for Galera
+	NeededGaleraExecutables = []string{"rsync", "lsof", "socat"}
 )
 
 var ShellScriptCopyright string = `
