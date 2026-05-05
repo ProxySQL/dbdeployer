@@ -205,7 +205,7 @@ func findBestMariaDBFile(files []mariaDBAPIFile, OS, arch string, minimal bool) 
 		matches = append(matches, fileInfo)
 	}
 
-	if len(matches) == 0 && requestedOS == "darwin" {
+	if len(matches) == 0 && strings.EqualFold(requestedOS, "darwin") {
 		for _, fileInfo := range files {
 			if isMariaDBTarball(fileInfo.FileName) && strings.EqualFold(valueOrEmpty(fileInfo.OS), "Source") {
 				matches = append(matches, fileInfo)
