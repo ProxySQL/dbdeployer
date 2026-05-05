@@ -232,5 +232,6 @@ jobs:
         run: ./scripts/build.sh linux
       - name: Verify executable
         run: |
-          version=$(cat common/VERSION)
+          version=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
+          if [ -z "$version" ]; then version="dev"; fi
           test -f "dbdeployer-${version}.linux" || exit 1

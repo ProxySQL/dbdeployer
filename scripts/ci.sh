@@ -28,7 +28,11 @@ cat /etc/*release
 pwd
 set
 
-export dbdeployer_version=$(cat common/VERSION)
+export dbdeployer_version=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
+if [ -z "$dbdeployer_version" ]
+then
+    export dbdeployer_version="dev"
+fi
 export RUN_CONCURRENTLY=1
 export EXIT_ON_FAILURE=1
 run ./scripts/sanity_check.sh

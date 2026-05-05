@@ -69,7 +69,11 @@ fi
 
 if [ -z "$version" ]
 then
-    version=$(cat common/VERSION)
+    version=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')
+fi
+if [ -z "$version" ]
+then
+    version="dev"
 fi
 
 if [ -z "$target" ]
