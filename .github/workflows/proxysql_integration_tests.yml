@@ -227,7 +227,6 @@ jobs:
           sleep 10
           RESULT=$($SBDIR/proxysql/use_proxy -BN -e "CREATE DATABASE IF NOT EXISTS proxysql_pxc_test; USE proxysql_pxc_test; CREATE TABLE IF NOT EXISTS t1 (id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'pxc_proxy_test'); SELECT val FROM t1 WHERE id=1;" 2>&1 | grep -v Warning)
           echo "$RESULT" | grep -q "pxc_proxy_test" || { echo "FAIL: ProxySQL did not return the inserted PXC row"; exit 1; }
-          ./dbdeployer delete all --skip-confirm
 
       - name: Cleanup
         if: always()
@@ -294,7 +293,6 @@ jobs:
           sleep 10
           RESULT=$($SBDIR/proxysql/use_proxy -BN -e "CREATE DATABASE IF NOT EXISTS proxysql_galera_test; USE proxysql_galera_test; CREATE TABLE IF NOT EXISTS t1 (id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'galera_proxy_test'); SELECT val FROM t1 WHERE id=1;" 2>&1 | grep -v Warning)
           echo "$RESULT" | grep -q "galera_proxy_test" || { echo "FAIL: ProxySQL did not return the inserted Galera row"; exit 1; }
-          ./dbdeployer delete all --skip-confirm
 
       - name: Cleanup
         if: always()

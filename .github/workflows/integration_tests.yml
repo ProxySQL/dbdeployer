@@ -328,7 +328,6 @@ jobs:
           done
           echo "$RESULT" | grep -q "pxc_ci_test" || { echo "FAIL: data not replicated after 20s"; exit 1; }
           echo "OK: PXC replication works"
-          ./dbdeployer delete all --skip-confirm
 
       - name: Cleanup
         if: always()
@@ -396,7 +395,6 @@ jobs:
           done
           echo "$RESULT" | grep -q "galera_ci_test" || { echo "FAIL: data not replicated after 20s"; exit 1; }
           echo "OK: MariaDB Galera replication works"
-          ./dbdeployer delete all --skip-confirm
 
       - name: Cleanup
         if: always()
