@@ -30,9 +30,9 @@ env:
   VILLAGESQL_SHA256: "8b15522a973b17b430ed9e64e8bdbf97bf858cef028bfbc7f9b9608002406393"
   VILLAGESQL_TARBALL: "villagesql-dev-server-0.0.3-dev-linux-x86_64.tar.gz"
   VILLAGESQL_URL: "https://github.com/villagesql/villagesql-server/releases/download/0.0.3/villagesql-dev-server-0.0.3-dev-linux-x86_64.tar.gz"
-  # VillageSQL uses its own version scheme (0.0.3). Map to MySQL 8.0.40 for
+  # VillageSQL uses its own version scheme (0.0.3). Map to MySQL 8.4.8 for
   # capability lookups (mysqld --initialize, CREATE USER, GTID, etc.)
-  MYSQL_MAPPED_VERSION: "8.0.40"
+  MYSQL_MAPPED_VERSION: "8.4.8"
   GO111MODULE: on
   SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
 
@@ -121,9 +121,14 @@ jobs:
 
       - name: Test deploy replication sandbox
         run: |
+          set -o pipefail
           ./dbdeployer deploy replication "$MYSQL_MAPPED_VERSION" --sandbox-binary="$SANDBOX_BINARY"
-          ~/sandboxes/rsandbox_*/check_slaves
-          ~/sandboxes/rsandbox_*/test_replication
+          ~/sandboxes/rsandbox_*/check_slaves 2>&1 | tee /tmp/villagesql-check-slaves.log
+          ~/sandboxes/rsandbox_*/test_replication 2>&1 | tee /tmp/villagesql-test-replication.log
+          if grep -E "ERROR [0-9]+|not ok" /tmp/villagesql-check-slaves.log /tmp/villagesql-test-replication.log; then
+            echo "FAIL: VillageSQL replication scripts printed errors"
+            exit 1
+          fi
           echo "OK: VillageSQL replication sandbox works"
           ./dbdeployer delete all --skip-confirm
 
