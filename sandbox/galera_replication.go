@@ -440,6 +440,6 @@ func CreateGaleraReplication(sandboxDef SandboxDef, origin string, nodes int, ma
 	if err = writeScripts(sbGalera); err != nil {
 		return err
 	}
-	common.WaitForExecList(execLists)
+	concurrent.RunParallelTasksByPriority(execLists)
 	return nil
 }
