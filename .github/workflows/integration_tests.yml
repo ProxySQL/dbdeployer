@@ -196,7 +196,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 socat
 
       - name: Build dbdeployer
         run: go build -o dbdeployer .
@@ -270,7 +270,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 socat
 
       - name: Provide LDAP compatibility shim
         run: |
@@ -355,7 +355,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 socat
 
       - name: Provide LDAP compatibility shim
         run: |
