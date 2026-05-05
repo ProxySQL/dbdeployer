@@ -179,7 +179,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0 mysql-client socat
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0 socat
 
       - name: Provide LDAP compatibility shim
         run: |
@@ -227,6 +227,8 @@ jobs:
       - name: Test PXC with ProxySQL
         run: |
           VERSION=$(ls "$SANDBOX_BINARY" | head -1)
+          test -x "$SANDBOX_BINARY/$VERSION/bin/mysql"
+          export PATH="$SANDBOX_BINARY/$VERSION/bin:$PATH"
           ./dbdeployer deploy replication "$VERSION" --topology=pxc --with-proxysql --sandbox-binary="$SANDBOX_BINARY"
           SBDIR=$(ls -d ~/sandboxes/pxc_msb_*)
           BACKENDS=$($SBDIR/proxysql/use -BN -e "SELECT COUNT(*) FROM mysql_servers" 2>&1 | grep -v Warning)
@@ -264,7 +266,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0 mysql-client socat
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0 socat
 
       - name: Install legacy OpenSSL 1.0
         run: |
@@ -318,6 +320,8 @@ jobs:
       - name: Test MariaDB Galera with ProxySQL
         run: |
           VERSION=$(ls "$SANDBOX_BINARY" | head -1)
+          test -x "$SANDBOX_BINARY/$VERSION/bin/mysql"
+          export PATH="$SANDBOX_BINARY/$VERSION/bin:$PATH"
           ./dbdeployer deploy replication "$VERSION" --topology=galera --with-proxysql --sandbox-binary="$SANDBOX_BINARY"
           SBDIR=$(ls -d ~/sandboxes/galera_msb_*)
           BACKENDS=$($SBDIR/proxysql/use -BN -e "SELECT COUNT(*) FROM mysql_servers" 2>&1 | grep -v Warning)
