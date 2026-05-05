@@ -67,6 +67,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libaio1 libnuma1 libncurses5
 
+      - name: Provide LDAP compatibility shim
+        run: |
+          LDAP_LIB=$(ldconfig -p | awk '/libldap\.so\.2/{print $NF; exit}')
+          if [ -n "$LDAP_LIB" ] && [ ! -e /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2 ]; then
+            sudo ln -s "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          fi
+
       - name: Build dbdeployer
         run: go build -o dbdeployer .
 
@@ -116,7 +123,14 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 socat
+
+      - name: Provide LDAP compatibility shim
+        run: |
+          LDAP_LIB=$(ldconfig -p | awk '/libldap\.so\.2/{print $NF; exit}')
+          if [ -n "$LDAP_LIB" ] && [ ! -e /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2 ]; then
+            sudo ln -s "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          fi
 
       - name: Build dbdeployer
         run: go build -o dbdeployer .

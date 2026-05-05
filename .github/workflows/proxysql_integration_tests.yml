@@ -33,7 +33,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5 mysql-client
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 mysql-client socat
 
       - name: Provide LDAP compatibility shim
         run: |
