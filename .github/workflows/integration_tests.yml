@@ -39,17 +39,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0
 
-      - name: Provide LDAP compatibility shim
-        run: |
-          LDAP_LIB=/usr/lib/x86_64-linux-gnu/libldap.so.2
-          if [ ! -e "$LDAP_LIB" ]; then
-            LDAP_LIB=/lib/x86_64-linux-gnu/libldap.so.2
-          fi
-          test -e "$LDAP_LIB"
-          sudo ln -sf "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
-          sudo ln -sf "$LDAP_LIB" /lib/x86_64-linux-gnu/libldap_r-2.4.so.2
-          sudo ldconfig
-
       - name: Build dbdeployer
         run: go build -o dbdeployer .
 
@@ -137,17 +126,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0
 
-      - name: Provide LDAP compatibility shim
-        run: |
-          LDAP_LIB=/usr/lib/x86_64-linux-gnu/libldap.so.2
-          if [ ! -e "$LDAP_LIB" ]; then
-            LDAP_LIB=/lib/x86_64-linux-gnu/libldap.so.2
-          fi
-          test -e "$LDAP_LIB"
-          sudo ln -sf "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
-          sudo ln -sf "$LDAP_LIB" /lib/x86_64-linux-gnu/libldap_r-2.4.so.2
-          sudo ldconfig
-
       - name: Build dbdeployer
         run: go build -o dbdeployer .
 
@@ -219,17 +197,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libaio1 libnuma1 libncurses5
-
-      - name: Provide LDAP compatibility shim
-        run: |
-          LDAP_LIB=/usr/lib/x86_64-linux-gnu/libldap.so.2
-          if [ ! -e "$LDAP_LIB" ]; then
-            LDAP_LIB=/lib/x86_64-linux-gnu/libldap.so.2
-          fi
-          test -e "$LDAP_LIB"
-          sudo ln -sf "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
-          sudo ln -sf "$LDAP_LIB" /lib/x86_64-linux-gnu/libldap_r-2.4.so.2
-          sudo ldconfig
 
       - name: Build dbdeployer
         run: go build -o dbdeployer .
@@ -307,11 +274,21 @@ jobs:
 
       - name: Provide LDAP compatibility shim
         run: |
-          LDAP_LIB=/usr/lib/x86_64-linux-gnu/libldap.so.2
-          if [ ! -e "$LDAP_LIB" ]; then
-            LDAP_LIB=/lib/x86_64-linux-gnu/libldap.so.2
+          sudo ldconfig
+          LDAP_LIB=$(ldconfig -p | awk '
+            /libldap[^ ]*\.so\./ && $NF !~ /libldap_r-2\.4\.so\.2$/ {
+              print $NF
+              exit
+            }')
+          if [ -z "$LDAP_LIB" ] || [ ! -e "$LDAP_LIB" ]; then
+            LDAP_LIB=$(find /usr/lib /lib -type f -name 'libldap*.so*' ! -name 'libldap_r-2.4.so.2' | sort | head -1)
           fi
-          test -e "$LDAP_LIB"
+          if [ -z "$LDAP_LIB" ] || [ ! -e "$LDAP_LIB" ]; then
+            echo "Unable to locate a libldap shared object" >&2
+            ldconfig -p | grep ldap >&2 || true
+            find /usr/lib /lib -name 'libldap*.so*' | sort >&2 || true
+            exit 1
+          fi
           sudo ln -sf "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
           sudo ln -sf "$LDAP_LIB" /lib/x86_64-linux-gnu/libldap_r-2.4.so.2
           sudo ldconfig
@@ -382,11 +359,21 @@ jobs:
 
       - name: Provide LDAP compatibility shim
         run: |
-          LDAP_LIB=/usr/lib/x86_64-linux-gnu/libldap.so.2
-          if [ ! -e "$LDAP_LIB" ]; then
-            LDAP_LIB=/lib/x86_64-linux-gnu/libldap.so.2
+          sudo ldconfig
+          LDAP_LIB=$(ldconfig -p | awk '
+            /libldap[^ ]*\.so\./ && $NF !~ /libldap_r-2\.4\.so\.2$/ {
+              print $NF
+              exit
+            }')
+          if [ -z "$LDAP_LIB" ] || [ ! -e "$LDAP_LIB" ]; then
+            LDAP_LIB=$(find /usr/lib /lib -type f -name 'libldap*.so*' ! -name 'libldap_r-2.4.so.2' | sort | head -1)
           fi
-          test -e "$LDAP_LIB"
+          if [ -z "$LDAP_LIB" ] || [ ! -e "$LDAP_LIB" ]; then
+            echo "Unable to locate a libldap shared object" >&2
+            ldconfig -p | grep ldap >&2 || true
+            find /usr/lib /lib -name 'libldap*.so*' | sort >&2 || true
+            exit 1
+          fi
           sudo ln -sf "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
           sudo ln -sf "$LDAP_LIB" /lib/x86_64-linux-gnu/libldap_r-2.4.so.2
           sudo ldconfig
@@ -452,11 +439,21 @@ jobs:
 
       - name: Provide LDAP compatibility shim
         run: |
-          LDAP_LIB=/usr/lib/x86_64-linux-gnu/libldap.so.2
-          if [ ! -e "$LDAP_LIB" ]; then
-            LDAP_LIB=/lib/x86_64-linux-gnu/libldap.so.2
+          sudo ldconfig
+          LDAP_LIB=$(ldconfig -p | awk '
+            /libldap[^ ]*\.so\./ && $NF !~ /libldap_r-2\.4\.so\.2$/ {
+              print $NF
+              exit
+            }')
+          if [ -z "$LDAP_LIB" ] || [ ! -e "$LDAP_LIB" ]; then
+            LDAP_LIB=$(find /usr/lib /lib -type f -name 'libldap*.so*' ! -name 'libldap_r-2.4.so.2' | sort | head -1)
           fi
-          test -e "$LDAP_LIB"
+          if [ -z "$LDAP_LIB" ] || [ ! -e "$LDAP_LIB" ]; then
+            echo "Unable to locate a libldap shared object" >&2
+            ldconfig -p | grep ldap >&2 || true
+            find /usr/lib /lib -name 'libldap*.so*' | sort >&2 || true
+            exit 1
+          fi
           sudo ln -sf "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
           sudo ln -sf "$LDAP_LIB" /lib/x86_64-linux-gnu/libldap_r-2.4.so.2
           sudo ldconfig
