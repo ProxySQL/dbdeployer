@@ -247,6 +247,128 @@ jobs:
           ./dbdeployer delete all --skip-confirm 2>/dev/null || true
           pkill -9 -u "$USER" mysqld 2>/dev/null || true
 
+  # Test Percona XtraDB Cluster: replication deployment with data verification
+  pxc-test:
+    name: PXC (${{ matrix.pxc-version }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        pxc-version:
+          - '8.0.27-18.1'
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      PXC_VERSION: ${{ matrix.pxc-version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Download and unpack PXC
+        run: |
+          TARBALL="Percona-XtraDB-Cluster_${PXC_VERSION}_Linux.x86_64.glibc2.17-minimal.tar.gz"
+          URL="https://downloads.percona.com/downloads/Percona-XtraDB-Cluster-LATEST/Percona-XtraDB-Cluster-8.0.27/binary/tarball/$TARBALL"
+          echo "Downloading Percona XtraDB Cluster ${PXC_VERSION}..."
+          mkdir -p "$SANDBOX_BINARY"
+          curl -L -f -o "/tmp/$TARBALL" "$URL"
+          ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Test replication deployment
+        run: |
+          VERSION=$(ls "$SANDBOX_BINARY" | head -1)
+          echo "Deploying PXC $VERSION..."
+          ./dbdeployer deploy replication "$VERSION" --topology=pxc --sandbox-binary="$SANDBOX_BINARY"
+          SBDIR=$(ls -d ~/sandboxes/pxc_msb_*)
+          "$SBDIR/check_nodes"
+          "$SBDIR/n1" -e "CREATE DATABASE ci_test; USE ci_test; CREATE TABLE t1(id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'pxc_ci_test');"
+          for i in $(seq 1 10); do
+            RESULT=$("$SBDIR/n3" -BN -e "SELECT val FROM ci_test.t1;" 2>/dev/null) || true
+            echo "$RESULT" | grep -q "pxc_ci_test" && break
+            echo "  Waiting for PXC replication... ($i/10)"
+            sleep 2
+          done
+          echo "$RESULT" | grep -q "pxc_ci_test" || { echo "FAIL: data not replicated after 20s"; exit 1; }
+          echo "OK: PXC replication works"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
+  # Test MariaDB Galera: replication deployment with data verification
+  mariadb-galera-test:
+    name: MariaDB Galera (${{ matrix.mariadb-galera-version }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        mariadb-galera-version:
+          - '10.11.16'
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      MARIADB_GALERA_VERSION: ${{ matrix.mariadb-galera-version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Download and unpack MariaDB Galera tarball
+        run: |
+          TARBALL="mariadb-${MARIADB_GALERA_VERSION}-linux-systemd-x86_64.tar.gz"
+          URL="https://archive.mariadb.org/mariadb-${MARIADB_GALERA_VERSION}/bintar-linux-systemd-x86_64/$TARBALL"
+          echo "Downloading MariaDB Galera ${MARIADB_GALERA_VERSION}..."
+          mkdir -p "$SANDBOX_BINARY"
+          curl -L -f -o "/tmp/$TARBALL" "$URL"
+          ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Test replication deployment
+        run: |
+          VERSION=$(ls "$SANDBOX_BINARY" | head -1)
+          echo "Deploying MariaDB Galera $VERSION..."
+          ./dbdeployer deploy replication "$VERSION" --topology=galera --sandbox-binary="$SANDBOX_BINARY"
+          SBDIR=$(ls -d ~/sandboxes/galera_msb_*)
+          "$SBDIR/check_nodes"
+          "$SBDIR/n1" -e "CREATE DATABASE ci_test; USE ci_test; CREATE TABLE t1(id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'galera_ci_test');"
+          for i in $(seq 1 10); do
+            RESULT=$("$SBDIR/n3" -BN -e "SELECT val FROM ci_test.t1;" 2>/dev/null) || true
+            echo "$RESULT" | grep -q "galera_ci_test" && break
+            echo "  Waiting for MariaDB Galera replication... ($i/10)"
+            sleep 2
+          done
+          echo "$RESULT" | grep -q "galera_ci_test" || { echo "FAIL: data not replicated after 20s"; exit 1; }
+          echo "OK: MariaDB Galera replication works"
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
   # Run the ts (testscript) replication suite against multiple MySQL versions.
   # This tests replication, replication-gtid, and semisync across versions.
   ts-replication-test:
