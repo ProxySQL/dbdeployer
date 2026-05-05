@@ -29,7 +29,7 @@ set -u
 set -o pipefail
 
 # File containing latest version of dbdeployer
-version_file=https://raw.githubusercontent.com/ProxySQL/dbdeployer/master/common/VERSION
+version_url=https://api.github.com/repos/ProxySQL/dbdeployer/releases/latest
 
 # check_exit_code checks the return code of the previous command
 # exits the script if it is non-zero
@@ -81,8 +81,8 @@ do
 done
 
 # (STEP 3) collects the latest version from GitHub
-dbdeployer_version=$(curl -s $version_file)
-check_exit_code "curl -s $version_file"
+dbdeployer_version=$(curl -s $version_url | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
+check_exit_code "curl -s $version_url"
 if [ -z "${dbdeployer_version}" ]
 then
     echo "error collecting version from ${version_file}"

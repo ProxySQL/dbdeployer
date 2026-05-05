@@ -37,18 +37,20 @@ jobs:
         run: |
           curl -s https://raw.githubusercontent.com/ProxySQL/dbdeployer/master/scripts/dbdeployer-install.sh | bash
 
-      - name: Verify dbdeployer runs and version matches common/VERSION
+      - name: Verify dbdeployer runs and version matches latest release
         run: |
           which dbdeployer
           dbdeployer --version
           INSTALLED_VERSION=$(dbdeployer --version | awk '{print $NF}')
-          EXPECTED_VERSION=$(curl -s https://raw.githubusercontent.com/ProxySQL/dbdeployer/master/common/VERSION)
+          EXPECTED_VERSION=$(gh release view --json tagName --jq '.tagName' | sed 's/^v//')
           echo "Installed: $INSTALLED_VERSION"
           echo "Expected:  $EXPECTED_VERSION"
           [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION" ] || {
-            echo "FAIL: installed version does not match common/VERSION"
+            echo "FAIL: installed version does not match latest release tag"
             exit 1
           }
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Smoke test basic commands
         run: |
