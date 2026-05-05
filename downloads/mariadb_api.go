@@ -238,10 +238,14 @@ func getTarballDescriptionFromMariaDBFile(apiFile mariaDBAPIFile) (TarballDescri
 	if err != nil {
 		flavor = "mariadb"
 	}
+	checksum := getPreferredMariaDBChecksum(apiFile.Checksum)
+	if checksum == "" {
+		return TarballDescription{}, fmt.Errorf("missing checksum in MariaDB API response for %s", apiFile.FileName)
+	}
 
 	return TarballDescription{
 		Name:            apiFile.FileName,
-		Checksum:        getPreferredMariaDBChecksum(apiFile.Checksum),
+		Checksum:        checksum,
 		OperatingSystem: normalizeDBDeployerOS(valueOrEmpty(apiFile.OS)),
 		Arch:            normalizeMariaDBArch(valueOrEmpty(apiFile.CPU)),
 		Url:             normalizeMariaDBDownloadURL(apiFile.FileDownloadURL),
