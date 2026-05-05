@@ -49,12 +49,27 @@ jobs:
         run: ./test/go-unit-tests.sh
 
   pxc-test:
-    name: PXC deployment
+    name: PXC deployment (${{ matrix.pxc-version }})
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pxc-version: '8.0.27-18.1'
+            pxc-tarball-glibc: '2.17'
+            pxc-download-series: 'Percona-XtraDB-Cluster-LATEST'
+            pxc-download-version: 'Percona-XtraDB-Cluster-8.0.27'
+          - pxc-version: '8.4.8-8.1'
+            pxc-tarball-glibc: '2.35'
+            pxc-download-series: 'Percona-XtraDB-Cluster-84'
+            pxc-download-version: 'Percona-XtraDB-Cluster-8.4.8'
     env:
       GO111MODULE: on
       SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
-      PXC_VERSION: '8.0.27-18.1'
+      PXC_VERSION: ${{ matrix.pxc-version }}
+      PXC_TARBALL_GLIBC: ${{ matrix.pxc-tarball-glibc }}
+      PXC_DOWNLOAD_SERIES: ${{ matrix.pxc-download-series }}
+      PXC_DOWNLOAD_VERSION: ${{ matrix.pxc-download-version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -93,8 +108,8 @@ jobs:
 
       - name: Download and unpack PXC
         run: |
-          TARBALL="Percona-XtraDB-Cluster_${PXC_VERSION}_Linux.x86_64.glibc2.17-minimal.tar.gz"
-          URL="https://downloads.percona.com/downloads/Percona-XtraDB-Cluster-LATEST/Percona-XtraDB-Cluster-8.0.27/binary/tarball/$TARBALL"
+          TARBALL="Percona-XtraDB-Cluster_${PXC_VERSION}_Linux.x86_64.glibc${PXC_TARBALL_GLIBC}-minimal.tar.gz"
+          URL="https://downloads.percona.com/downloads/${PXC_DOWNLOAD_SERIES}/${PXC_DOWNLOAD_VERSION}/binary/tarball/$TARBALL"
           mkdir -p "$SANDBOX_BINARY"
           curl -L -f --retry 5 --retry-all-errors --retry-delay 2 -o "/tmp/$TARBALL" "$URL"
           ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"

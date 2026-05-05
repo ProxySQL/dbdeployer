@@ -87,7 +87,8 @@ dbdeployer deploy single 8.0.40
 | Percona Server | ✓ | ✓ | ✓ | ✓ |
 | MariaDB | ✓ | ✓ | — | ✓ |
 | NDB Cluster | ✓ | ✓ | — | — |
-| Percona XtraDB Cluster | ✓ | ✓ | — | — |
+| Percona XtraDB Cluster | ✓ | ✓ | — | ✓ |
+| MariaDB Galera | — | ✓ | — | ✓ |
 | VillageSQL | ✓ | ✓ | — | — |
 
 MariaDB tarballs can also be deployed with the `--topology=galera` flag when the tarball includes Galera support.
