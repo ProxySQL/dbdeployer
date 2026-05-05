@@ -1,7 +1,7 @@
 # These options, after customization, are added to my.sandbox.cnf
 innodb_file_per_table
 innodb_autoinc_lock_mode=2
-wsrep-provider={{.Basedir}}/lib/libgalera_smm.so
+wsrep-provider={{.GaleraLibPath}}
 wsrep_cluster_address={{.GroupCommunication}}
 wsrep_node_incoming_address=127.0.0.1
 wsrep_provider_options=gmcast.listen_addr=tcp://127.0.0.1:{{.GroupPort}}

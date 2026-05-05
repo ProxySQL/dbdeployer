@@ -173,6 +173,8 @@ This creates:
   - **Hostgroup 1**: readers (slaves)
   - Monitor user: `msandbox` (checks backend health)
 
+The same `--with-proxysql` flag also works with `--topology=pxc` and `--topology=galera`, where dbdeployer configures the cluster nodes as ProxySQL backends using the same hostgroup layout.
+
 ```bash
 # Check MySQL replication
 ~/sandboxes/rsandbox_8_4_4/check_slaves

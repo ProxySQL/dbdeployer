@@ -33,4 +33,4 @@ In the above example, we get 5 nodes instead of 3. The first three are master (`
 
 The first three lines show that each master has done something. In our case, each master has created a different table. Slaves in nodes 5 and 6 then count how many tables they found, and if they got the tables from all masters, the test succeeds.
 
-Two more topologies, **ndb** and **pxc**, require binaries of dedicated flavors, respectively _MySQL Cluster_ and _Percona Xtradb Cluster_. MariaDB tarballs that include Galera support can also use the **galera** topology. dbdeployer detects whether an expanded tarball satisfies the flavor requirements, and deploys only when the criteria are met.
+Two more topologies, **ndb** and **pxc**, require binaries of dedicated flavors, respectively _MySQL Cluster_ and _Percona XtraDB Cluster_. MariaDB tarballs that include Galera support can also use the **galera** topology. dbdeployer detects whether an expanded tarball satisfies the flavor requirements, and deploys only when the criteria are met.

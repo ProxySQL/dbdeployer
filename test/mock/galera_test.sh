@@ -15,7 +15,7 @@
 # limitations under the License.
 
 test_dir=$(dirname $0)
-cd $test_dir || (echo "error changing directory to $mock_dir" ; exit 1)
+cd "$test_dir" || { echo "error changing directory to $test_dir"; exit 1; }
 test_dir=$PWD
 exit_code=0
 
@@ -79,9 +79,14 @@ do
     then
         echo "not ok - expected pxc topology to reject mariadb galera version $version"
         fail=$((fail+1))
-    else
+    elif grep -Eiq 'galera|topology|capability|not supported' /tmp/galera-pxc-reject.log
+    then
         echo "ok - pxc topology rejects mariadb galera version $version"
         pass=$((pass+1))
+    else
+        echo "not ok - unexpected failure while rejecting pxc topology for $version"
+        cat /tmp/galera-pxc-reject.log
+        fail=$((fail+1))
     fi
     tests=$((tests+1))
 
@@ -89,7 +94,7 @@ do
     results "$version"
 done
 
-cd $test_dir || (echo "error changing directory to $mock_dir" ; exit 1)
+cd "$test_dir" || { echo "error changing directory to $test_dir"; exit 1; }
 
 run du -sh $mock_dir
 run rm -rf $mock_dir

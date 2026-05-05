@@ -25,7 +25,7 @@ dbdeployer deploy replication 10.11.21 --topology=galera
 
 Default: 3 nodes, all writable.
 
-```
+```text
 ~/sandboxes/galera_msb_10_11_21/
 ├── node1/    # writable Galera node
 ├── node2/    # writable Galera node

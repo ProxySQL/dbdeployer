@@ -314,6 +314,7 @@ func CreatePxcReplication(sandboxDef SandboxDef, origin string, nodes int, maste
 			"NodeIp":                   masterIp,
 			"GroupCommunication":       groupCommunication,
 			"Basedir":                  sandboxDef.Basedir,
+			"GaleraLibPath":            galeraProviderLibPath(sandboxDef.Basedir),
 			"RsyncPort":                rsyncPort,
 			"GroupPort":                groupPort,
 			"SstMethod":                sstMethod,

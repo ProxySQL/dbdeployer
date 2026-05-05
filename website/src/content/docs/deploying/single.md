@@ -320,7 +320,7 @@ run 'dbdeployer usage single' for basic instructions'
 . sandbox server started
 ```
 
-For a quicker reset, all single sandboxes have a command `wipe_and_restart`. The replication sandboxes (except NDB, PXC, and Galera) have a command `wipe_and_restart_all`.
+For a quicker reset, all single sandboxes have a command `wipe_and_restart`. The replication sandboxes, including NDB, PXC, and Galera, have a command `wipe_and_restart_all`.
 Running such command will delete the data directory in all nodes, and re-create them.
 
 ```

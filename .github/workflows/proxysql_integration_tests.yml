@@ -35,6 +35,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libaio1 libnuma1 libncurses5 mysql-client
 
+      - name: Provide LDAP compatibility shim
+        run: |
+          LDAP_LIB=$(ldconfig -p | awk '/libldap\.so\.2/{print $NF; exit}')
+          if [ -n "$LDAP_LIB" ] && [ ! -e /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2 ]; then
+            sudo ln -s "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          fi
+
       - name: Install ProxySQL
         run: |
           # Download deb and extract binary without installing the package
@@ -153,6 +160,133 @@ jobs:
           echo "OK: R/W split write+read data flow verified"
 
           echo "=== Cleanup ==="
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" proxysql 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
+  proxysql-pxc:
+    name: ProxySQL + PXC
+    runs-on: ubuntu-22.04
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      PXC_VERSION: '8.0.27-18.1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 mysql-client
+
+      - name: Provide LDAP compatibility shim
+        run: |
+          LDAP_LIB=$(ldconfig -p | awk '/libldap\.so\.2/{print $NF; exit}')
+          if [ -n "$LDAP_LIB" ] && [ ! -e /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2 ]; then
+            sudo ln -s "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          fi
+
+      - name: Install ProxySQL
+        run: |
+          PROXYSQL_VERSION="3.0.6"
+          wget -nv -O /tmp/proxysql.deb \
+            "https://github.com/sysown/proxysql/releases/download/v${PROXYSQL_VERSION}/proxysql_${PROXYSQL_VERSION}-ubuntu22_amd64.deb"
+          mkdir -p /tmp/proxysql-extract
+          dpkg-deb -x /tmp/proxysql.deb /tmp/proxysql-extract
+          sudo cp /tmp/proxysql-extract/usr/bin/proxysql /usr/local/bin/proxysql
+          sudo chmod +x /usr/local/bin/proxysql
+          which proxysql
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Download and unpack PXC
+        run: |
+          TARBALL="Percona-XtraDB-Cluster_${PXC_VERSION}_Linux.x86_64.glibc2.17-minimal.tar.gz"
+          URL="https://downloads.percona.com/downloads/Percona-XtraDB-Cluster-LATEST/Percona-XtraDB-Cluster-8.0.27/binary/tarball/$TARBALL"
+          mkdir -p "$SANDBOX_BINARY"
+          curl -L -f -o "/tmp/$TARBALL" "$URL"
+          ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Test PXC with ProxySQL
+        run: |
+          VERSION=$(ls "$SANDBOX_BINARY" | head -1)
+          ./dbdeployer deploy replication "$VERSION" --topology=pxc --with-proxysql --sandbox-binary="$SANDBOX_BINARY"
+          SBDIR=$(ls -d ~/sandboxes/pxc_msb_*)
+          BACKENDS=$($SBDIR/proxysql/use -BN -e "SELECT COUNT(*) FROM mysql_servers" 2>&1 | grep -v Warning)
+          [ "$BACKENDS" = "3" ] || { echo "FAIL: expected 3 PXC backends, got $BACKENDS"; exit 1; }
+          sleep 10
+          RESULT=$($SBDIR/proxysql/use_proxy -BN -e "CREATE DATABASE IF NOT EXISTS proxysql_pxc_test; USE proxysql_pxc_test; CREATE TABLE IF NOT EXISTS t1 (id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'pxc_proxy_test'); SELECT val FROM t1 WHERE id=1;" 2>&1 | grep -v Warning)
+          echo "$RESULT" | grep -q "pxc_proxy_test" || { echo "FAIL: ProxySQL did not return the inserted PXC row"; exit 1; }
+          ./dbdeployer delete all --skip-confirm
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" proxysql 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
+  proxysql-galera:
+    name: ProxySQL + MariaDB Galera
+    runs-on: ubuntu-22.04
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      MARIADB_GALERA_VERSION: '10.11.16'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 mysql-client
+
+      - name: Install ProxySQL
+        run: |
+          PROXYSQL_VERSION="3.0.6"
+          wget -nv -O /tmp/proxysql.deb \
+            "https://github.com/sysown/proxysql/releases/download/v${PROXYSQL_VERSION}/proxysql_${PROXYSQL_VERSION}-ubuntu22_amd64.deb"
+          mkdir -p /tmp/proxysql-extract
+          dpkg-deb -x /tmp/proxysql.deb /tmp/proxysql-extract
+          sudo cp /tmp/proxysql-extract/usr/bin/proxysql /usr/local/bin/proxysql
+          sudo chmod +x /usr/local/bin/proxysql
+          which proxysql
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Download and unpack MariaDB Galera tarball
+        run: |
+          TARBALL="mariadb-${MARIADB_GALERA_VERSION}-linux-systemd-x86_64.tar.gz"
+          URL="https://archive.mariadb.org/mariadb-${MARIADB_GALERA_VERSION}/bintar-linux-systemd-x86_64/$TARBALL"
+          mkdir -p "$SANDBOX_BINARY"
+          curl -L -f -o "/tmp/$TARBALL" "$URL"
+          ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Test MariaDB Galera with ProxySQL
+        run: |
+          VERSION=$(ls "$SANDBOX_BINARY" | head -1)
+          ./dbdeployer deploy replication "$VERSION" --topology=galera --with-proxysql --sandbox-binary="$SANDBOX_BINARY"
+          SBDIR=$(ls -d ~/sandboxes/galera_msb_*)
+          BACKENDS=$($SBDIR/proxysql/use -BN -e "SELECT COUNT(*) FROM mysql_servers" 2>&1 | grep -v Warning)
+          [ "$BACKENDS" = "3" ] || { echo "FAIL: expected 3 Galera backends, got $BACKENDS"; exit 1; }
+          sleep 10
+          RESULT=$($SBDIR/proxysql/use_proxy -BN -e "CREATE DATABASE IF NOT EXISTS proxysql_galera_test; USE proxysql_galera_test; CREATE TABLE IF NOT EXISTS t1 (id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'galera_proxy_test'); SELECT val FROM t1 WHERE id=1;" 2>&1 | grep -v Warning)
+          echo "$RESULT" | grep -q "galera_proxy_test" || { echo "FAIL: ProxySQL did not return the inserted Galera row"; exit 1; }
           ./dbdeployer delete all --skip-confirm
 
       - name: Cleanup

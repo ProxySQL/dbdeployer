@@ -204,6 +204,10 @@ func replicationSandbox(cmd *cobra.Command, args []string) {
 	masterIp, _ := flags.GetString(globals.MasterIpLabel)
 	masterList, _ := flags.GetString(globals.MasterListLabel)
 	slaveList, _ := flags.GetString(globals.SlaveListLabel)
+	withProxySQL, _ := flags.GetBool("with-proxysql")
+	if withProxySQL && topology == globals.NdbLabel {
+		common.Exitf(1, "--with-proxysql is not supported with topology %q", topology)
+	}
 	sd.SinglePrimary, _ = flags.GetBool(globals.SinglePrimaryLabel)
 	replHistoryDir, _ := flags.GetBool(globals.ReplHistoryDirLabel)
 	if replHistoryDir {
@@ -267,22 +271,25 @@ func replicationSandbox(cmd *cobra.Command, args []string) {
 		common.Exitf(1, globals.ErrCreatingSandbox, err)
 	}
 
-	withProxySQL, _ := flags.GetBool("with-proxysql")
 	if withProxySQL {
 		// Determine the sandbox directory that was created
 		var sandboxDir string
-		if sd.DirName != "" {
-			sandboxDir = path.Join(sd.SandboxDir, sd.DirName)
-		} else if topology == globals.InnoDBClusterLabel {
+		switch topology {
+		case globals.InnoDBClusterLabel:
 			sandboxDir = path.Join(sd.SandboxDir, defaults.Defaults().InnoDBClusterPrefix+common.VersionToName(origin))
-		} else {
+		case globals.PxcLabel:
+			sandboxDir = path.Join(sd.SandboxDir, defaults.Defaults().PxcPrefix+common.VersionToName(origin))
+		case globals.GaleraLabel:
+			sandboxDir = path.Join(sd.SandboxDir, defaults.Defaults().GaleraPrefix+common.VersionToName(origin))
+		case globals.NdbLabel:
+			sandboxDir = path.Join(sd.SandboxDir, defaults.Defaults().NdbPrefix+common.VersionToName(origin))
+		default:
 			sandboxDir = path.Join(sd.SandboxDir, defaults.Defaults().MasterSlavePrefix+common.VersionToName(origin))
 		}
-
 		var masterPort int
 		var slavePorts []int
 
-		if topology == globals.InnoDBClusterLabel {
+		if topology == globals.InnoDBClusterLabel || topology == globals.PxcLabel || topology == globals.GaleraLabel {
 			// InnoDB Cluster: node1 is primary, node2..N are secondaries
 			primaryDesc, err := common.ReadSandboxDescription(path.Join(sandboxDir, fmt.Sprintf("%s%d", defaults.Defaults().NodePrefix, 1)))
 			if err != nil {

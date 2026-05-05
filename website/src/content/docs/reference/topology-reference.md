@@ -23,7 +23,7 @@ Not every topology is available for every provider. This matrix shows what is su
 | all-masters | ✓ | — | Multi-source circular replication |
 | ndb | ✓ | — | NDB Cluster (MySQL Cluster) |
 | pxc | ✓ | — | Percona XtraDB Cluster (Galera-based) |
-| galera | — | ✓ | MariaDB Galera (Galera-based) |
+| galera | ✓ | — | MariaDB Galera (Galera-based) |
 
 **Key differences by provider:**
 
