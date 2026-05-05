@@ -6,7 +6,7 @@ MYSQLD_SAFE="bin/mysqld_safe"
 FLAVOR={{.Flavor}}
 if [ "$FLAVOR" == "mariadb" ]
 then
-  MYSQLD_SAFE="bin/mariadbd-safe"
+    MYSQLD_SAFE="bin/mariadbd-safe"
 fi
 CUSTOM_MYSQLD={{.CustomMysqld}}
 if [ -n "$CUSTOM_MYSQLD" ]

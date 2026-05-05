@@ -5,7 +5,7 @@ FLAVOR={{.Flavor}}
 MYCLIENT="mysql"
 if [ "$FLAVOR" == "mariadb" ]
 then
-  MYCLIENT="mariadb"
+    MYCLIENT="mariadb"
 fi
 
 source {{.SandboxDir}}/sb_include

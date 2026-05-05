@@ -8,7 +8,7 @@ FLAVOR={{.Flavor}}
 MYSQL_ADMIN="$CLIENT_BASEDIR/bin/mysqladmin"
 if [ "$FLAVOR" == "mariadb" ]
 then
-  MYSQL_ADMIN="$CLIENT_BASEDIR/bin/mariadb-admin"
+    MYSQL_ADMIN="$CLIENT_BASEDIR/bin/mariadb-admin"
 fi
 
 if [ -n "$(is_running)" ]
