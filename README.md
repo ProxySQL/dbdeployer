@@ -8,8 +8,25 @@ Originally created by [Giuseppe Maxia](https://github.com/datacharmer) as a Go r
 
 **[Website](https://proxysql.github.io/dbdeployer/)** · **[Quick Start](#quick-start)** · **[Documentation](https://proxysql.github.io/dbdeployer/getting-started/installation/)**
 
-![CI](https://github.com/ProxySQL/dbdeployer/actions/workflows/all_tests.yml/badge.svg)
-![Integration](https://github.com/ProxySQL/dbdeployer/actions/workflows/integration_tests.yml/badge.svg)
+[![CI](https://github.com/ProxySQL/dbdeployer/actions/workflows/all_tests.yml/badge.svg)](https://github.com/ProxySQL/dbdeployer/actions/workflows/all_tests.yml)
+[![Integration](https://github.com/ProxySQL/dbdeployer/actions/workflows/integration_tests.yml/badge.svg)](https://github.com/ProxySQL/dbdeployer/actions/workflows/integration_tests.yml)
+[![ProxySQL](https://github.com/ProxySQL/dbdeployer/actions/workflows/proxysql_integration_tests.yml/badge.svg)](https://github.com/ProxySQL/dbdeployer/actions/workflows/proxysql_integration_tests.yml)
+[![Install](https://github.com/ProxySQL/dbdeployer/actions/workflows/install_script_test.yml/badge.svg)](https://github.com/ProxySQL/dbdeployer/actions/workflows/install_script_test.yml)
+
+<details>
+<summary><strong>Tested configurations</strong></summary>
+
+| Flavor | Versions | Single | Replication | Group Replication | Galera | InnoDB Cluster | ProxySQL |
+|---|---|---|---|---|---|---|---|
+| MySQL | 5.6, 8.0, 8.4, 9.1, 9.5 | yes | yes | 8.4, 9.5 | — | 8.4, 9.5 | 8.4, 9.1 |
+| MariaDB | 10.11 | yes | yes | — | 10.11 | — | yes |
+| Percona Server | 8.0, 8.4 | yes | yes | — | — | — | — |
+| PXC | 8.0, 8.4 | — | yes | — | yes | — | 8.0, 8.4 |
+| PostgreSQL | 16 | yes | — | — | — | — | yes |
+
+CI also runs on: `ubuntu-latest`, `macos-latest` with Go 1.22 and 1.23.
+
+</details>
 
 ## Install
 
