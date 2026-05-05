@@ -23,8 +23,7 @@ import (
 	"strings"
 )
 
-//go:embed VERSION
-var VersionDef string
+var VersionDef = "2.2.3"
 
 // CompatibleVersion is the version used to mark compatible archives (templates, configuration).
 // It is usually major.minor.0, except when we are at version 0.x, when
@@ -34,6 +33,5 @@ var VersionDef string
 var CompatibleVersion string
 
 func init() {
-	VersionDef = strings.TrimSpace(VersionDef)
 	CompatibleVersion = strings.TrimSpace(CompatibleVersion)
 }
