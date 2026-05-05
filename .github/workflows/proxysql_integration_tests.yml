@@ -186,7 +186,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap2 mysql-client
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0 mysql-client
 
       - name: Provide LDAP compatibility shim
         run: |
@@ -252,7 +252,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap2 mysql-client
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0 mysql-client
 
       - name: Provide LDAP compatibility shim
         run: |

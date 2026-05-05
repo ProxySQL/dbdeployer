@@ -65,7 +65,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap2
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0
 
       - name: Provide LDAP compatibility shim
         run: |
@@ -123,7 +123,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap2 socat
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0 socat
 
       - name: Provide LDAP compatibility shim
         run: |
