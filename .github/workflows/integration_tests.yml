@@ -272,6 +272,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libaio1 libnuma1 libncurses5 socat
 
+      - name: Install legacy OpenSSL 1.0
+        run: |
+          echo "deb [trusted=yes] http://archive.ubuntu.com/ubuntu bionic-security main" | sudo tee /etc/apt/sources.list.d/bionic-security.list
+          sudo apt-get update
+          sudo apt-get install -y libssl1.0.0
+
       - name: Provide LDAP compatibility shim
         run: |
           sudo ldconfig
@@ -302,7 +308,7 @@ jobs:
           URL="https://downloads.percona.com/downloads/Percona-XtraDB-Cluster-LATEST/Percona-XtraDB-Cluster-8.0.27/binary/tarball/$TARBALL"
           echo "Downloading Percona XtraDB Cluster ${PXC_VERSION}..."
           mkdir -p "$SANDBOX_BINARY"
-          curl -L -f -o "/tmp/$TARBALL" "$URL"
+          curl -L -f --retry 5 --retry-all-errors --retry-delay 2 -o "/tmp/$TARBALL" "$URL"
           ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
 
       - name: Test replication deployment
@@ -387,7 +393,7 @@ jobs:
           URL="https://archive.mariadb.org/mariadb-${MARIADB_GALERA_VERSION}/bintar-linux-systemd-x86_64/$TARBALL"
           echo "Downloading MariaDB Galera ${MARIADB_GALERA_VERSION}..."
           mkdir -p "$SANDBOX_BINARY"
-          curl -L -f -o "/tmp/$TARBALL" "$URL"
+          curl -L -f --retry 5 --retry-all-errors --retry-delay 2 -o "/tmp/$TARBALL" "$URL"
           ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
 
       - name: Test replication deployment

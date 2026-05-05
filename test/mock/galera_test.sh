@@ -61,7 +61,7 @@ function check_sst_method {
     ok_file_exists $my_file
     ok "expected is defined" "$expected"
 
-    found=$(grep "wsrep_sst_method\s*=\s*$expected" $my_file )
+    found=$(grep -E "wsrep_sst_method[[:space:]]*=[[:space:]]*$expected" "$my_file")
     ok "Expected $expected found in $my_file" "$found"
 }
 

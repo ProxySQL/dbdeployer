@@ -1,4 +1,7 @@
 # These options, after customization, are added to my.sandbox.cnf
+binlog_format=ROW
+default_storage_engine=InnoDB
+wsrep_on=ON
 innodb_file_per_table
 innodb_autoinc_lock_mode=2
 wsrep-provider={{.GaleraLibPath}}

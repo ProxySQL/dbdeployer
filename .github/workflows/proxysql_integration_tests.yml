@@ -181,6 +181,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0 mysql-client socat
 
+      - name: Install legacy OpenSSL 1.0
+        run: |
+          echo "deb [trusted=yes] http://archive.ubuntu.com/ubuntu bionic-security main" | sudo tee /etc/apt/sources.list.d/bionic-security.list
+          sudo apt-get update
+          sudo apt-get install -y libssl1.0.0
+
       - name: Provide LDAP compatibility shim
         run: |
           sudo ldconfig
@@ -221,7 +227,7 @@ jobs:
           TARBALL="Percona-XtraDB-Cluster_${PXC_VERSION}_Linux.x86_64.glibc2.17-minimal.tar.gz"
           URL="https://downloads.percona.com/downloads/Percona-XtraDB-Cluster-LATEST/Percona-XtraDB-Cluster-8.0.27/binary/tarball/$TARBALL"
           mkdir -p "$SANDBOX_BINARY"
-          curl -L -f -o "/tmp/$TARBALL" "$URL"
+          curl -L -f --retry 5 --retry-all-errors --retry-delay 2 -o "/tmp/$TARBALL" "$URL"
           ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
 
       - name: Test PXC with ProxySQL
@@ -232,7 +238,12 @@ jobs:
           BACKENDS=$($SBDIR/proxysql/use -BN -e "SELECT COUNT(*) FROM mysql_servers" 2>&1 | grep -v Warning)
           [ "$BACKENDS" = "3" ] || { echo "FAIL: expected 3 PXC backends, got $BACKENDS"; exit 1; }
           sleep 10
-          RESULT=$($SBDIR/proxysql/use_proxy -BN -e "CREATE DATABASE IF NOT EXISTS proxysql_pxc_test; USE proxysql_pxc_test; CREATE TABLE IF NOT EXISTS t1 (id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'pxc_proxy_test'); SELECT val FROM t1 WHERE id=1;" 2>&1 | grep -v Warning)
+          RESULT=""
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/proxysql/use_proxy -BN -e "CREATE DATABASE IF NOT EXISTS proxysql_pxc_test; USE proxysql_pxc_test; CREATE TABLE IF NOT EXISTS t1 (id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'pxc_proxy_test'); SELECT val FROM t1 WHERE id=1;" 2>&1 | grep -v Warning) || true
+            echo "$RESULT" | grep -q "pxc_proxy_test" && break
+            sleep 2
+          done
           echo "$RESULT" | grep -q "pxc_proxy_test" || { echo "FAIL: ProxySQL did not return the inserted PXC row"; exit 1; }
 
       - name: Cleanup
@@ -301,7 +312,7 @@ jobs:
           TARBALL="mariadb-${MARIADB_GALERA_VERSION}-linux-systemd-x86_64.tar.gz"
           URL="https://archive.mariadb.org/mariadb-${MARIADB_GALERA_VERSION}/bintar-linux-systemd-x86_64/$TARBALL"
           mkdir -p "$SANDBOX_BINARY"
-          curl -L -f -o "/tmp/$TARBALL" "$URL"
+          curl -L -f --retry 5 --retry-all-errors --retry-delay 2 -o "/tmp/$TARBALL" "$URL"
           ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
 
       - name: Test MariaDB Galera with ProxySQL
@@ -312,7 +323,12 @@ jobs:
           BACKENDS=$($SBDIR/proxysql/use -BN -e "SELECT COUNT(*) FROM mysql_servers" 2>&1 | grep -v Warning)
           [ "$BACKENDS" = "3" ] || { echo "FAIL: expected 3 Galera backends, got $BACKENDS"; exit 1; }
           sleep 10
-          RESULT=$($SBDIR/proxysql/use_proxy -BN -e "CREATE DATABASE IF NOT EXISTS proxysql_galera_test; USE proxysql_galera_test; CREATE TABLE IF NOT EXISTS t1 (id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'galera_proxy_test'); SELECT val FROM t1 WHERE id=1;" 2>&1 | grep -v Warning)
+          RESULT=""
+          for i in $(seq 1 10); do
+            RESULT=$($SBDIR/proxysql/use_proxy -BN -e "CREATE DATABASE IF NOT EXISTS proxysql_galera_test; USE proxysql_galera_test; CREATE TABLE IF NOT EXISTS t1 (id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'galera_proxy_test'); SELECT val FROM t1 WHERE id=1;" 2>&1 | grep -v Warning) || true
+            echo "$RESULT" | grep -q "galera_proxy_test" && break
+            sleep 2
+          done
           echo "$RESULT" | grep -q "galera_proxy_test" || { echo "FAIL: ProxySQL did not return the inserted Galera row"; exit 1; }
 
       - name: Cleanup
