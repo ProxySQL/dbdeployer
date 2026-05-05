@@ -79,6 +79,7 @@ const (
 	XtradbClusterEncryptCluster = "xtradbCluster_encrypt_cluster"
 	XtradbClusterRsync          = "xtradb_cluster_rsync"
 	XtradbClusterXtrabackup     = "xtradb_cluster_xtrabackup"
+	GaleraCluster               = "galeraCluster"
 	NdbCluster                  = "ndbCluster"
 	RootAuth                    = "rootAuth"
 	AdminAddress                = "adminAddress"
@@ -379,6 +380,10 @@ var MariadbCapabilities = Capabilities{
 		},
 		DynVariables: MySQLCapabilities.Features[DynVariables],
 		SemiSynch:    MySQLCapabilities.Features[SemiSynch],
+		GaleraCluster: {
+			Description: "Galera-based cluster creation",
+			Since:       globals.MinimumMariaDbGaleraVersion,
+		},
 	},
 }
 

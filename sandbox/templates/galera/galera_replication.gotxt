@@ -1,5 +1,7 @@
-
 # These options, after customization, are added to my.sandbox.cnf
+binlog_format=ROW
+default_storage_engine=InnoDB
+wsrep_on=ON
 innodb_file_per_table
 innodb_autoinc_lock_mode=2
 wsrep-provider={{.GaleraLibPath}}
@@ -7,9 +9,6 @@ wsrep_cluster_address={{.GroupCommunication}}
 wsrep_node_incoming_address=127.0.0.1
 wsrep_provider_options=gmcast.listen_addr=tcp://127.0.0.1:{{.GroupPort}}
 wsrep_sst_method={{.SstMethod}}
-#pxc_encrypt_cluster_traffic=off
-{{.PxcEncryptClusterTraffic}}
-loose_wsrep_sst_auth=root:
 wsrep_node_address={{.NodeIp}}
 innodb_flush_method=O_DIRECT
 core-file

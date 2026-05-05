@@ -639,6 +639,15 @@ func CreateReplicationSandbox(sdef SandboxDef, origin string, replData Replicati
 			return fmt.Errorf(globals.ErrFeatureRequiresCapability, "Xtradb Cluster", common.PxcFlavor, common.IntSliceToDottedString(globals.MinimumXtradbClusterVersion))
 		}
 		sdef.SandboxDir = path.Join(sdef.SandboxDir, defaults.Defaults().PxcPrefix+common.VersionToName(origin))
+	case globals.GaleraLabel:
+		isMinimumGalera, err := common.HasCapability(sdef.Flavor, common.GaleraCluster, sdef.Version)
+		if err != nil {
+			return err
+		}
+		if !isMinimumGalera {
+			return fmt.Errorf(globals.ErrFeatureRequiresCapability, "Galera cluster", common.MariaDbFlavor, common.IntSliceToDottedString(globals.MinimumMariaDbGaleraVersion))
+		}
+		sdef.SandboxDir = path.Join(sdef.SandboxDir, defaults.Defaults().GaleraPrefix+common.VersionToName(origin))
 	case globals.NdbLabel:
 		isMinimumNdb, err := common.HasCapability(sdef.Flavor, common.NdbCluster, sdef.Version)
 		if err != nil {
@@ -689,6 +698,8 @@ func CreateReplicationSandbox(sdef SandboxDef, origin string, replData Replicati
 		err = CreateAllMastersReplication(sdef, origin, replData.Nodes, replData.MasterIp)
 	case globals.PxcLabel:
 		err = CreatePxcReplication(sdef, origin, replData.Nodes, replData.MasterIp)
+	case globals.GaleraLabel:
+		err = CreateGaleraReplication(sdef, origin, replData.Nodes, replData.MasterIp)
 	case globals.NdbLabel:
 		err = CreateNdbReplication(sdef, origin, replData.Nodes, replData.NdbNodes, replData.MasterIp)
 	case globals.InnoDBClusterLabel:

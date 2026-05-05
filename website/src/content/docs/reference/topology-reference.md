@@ -23,10 +23,12 @@ Not every topology is available for every provider. This matrix shows what is su
 | all-masters | ✓ | — | Multi-source circular replication |
 | ndb | ✓ | — | NDB Cluster (MySQL Cluster) |
 | pxc | ✓ | — | Percona XtraDB Cluster (Galera-based) |
+| galera | ✓ | — | MariaDB Galera (Galera-based) |
 
 **Key differences by provider:**
 
 - **MySQL** supports the full topology range including all replication variants, cluster topologies, and proxy integration.
+- **MariaDB** supports single, replication, and Galera topologies through the MySQL provider.
 - **PostgreSQL** supports single and multiple instances plus streaming replication. Group replication, cluster topologies (InnoDB Cluster, NDB, PXC), and multi-source replication are MySQL-specific features with no PostgreSQL equivalent.
 
 ---
@@ -292,24 +294,24 @@ When deployed with `--proxy=proxysql`, a `proxysql/` directory is added alongsid
 
 The table below shows which helper scripts are generated for each topology. All single-instance scripts are also present inside each node directory of multi-node topologies.
 
-| Script | single | multiple | replication | group | innodb-cluster | pxc | postgresql |
-|--------|:------:|:--------:|:-----------:|:-----:|:--------------:|:---:|:----------:|
-| `start` / `start_all` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `stop` / `stop_all` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `restart` / `restart_all` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `status` / `status_all` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `use` / `use_all` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `use_admin` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
-| `clear` / `clear_all` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `send_kill` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
-| `load_grants` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
-| `show_log` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `check_slaves` | — | — | ✓ | — | — | — | — |
-| `check_nodes` | — | — | — | ✓ | ✓ | ✓ | — |
-| `check_replicas` | — | — | — | — | — | — | ✓ |
-| `initialize_slaves` | — | — | ✓ | — | — | — | — |
-| `check_cluster` | — | — | — | — | ✓ | — | — |
-| `metadata` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Script | single | multiple | replication | group | innodb-cluster | pxc | galera | postgresql |
+|--------|:------:|:--------:|:-----------:|:-----:|:--------------:|:---:|:------:|:----------:|
+| `start` / `start_all` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `stop` / `stop_all` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `restart` / `restart_all` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `status` / `status_all` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `use` / `use_all` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `use_admin` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| `clear` / `clear_all` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `send_kill` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| `load_grants` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — |
+| `show_log` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `check_slaves` | — | — | ✓ | — | — | — | — | — |
+| `check_nodes` | — | — | — | ✓ | ✓ | ✓ | ✓ | — |
+| `check_replicas` | — | — | — | — | — | — | — | ✓ |
+| `initialize_slaves` | — | — | ✓ | — | — | — | — | — |
+| `check_cluster` | — | — | — | — | ✓ | — | — | — |
+| `metadata` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ---
 
@@ -355,6 +357,9 @@ dbdeployer deploy replication 8.4.8 --topology=ndb
 
 # Percona XtraDB Cluster
 dbdeployer deploy replication 8.4.8 --topology=pxc
+
+# MariaDB Galera
+dbdeployer deploy replication 10.11.21 --topology=galera
 ```
 
 ### PostgreSQL

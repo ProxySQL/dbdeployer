@@ -37,7 +37,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0
 
       - name: Build dbdeployer
         run: go build -o dbdeployer .
@@ -124,7 +124,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0
 
       - name: Build dbdeployer
         run: go build -o dbdeployer .
@@ -196,7 +196,7 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libaio1 libnuma1 libncurses5
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 socat
 
       - name: Build dbdeployer
         run: go build -o dbdeployer .
@@ -247,6 +247,192 @@ jobs:
           ./dbdeployer delete all --skip-confirm 2>/dev/null || true
           pkill -9 -u "$USER" mysqld 2>/dev/null || true
 
+  # Test Percona XtraDB Cluster: replication deployment with data verification
+  pxc-test:
+    name: PXC (${{ matrix.pxc-version }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pxc-version: '8.0.27-18.1'
+            pxc-tarball-glibc: '2.17'
+            pxc-download-series: 'Percona-XtraDB-Cluster-LATEST'
+            pxc-download-version: 'Percona-XtraDB-Cluster-8.0.27'
+          - pxc-version: '8.4.8-8.1'
+            pxc-tarball-glibc: '2.35'
+            pxc-download-series: 'Percona-XtraDB-Cluster-84'
+            pxc-download-version: 'Percona-XtraDB-Cluster-8.4.8'
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      PXC_VERSION: ${{ matrix.pxc-version }}
+      PXC_TARBALL_GLIBC: ${{ matrix.pxc-tarball-glibc }}
+      PXC_DOWNLOAD_SERIES: ${{ matrix.pxc-download-series }}
+      PXC_DOWNLOAD_VERSION: ${{ matrix.pxc-download-version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0 socat
+
+      - name: Provide LDAP compatibility shim
+        run: |
+          sudo ldconfig
+          LDAP_LIB=$(ldconfig -p | awk '
+            /libldap[^ ]*\.so\./ && $NF !~ /libldap_r-2\.4\.so\.2$/ {
+              print $NF
+              exit
+            }')
+          if [ -z "$LDAP_LIB" ] || [ ! -e "$LDAP_LIB" ]; then
+            LDAP_LIB=$(find /usr/lib /lib -type f -name 'libldap*.so*' ! -name 'libldap_r-2.4.so.2' | sort | head -1)
+          fi
+          if [ -z "$LDAP_LIB" ] || [ ! -e "$LDAP_LIB" ]; then
+            echo "Unable to locate a libldap shared object" >&2
+            ldconfig -p | grep ldap >&2 || true
+            find /usr/lib /lib -name 'libldap*.so*' | sort >&2 || true
+            exit 1
+          fi
+          sudo ln -sf "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          sudo ln -sf "$LDAP_LIB" /lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          sudo ldconfig
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Download and unpack PXC
+        run: |
+          TARBALL="Percona-XtraDB-Cluster_${PXC_VERSION}_Linux.x86_64.glibc${PXC_TARBALL_GLIBC}-minimal.tar.gz"
+          URL="https://downloads.percona.com/downloads/${PXC_DOWNLOAD_SERIES}/${PXC_DOWNLOAD_VERSION}/binary/tarball/$TARBALL"
+          echo "Downloading Percona XtraDB Cluster ${PXC_VERSION}..."
+          mkdir -p "$SANDBOX_BINARY"
+          curl -L -f --retry 5 --retry-all-errors --retry-delay 2 -o "/tmp/$TARBALL" "$URL"
+          ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Test replication deployment
+        run: |
+          VERSION=$(ls "$SANDBOX_BINARY" | head -1)
+          echo "Deploying PXC $VERSION..."
+          ./dbdeployer deploy replication "$VERSION" --topology=pxc --sandbox-binary="$SANDBOX_BINARY"
+          SBDIR=$(ls -d ~/sandboxes/pxc_msb_*)
+          for i in $(seq 1 15); do
+            "$SBDIR/check_nodes" && break
+            sleep 2
+          done
+          "$SBDIR/check_nodes"
+          "$SBDIR/n1" -e "CREATE DATABASE ci_test; USE ci_test; CREATE TABLE t1(id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'pxc_ci_test');"
+          for i in $(seq 1 10); do
+            RESULT=$("$SBDIR/n3" -BN -e "SELECT val FROM ci_test.t1;" 2>/dev/null) || true
+            echo "$RESULT" | grep -q "pxc_ci_test" && break
+            echo "  Waiting for PXC replication... ($i/10)"
+            sleep 2
+          done
+          echo "$RESULT" | grep -q "pxc_ci_test" || { echo "FAIL: data not replicated after 20s"; exit 1; }
+          echo "OK: PXC replication works"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
+  # Test MariaDB Galera: replication deployment with data verification
+  mariadb-galera-test:
+    name: MariaDB Galera (${{ matrix.mariadb-galera-version }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        mariadb-galera-version:
+          - '10.11.16'
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      MARIADB_GALERA_VERSION: ${{ matrix.mariadb-galera-version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0 socat
+
+      - name: Install legacy OpenSSL 1.0
+        run: |
+          echo "deb [trusted=yes] http://archive.ubuntu.com/ubuntu bionic-security main" | sudo tee /etc/apt/sources.list.d/bionic-security.list
+          sudo apt-get update
+          sudo apt-get install -y libssl1.0.0
+
+      - name: Provide LDAP compatibility shim
+        run: |
+          sudo ldconfig
+          LDAP_LIB=$(ldconfig -p | awk '
+            /libldap[^ ]*\.so\./ && $NF !~ /libldap_r-2\.4\.so\.2$/ {
+              print $NF
+              exit
+            }')
+          if [ -z "$LDAP_LIB" ] || [ ! -e "$LDAP_LIB" ]; then
+            LDAP_LIB=$(find /usr/lib /lib -type f -name 'libldap*.so*' ! -name 'libldap_r-2.4.so.2' | sort | head -1)
+          fi
+          if [ -z "$LDAP_LIB" ] || [ ! -e "$LDAP_LIB" ]; then
+            echo "Unable to locate a libldap shared object" >&2
+            ldconfig -p | grep ldap >&2 || true
+            find /usr/lib /lib -name 'libldap*.so*' | sort >&2 || true
+            exit 1
+          fi
+          sudo ln -sf "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          sudo ln -sf "$LDAP_LIB" /lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          sudo ldconfig
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Download and unpack MariaDB Galera tarball
+        run: |
+          TARBALL="mariadb-${MARIADB_GALERA_VERSION}-linux-systemd-x86_64.tar.gz"
+          URL="https://archive.mariadb.org/mariadb-${MARIADB_GALERA_VERSION}/bintar-linux-systemd-x86_64/$TARBALL"
+          echo "Downloading MariaDB Galera ${MARIADB_GALERA_VERSION}..."
+          mkdir -p "$SANDBOX_BINARY"
+          curl -L -f --retry 5 --retry-all-errors --retry-delay 2 -o "/tmp/$TARBALL" "$URL"
+          ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Test replication deployment
+        run: |
+          VERSION=$(ls "$SANDBOX_BINARY" | head -1)
+          echo "Deploying MariaDB Galera $VERSION..."
+          ./dbdeployer deploy replication "$VERSION" --topology=galera --sandbox-binary="$SANDBOX_BINARY"
+          SBDIR=$(ls -d ~/sandboxes/galera_msb_*)
+          for i in $(seq 1 15); do
+            "$SBDIR/check_nodes" && break
+            sleep 2
+          done
+          "$SBDIR/check_nodes"
+          "$SBDIR/n1" -e "CREATE DATABASE ci_test; USE ci_test; CREATE TABLE t1(id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'galera_ci_test');"
+          for i in $(seq 1 10); do
+            RESULT=$("$SBDIR/n3" -BN -e "SELECT val FROM ci_test.t1;" 2>/dev/null) || true
+            echo "$RESULT" | grep -q "galera_ci_test" && break
+            echo "  Waiting for MariaDB Galera replication... ($i/10)"
+            sleep 2
+          done
+          echo "$RESULT" | grep -q "galera_ci_test" || { echo "FAIL: data not replicated after 20s"; exit 1; }
+          echo "OK: MariaDB Galera replication works"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
   # Run the ts (testscript) replication suite against multiple MySQL versions.
   # This tests replication, replication-gtid, and semisync across versions.
   ts-replication-test:
@@ -266,6 +452,27 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libaio1 libnuma1 libncurses5
+
+      - name: Provide LDAP compatibility shim
+        run: |
+          sudo ldconfig
+          LDAP_LIB=$(ldconfig -p | awk '
+            /libldap[^ ]*\.so\./ && $NF !~ /libldap_r-2\.4\.so\.2$/ {
+              print $NF
+              exit
+            }')
+          if [ -z "$LDAP_LIB" ] || [ ! -e "$LDAP_LIB" ]; then
+            LDAP_LIB=$(find /usr/lib /lib -type f -name 'libldap*.so*' ! -name 'libldap_r-2.4.so.2' | sort | head -1)
+          fi
+          if [ -z "$LDAP_LIB" ] || [ ! -e "$LDAP_LIB" ]; then
+            echo "Unable to locate a libldap shared object" >&2
+            ldconfig -p | grep ldap >&2 || true
+            find /usr/lib /lib -name 'libldap*.so*' | sort >&2 || true
+            exit 1
+          fi
+          sudo ln -sf "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          sudo ln -sf "$LDAP_LIB" /lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          sudo ldconfig
 
       - name: Build dbdeployer
         run: go build -o dbdeployer .

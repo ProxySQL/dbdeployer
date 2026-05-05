@@ -17,10 +17,11 @@ fi
 
 stop_cmd="./send_kill_all destroy"
 
-if [ "$FLAVOR" == "ndb" -o "$FLAVOR" == "$pxc" ]
-then
-    stop_cmd=./stop_all
-fi
+case "${SANDBOX_TYPE:-$FLAVOR}" in
+    ndb*|pxc*|galera*)
+        stop_cmd=./stop_all
+        ;;
+esac
 
 $stop_cmd
 ./exec_all rm -rf data

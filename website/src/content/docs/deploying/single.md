@@ -294,7 +294,7 @@ The ``deploy replication`` command will install a master and two or more slaves,
     
     
 
-As of version 1.21.0, you can use Percona Xtradb Cluster tarballs to deploy replication of type *pxc*. This deployment only works on Linux.
+As of version 1.21.0, you can use Percona Xtradb Cluster tarballs to deploy replication of type *pxc*. MariaDB tarballs with Galera support can use the `galera` topology. These deployments only work on Linux.
 
 ## Re-deploy a sandbox
 
@@ -320,7 +320,7 @@ run 'dbdeployer usage single' for basic instructions'
 . sandbox server started
 ```
 
-For a quicker reset, all single sandboxes have a command `wipe_and_restart`. The replication sandboxes (except NDB and PXC) have a command `wipe_and_restart_all`.
+For a quicker reset, all single sandboxes have a command `wipe_and_restart`. The replication sandboxes, including NDB, PXC, and Galera, have a command `wipe_and_restart_all`.
 Running such command will delete the data directory in all nodes, and re-create them.
 
 ```
@@ -349,4 +349,3 @@ executing 'start' on slave 2
 initializing slave 1
 initializing slave 2
 ```
-

@@ -51,6 +51,7 @@ export default defineConfig({
             { label: 'PostgreSQL', slug: 'providers/postgresql' },
             { label: 'ProxySQL', slug: 'providers/proxysql' },
             { label: 'Percona XtraDB Cluster', slug: 'providers/pxc' },
+            { label: 'MariaDB Galera', slug: 'providers/galera' },
           ],
         },
         {

@@ -150,6 +150,11 @@ const (
 	TmplPxcStart       = "pxc_start"
 	TmplPxcCheckNodes  = "check_pxc_nodes"
 
+	// galera
+	TmplGaleraReplication = "galera_replication"
+	TmplGaleraStart       = "galera_start"
+	TmplGaleraCheckNodes  = "check_galera_nodes"
+
 	//ndb
 	TmplNdbStartCluster = "ndb_start_cluster"
 	TmplNdbStopCluster  = "ndb_stop_cluster"

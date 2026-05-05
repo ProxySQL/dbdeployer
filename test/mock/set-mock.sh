@@ -128,6 +128,33 @@ function create_mock_pxc_version {
     echo pxc > $SANDBOX_BINARY/$version_label/FLAVOR
 }
 
+function create_mock_galera_version {
+    version_label=$1
+    create_mock_version $version_label
+
+    OS=$(uname)
+    case $OS in
+        Darwin)
+            OS_extension=dylib
+            ;;
+        Linux)
+            OS_extension=so
+            ;;
+        *)
+            echo "Unhandled operating system $OS"
+            exit 1
+            ;;
+    esac
+
+    dbdeployer defaults templates show no_op_mock > $SANDBOX_BINARY/$version_label/bin/galera_new_cluster
+    dbdeployer defaults templates show no_op_mock > $SANDBOX_BINARY/$version_label/bin/aria_chk
+    dbdeployer defaults templates show no_op_mock > $SANDBOX_BINARY/$version_label/lib/libgalera_smm.$OS_extension
+    dbdeployer defaults templates show no_op_mock > $SANDBOX_BINARY/$version_label/lib/libmariadbclient.$OS_extension
+    dbdeployer defaults templates show no_op_mock > $SANDBOX_BINARY/$version_label/lib/libmariadb.$OS_extension
+    chmod +x $SANDBOX_BINARY/$version_label/bin/*
+    echo mariadb > $SANDBOX_BINARY/$version_label/FLAVOR
+}
+
 function create_mock_tidb_version {
     version_label=$1
     make_dir $SANDBOX_BINARY/$version_label
@@ -168,4 +195,3 @@ function create_mock_tarball {
     cd - || (echo "error returning to previous directory"; exit 1 )
     export SANDBOX_BINARY=$save_sandbox_binary
 }
-

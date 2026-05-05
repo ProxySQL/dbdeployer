@@ -106,6 +106,7 @@ All topologies are deployed with `dbdeployer deploy replication <version> --topo
 | All-masters | `--topology=all-masters` | 5.7.9 |
 | NDB Cluster | `--topology=ndb` | requires NDB tarball |
 | PXC | `--topology=pxc` | requires PXC tarball |
+| Galera | `--topology=galera` | requires MariaDB Galera tarball |
 
 ## Flavor Detection and the --flavor Flag
 
@@ -127,3 +128,4 @@ Flavor affects which features are enabled, default configuration, and which topo
 - [InnoDB Cluster](/dbdeployer/deploying/innodb-cluster)
 - [NDB Cluster](/dbdeployer/deploying/ndb-cluster)
 - [Percona XtraDB Cluster](/dbdeployer/providers/pxc)
+- [MariaDB Galera](/dbdeployer/providers/galera)
