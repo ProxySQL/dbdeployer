@@ -37,10 +37,14 @@ jobs:
 
       - name: Provide LDAP compatibility shim
         run: |
-          LDAP_LIB=$(ldconfig -p | awk '/libldap\.so\.2/{print $NF; exit}')
-          if [ -n "$LDAP_LIB" ] && [ ! -e /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2 ]; then
-            sudo ln -s "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          LDAP_LIB=/usr/lib/x86_64-linux-gnu/libldap.so.2
+          if [ ! -e "$LDAP_LIB" ]; then
+            LDAP_LIB=/lib/x86_64-linux-gnu/libldap.so.2
           fi
+          test -e "$LDAP_LIB"
+          sudo ln -sf "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          sudo ln -sf "$LDAP_LIB" /lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          sudo ldconfig
 
       - name: Install ProxySQL
         run: |
@@ -190,10 +194,14 @@ jobs:
 
       - name: Provide LDAP compatibility shim
         run: |
-          LDAP_LIB=$(ldconfig -p | awk '/libldap\.so\.2/{print $NF; exit}')
-          if [ -n "$LDAP_LIB" ] && [ ! -e /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2 ]; then
-            sudo ln -s "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          LDAP_LIB=/usr/lib/x86_64-linux-gnu/libldap.so.2
+          if [ ! -e "$LDAP_LIB" ]; then
+            LDAP_LIB=/lib/x86_64-linux-gnu/libldap.so.2
           fi
+          test -e "$LDAP_LIB"
+          sudo ln -sf "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          sudo ln -sf "$LDAP_LIB" /lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          sudo ldconfig
 
       - name: Install ProxySQL
         run: |

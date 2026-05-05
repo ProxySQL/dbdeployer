@@ -41,10 +41,14 @@ jobs:
 
       - name: Provide LDAP compatibility shim
         run: |
-          LDAP_LIB=$(ldconfig -p | awk '/libldap\.so\.2/{print $NF; exit}')
-          if [ -n "$LDAP_LIB" ] && [ ! -e /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2 ]; then
-            sudo ln -s "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          LDAP_LIB=/usr/lib/x86_64-linux-gnu/libldap.so.2
+          if [ ! -e "$LDAP_LIB" ]; then
+            LDAP_LIB=/lib/x86_64-linux-gnu/libldap.so.2
           fi
+          test -e "$LDAP_LIB"
+          sudo ln -sf "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          sudo ln -sf "$LDAP_LIB" /lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          sudo ldconfig
 
       - name: Build dbdeployer
         run: go build -o dbdeployer .
@@ -135,10 +139,14 @@ jobs:
 
       - name: Provide LDAP compatibility shim
         run: |
-          LDAP_LIB=$(ldconfig -p | awk '/libldap\.so\.2/{print $NF; exit}')
-          if [ -n "$LDAP_LIB" ] && [ ! -e /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2 ]; then
-            sudo ln -s "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          LDAP_LIB=/usr/lib/x86_64-linux-gnu/libldap.so.2
+          if [ ! -e "$LDAP_LIB" ]; then
+            LDAP_LIB=/lib/x86_64-linux-gnu/libldap.so.2
           fi
+          test -e "$LDAP_LIB"
+          sudo ln -sf "$LDAP_LIB" /usr/lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          sudo ln -sf "$LDAP_LIB" /lib/x86_64-linux-gnu/libldap_r-2.4.so.2
+          sudo ldconfig
 
       - name: Build dbdeployer
         run: go build -o dbdeployer .
@@ -318,6 +326,10 @@ jobs:
           echo "Deploying PXC $VERSION..."
           ./dbdeployer deploy replication "$VERSION" --topology=pxc --sandbox-binary="$SANDBOX_BINARY"
           SBDIR=$(ls -d ~/sandboxes/pxc_msb_*)
+          for i in $(seq 1 15); do
+            "$SBDIR/check_nodes" && break
+            sleep 2
+          done
           "$SBDIR/check_nodes"
           "$SBDIR/n1" -e "CREATE DATABASE ci_test; USE ci_test; CREATE TABLE t1(id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'pxc_ci_test');"
           for i in $(seq 1 10); do
@@ -385,6 +397,10 @@ jobs:
           echo "Deploying MariaDB Galera $VERSION..."
           ./dbdeployer deploy replication "$VERSION" --topology=galera --sandbox-binary="$SANDBOX_BINARY"
           SBDIR=$(ls -d ~/sandboxes/galera_msb_*)
+          for i in $(seq 1 15); do
+            "$SBDIR/check_nodes" && break
+            sleep 2
+          done
           "$SBDIR/check_nodes"
           "$SBDIR/n1" -e "CREATE DATABASE ci_test; USE ci_test; CREATE TABLE t1(id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'galera_ci_test');"
           for i in $(seq 1 10); do
