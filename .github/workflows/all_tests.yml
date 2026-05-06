@@ -136,12 +136,20 @@ jobs:
           pkill -9 -u "$USER" mysqld 2>/dev/null || true
 
   mariadb-galera-test:
-    name: MariaDB Galera deployment
+    name: MariaDB Galera (${{ matrix.mariadb-galera-version }})
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mariadb-galera-version: '10.11.16'
+            legacy-openssl: true
+          - mariadb-galera-version: '11.8.6'
+            legacy-openssl: true
     env:
       GO111MODULE: on
       SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
-      MARIADB_GALERA_VERSION: '10.11.16'
+      MARIADB_GALERA_VERSION: ${{ matrix.mariadb-galera-version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -155,6 +163,7 @@ jobs:
           sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0 socat
 
       - name: Install legacy OpenSSL 1.0
+        if: ${{ matrix.legacy-openssl }}
         run: |
           echo "deb [trusted=yes] http://archive.ubuntu.com/ubuntu bionic-security main" | sudo tee /etc/apt/sources.list.d/bionic-security.list
           sudo apt-get update

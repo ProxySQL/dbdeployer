@@ -55,7 +55,7 @@ else
             break
         fi
         sleep $SLEEP_TIME
-        if [ -f start.log ]
+         if [ -f start.log ]
         then
     has_errors=$(grep -iw error start.log)
             if [ -n "$has_errors" ]
@@ -73,5 +73,10 @@ then
     echo " sandbox server started"
 else
     echo " sandbox server not started yet"
+    if [ -f $DATADIR/msandbox.err ]
+    then
+        echo "--- Server error log ---"
+        tail -30 $DATADIR/msandbox.err
+    fi
     exit 1
 fi
