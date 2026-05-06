@@ -65,6 +65,16 @@ else
                 break
             fi
          fi
+        if [ -f $DATADIR/msandbox.err ]
+        then
+            has_errors=$(grep -iw "error\|fatal\|cannot\|aborting\|not found\|missing\|failed\|denied" $DATADIR/msandbox.err)
+            if [ -n "$has_errors" ]
+            then
+                echo "Errors detected in server error log"
+                cat $DATADIR/msandbox.err
+                break
+            fi
+        fi
     done
 fi
 

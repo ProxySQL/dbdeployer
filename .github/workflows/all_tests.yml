@@ -145,7 +145,7 @@ jobs:
           - mariadb-galera-version: '10.11.16'
             legacy-openssl: true
           - mariadb-galera-version: '11.8.6'
-            legacy-openssl: false
+            legacy-openssl: true
     env:
       GO111MODULE: on
       SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
