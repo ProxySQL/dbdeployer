@@ -19,7 +19,7 @@ Originally created by [Giuseppe Maxia](https://github.com/datacharmer) as a Go r
 | Flavor | Versions | Single | Replication | Group Replication | Galera | InnoDB Cluster | ProxySQL |
 |---|---|---|---|---|---|---|---|
 | MySQL | 5.6, 8.0, 8.4, 9.1, 9.5 | yes | yes | 8.4, 9.5 | — | 8.4, 9.5 | 8.4, 9.1 |
-| MariaDB | 10.11 | yes | yes | — | 10.11 | — | yes |
+| MariaDB | 10.11, 11.8 | yes | yes | — | 10.11, 11.8 | — | yes |
 | Percona Server | 8.0, 8.4 | yes | yes | — | — | — | — |
 | PXC | 8.0, 8.4 | — | yes | — | yes | — | 8.0, 8.4 |
 | PostgreSQL | 16 | yes | — | — | — | — | yes |
