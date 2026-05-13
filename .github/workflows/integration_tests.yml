@@ -520,7 +520,7 @@ jobs:
           rm -rf "$HOME/sandboxes"/*
           echo '{}' > "$HOME/.dbdeployer/sandboxes.json"
 
-      - name: Install PostgreSQL for ts tests
+      - name: Download and unpack PostgreSQL debs for ts tests (no system install)
         run: |
           # Add PostgreSQL apt repo (PGDG) — required for postgresql-16 on ubuntu-22.04
           sudo apt-get install -y curl ca-certificates
@@ -528,14 +528,24 @@ jobs:
           sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update
-          sudo apt-get install -y postgresql-16 postgresql-client-16
-          sudo systemctl stop postgresql || true
+
+          # Install libpq5 only — psql links against it dynamically. We do
+          # NOT install postgresql-16 itself, since that would put
+          # /usr/share/postgresql/16/ on the runner and mask issue #112.
+          sudo apt-get install -y libpq5
+
+          # Documented user flow: download the debs, then unpack via dbdeployer.
           export HOME="$GITHUB_WORKSPACE/home"
-          PG_FULL=$(dpkg -s postgresql-16 | grep '^Version:' | sed 's/Version: //' | cut -d'-' -f1)
-          mkdir -p "$HOME/opt/postgresql/${PG_FULL}/"{bin,lib,share}
-          cp -a /usr/lib/postgresql/16/bin/. "$HOME/opt/postgresql/${PG_FULL}/bin/"
-          cp -a /usr/lib/postgresql/16/lib/. "$HOME/opt/postgresql/${PG_FULL}/lib/"
-          cp -a /usr/share/postgresql/16/. "$HOME/opt/postgresql/${PG_FULL}/share/"
+          mkdir -p "$HOME"
+          apt-get download postgresql-16 postgresql-client-16
+          ./dbdeployer unpack --provider=postgresql \
+            postgresql-16_*.deb postgresql-client-16_*.deb
+
+          # Sanity: confirm no system PG install snuck in via dependencies.
+          if [ -d "/usr/share/postgresql/16" ]; then
+            echo "FAIL: /usr/share/postgresql/16/ exists — system PG install is masking issue #112"
+            exit 1
+          fi
 
       - name: Run ts PostgreSQL tests
         env:
@@ -586,20 +596,32 @@ jobs:
       - name: Build dbdeployer
         run: go build -o dbdeployer .
 
-      - name: Install PostgreSQL and set up binaries
+      - name: Download and unpack PostgreSQL debs (no system install)
         run: |
-          # Install PostgreSQL to get properly configured binaries
-          sudo apt-get install -y postgresql-${PG_VERSION} postgresql-client-${PG_VERSION}
-          # Stop the system service — we'll manage our own instances
-          sudo systemctl stop postgresql || true
-          # Get full version and copy binaries into dbdeployer's expected layout
-          PG_FULL=$(dpkg -s postgresql-${PG_VERSION} | grep '^Version:' | sed 's/Version: //' | cut -d'-' -f1)
-          echo "PostgreSQL version: ${PG_FULL}"
-          mkdir -p ~/opt/postgresql/${PG_FULL}/{bin,lib,share}
-          cp -a /usr/lib/postgresql/${PG_VERSION}/bin/. ~/opt/postgresql/${PG_FULL}/bin/
-          cp -a /usr/lib/postgresql/${PG_VERSION}/lib/. ~/opt/postgresql/${PG_FULL}/lib/
-          cp -a /usr/share/postgresql/${PG_VERSION}/. ~/opt/postgresql/${PG_FULL}/share/
-          ls ~/opt/postgresql/${PG_FULL}/bin/
+          # Install libpq5 only — psql links against it dynamically at runtime.
+          # Deliberately DO NOT install postgresql-${PG_VERSION} or
+          # postgresql-client-${PG_VERSION}: that would create
+          # /usr/share/postgresql/${PG_VERSION}/ on the runner, which masks
+          # issue #112 by letting PG fall back to the absolute compiled-in
+          # SHAREDIR rather than exercising dbdeployer's relocation layout.
+          sudo apt-get install -y libpq5
+
+          # Documented user flow from README:
+          #   apt-get download postgresql-NN postgresql-client-NN
+          #   dbdeployer unpack --provider=postgresql ...
+          apt-get download postgresql-${PG_VERSION} postgresql-client-${PG_VERSION}
+          ./dbdeployer unpack --provider=postgresql \
+            postgresql-${PG_VERSION}_*.deb \
+            postgresql-client-${PG_VERSION}_*.deb
+          ls ~/opt/postgresql/
+
+          # Sanity: confirm we did NOT install postgresql-server side-effects.
+          # If /usr/share/postgresql/${PG_VERSION}/ exists, the test is no
+          # longer exercising the relocation path that issue #112 was about.
+          if [ -d "/usr/share/postgresql/${PG_VERSION}" ]; then
+            echo "FAIL: /usr/share/postgresql/${PG_VERSION}/ exists — system PG install is masking issue #112"
+            exit 1
+          fi
 
       - name: Test init --provider=postgresql
         run: |
