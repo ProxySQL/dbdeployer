@@ -64,7 +64,15 @@ func deployMultipleNonMySQL(cmd *cobra.Command, args []string, providerName stri
 	}
 
 	sandboxHome := defaults.Defaults().SandboxHome
-	topologyDir := path.Join(sandboxHome, fmt.Sprintf("%s_multi_%d", providerName, basePort))
+	// Pull the registry of ports already in use by other dbdeployer
+	// sandboxes so we don't reuse them (issue #113).
+	installedPorts, _ := common.GetInstalledPorts(sandboxHome)
+	firstNodePort := basePort + 1
+	if freePort, err := common.FindFreePort(firstNodePort, installedPorts, 1); err == nil {
+		firstNodePort = freePort
+	}
+
+	topologyDir := path.Join(sandboxHome, fmt.Sprintf("%s_multi_%d", providerName, firstNodePort))
 	if common.DirExists(topologyDir) {
 		common.Exitf(1, "sandbox directory %s already exists", topologyDir)
 	}
@@ -73,13 +81,19 @@ func deployMultipleNonMySQL(cmd *cobra.Command, args []string, providerName stri
 	}
 
 	skipStart, _ := flags.GetBool(globals.SkipStartLabel)
+	nodePorts := make([]int, 0, nodes)
 
 	for i := 1; i <= nodes; i++ {
-		port := basePort + i
-		freePort, err := common.FindFreePort(port, []int{}, 1)
+		port := firstNodePort
+		if i > 1 {
+			port = nodePorts[i-2] + 1
+		}
+		freePort, err := common.FindFreePort(port, installedPorts, 1)
 		if err == nil {
 			port = freePort
 		}
+		installedPorts = append(installedPorts, port)
+		nodePorts = append(nodePorts, port)
 
 		nodeDir := path.Join(topologyDir, fmt.Sprintf("node%d", i))
 		config := providers.SandboxConfig{
@@ -102,6 +116,22 @@ func deployMultipleNonMySQL(cmd *cobra.Command, args []string, providerName stri
 		}
 
 		fmt.Printf("  Node %d deployed in %s (port: %d)\n", i, nodeDir, port)
+	}
+
+	// Write a top-level sandbox description so common.GetInstalledPorts()
+	// descends into the topology subdirs and sees per-node ports (issue #113).
+	home, _ := os.UserHomeDir()
+	basedir := path.Join(home, "opt", providerName, version)
+	topoDesc := common.SandboxDescription{
+		Basedir: basedir,
+		SBType:  globals.SbTypeMultiple,
+		Version: version,
+		Host:    "127.0.0.1",
+		Port:    nodePorts,
+		Nodes:   nodes,
+	}
+	if err := common.WriteSandboxDescription(topologyDir, topoDesc); err != nil {
+		fmt.Printf("WARNING: could not write topology sandbox description: %s\n", err)
 	}
 
 	fmt.Printf("%s multiple sandbox (%d nodes) deployed in %s\n", providerName, nodes, topologyDir)
