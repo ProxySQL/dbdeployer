@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	"github.com/ProxySQL/dbdeployer/providers"
 )
@@ -19,6 +20,10 @@ func (p *PostgreSQLProvider) CreateSandbox(config providers.SandboxConfig) (*pro
 	dataDir := filepath.Join(config.Dir, "data")
 	logDir := filepath.Join(dataDir, "log")
 	logFile := filepath.Join(config.Dir, "postgresql.log")
+
+	if err := checkLinuxLayout(basedir, binDir); err != nil {
+		return nil, err
+	}
 
 	replication := config.Options["replication"] == "true"
 
@@ -93,4 +98,36 @@ func (p *PostgreSQLProvider) resolveBasedir(config providers.SandboxConfig) (str
 		return bd, nil
 	}
 	return basedirFromVersion(config.Version)
+}
+
+// checkLinuxLayout detects PostgreSQL extractions produced by older
+// versions of dbdeployer (before issue #112 was fixed). In the old layout,
+// <basedir>/bin/<binary> were regular files; PG's make_relative_path() then
+// failed to relocate the compiled-in SHAREDIR (`/usr/share/postgresql/<major>`),
+// so initdb died with "could not open directory /usr/share/postgresql/<major>/timezonesets".
+//
+// New extractions place the real binaries under
+// <basedir>/lib/postgresql/<major>/bin/ and expose them via symlinks at
+// <basedir>/bin/. If we find a regular file there on Linux, the user
+// needs to re-run unpack.
+func checkLinuxLayout(basedir, binDir string) error {
+	if runtime.GOOS != "linux" {
+		return nil
+	}
+	fi, err := os.Lstat(filepath.Join(binDir, "postgres"))
+	if err != nil {
+		// Missing binary will be reported by the initdb step below with a
+		// clearer error than we could produce here.
+		return nil
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		return nil
+	}
+	return fmt.Errorf(
+		"PostgreSQL binaries at %s were unpacked by an older dbdeployer using\n"+
+			"a layout incompatible with deb-packaged PostgreSQL — initdb would fail\n"+
+			"to find share files (see issue #112). Re-run unpack to fix:\n"+
+			"    dbdeployer unpack --provider=postgresql <server.deb> <client.deb>",
+		basedir,
+	)
 }
