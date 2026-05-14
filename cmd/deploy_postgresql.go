@@ -48,12 +48,14 @@ func deploySandboxPostgreSQL(cmd *cobra.Command, args []string) {
 	if err != nil {
 		common.Exitf(1, "error computing port: %s", err)
 	}
-	freePort, portErr := common.FindFreePort(port, []int{}, 1)
+
+	sandboxHome := defaults.Defaults().SandboxHome
+	installedPorts, _ := common.GetInstalledPorts(sandboxHome)
+	freePort, portErr := common.FindFreePort(port, installedPorts, 1)
 	if portErr == nil {
 		port = freePort
 	}
 
-	sandboxHome := defaults.Defaults().SandboxHome
 	sandboxDir := path.Join(sandboxHome, fmt.Sprintf("pg_sandbox_%d", port))
 
 	if common.DirExists(sandboxDir) {

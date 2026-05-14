@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ProxySQL/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/globals"
 	"github.com/ProxySQL/dbdeployer/providers"
 )
 
@@ -77,6 +79,23 @@ func (p *PostgreSQLProvider) CreateReplica(primary providers.SandboxInfo, config
 			os.RemoveAll(config.Dir)
 			return nil, fmt.Errorf("writing script %s: %w", name, err)
 		}
+	}
+
+	// Register the replica so common.GetInstalledPorts() can see its port
+	// (issue #113). Written before StartSandbox so the file is still on disk
+	// even if startup fails partway and we leave the dir behind for debugging.
+	sbDesc := common.SandboxDescription{
+		Basedir: basedir,
+		SBType:  globals.SbTypeSingle,
+		Version: config.Version,
+		Host:    config.Host,
+		Port:    []int{config.Port},
+		Nodes:   0,
+		LogFile: logFile,
+	}
+	if err := common.WriteSandboxDescription(config.Dir, sbDesc); err != nil {
+		os.RemoveAll(config.Dir)
+		return nil, fmt.Errorf("writing sandbox description: %w", err)
 	}
 
 	// Start the replica

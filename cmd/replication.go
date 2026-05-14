@@ -64,15 +64,22 @@ func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName s
 	}
 
 	sandboxHome := defaults.Defaults().SandboxHome
-	topologyDir := path.Join(sandboxHome, fmt.Sprintf("%s_repl_%d", providerName, basePort))
+	// Pull the registry of ports already in use by other dbdeployer
+	// sandboxes so we don't reuse them (issue #113).
+	installedPorts, _ := common.GetInstalledPorts(sandboxHome)
+	primaryPort := basePort
+	if freePort, err := common.FindFreePort(basePort, installedPorts, 1); err == nil {
+		primaryPort = freePort
+	}
+	installedPorts = append(installedPorts, primaryPort)
+
+	topologyDir := path.Join(sandboxHome, fmt.Sprintf("%s_repl_%d", providerName, primaryPort))
 	if common.DirExists(topologyDir) {
 		common.Exitf(1, "sandbox directory %s already exists", topologyDir)
 	}
 	if err := os.MkdirAll(topologyDir, 0755); err != nil {
 		common.Exitf(1, "error creating topology directory %s: %s", topologyDir, err)
 	}
-
-	primaryPort := basePort
 
 	// Create and start primary with replication options
 	primaryDir := path.Join(topologyDir, "primary")
@@ -100,14 +107,16 @@ func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName s
 
 	primaryInfo := providers.SandboxInfo{Dir: primaryDir, Port: primaryPort, Status: "running"}
 
-	// Create replicas sequentially
+	// Create replicas sequentially, accumulating each chosen port into
+	// installedPorts so the next replica skips past it.
 	var replicaPorts []int
 	for i := 1; i <= nodes-1; i++ {
 		replicaPort := primaryPort + i
-		freePort, err := common.FindFreePort(replicaPort, []int{}, 1)
+		freePort, err := common.FindFreePort(replicaPort, installedPorts, 1)
 		if err == nil {
 			replicaPort = freePort
 		}
+		installedPorts = append(installedPorts, replicaPort)
 
 		replicaDir := path.Join(topologyDir, fmt.Sprintf("replica%d", i))
 		replicaConfig := providers.SandboxConfig{
@@ -164,6 +173,20 @@ func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName s
 		if err != nil {
 			common.Exitf(1, "ProxySQL deployment failed: %s", err)
 		}
+	}
+
+	// Write a top-level sandbox description so common.GetInstalledPorts()
+	// descends into the topology subdirs and sees per-node ports (issue #113).
+	topoDesc := common.SandboxDescription{
+		Basedir: basedir,
+		SBType:  globals.MasterSlaveLabel,
+		Version: version,
+		Host:    "127.0.0.1",
+		Port:    []int{primaryPort},
+		Nodes:   nodes,
+	}
+	if err := common.WriteSandboxDescription(topologyDir, topoDesc); err != nil {
+		fmt.Printf("WARNING: could not write topology sandbox description: %s\n", err)
 	}
 
 	fmt.Printf("%s replication sandbox (1 primary + %d replicas) deployed in %s\n",

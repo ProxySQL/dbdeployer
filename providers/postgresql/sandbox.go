@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/ProxySQL/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/globals"
 	"github.com/ProxySQL/dbdeployer/providers"
 )
 
@@ -83,6 +85,22 @@ func (p *PostgreSQLProvider) CreateSandbox(config providers.SandboxConfig) (*pro
 			os.RemoveAll(config.Dir)
 			return nil, fmt.Errorf("writing script %s: %w", name, err)
 		}
+	}
+
+	// Register the sandbox so common.GetInstalledPorts() can see its port
+	// and subsequent deploys allocate around it (issue #113).
+	sbDesc := common.SandboxDescription{
+		Basedir: basedir,
+		SBType:  globals.SbTypeSingle,
+		Version: config.Version,
+		Host:    config.Host,
+		Port:    []int{config.Port},
+		Nodes:   0,
+		LogFile: logFile,
+	}
+	if err := common.WriteSandboxDescription(config.Dir, sbDesc); err != nil {
+		os.RemoveAll(config.Dir)
+		return nil, fmt.Errorf("writing sandbox description: %w", err)
 	}
 
 	return &providers.SandboxInfo{
