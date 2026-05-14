@@ -63,23 +63,50 @@ func UnpackDebs(serverDeb, clientDeb, targetDir string) error {
 	major := strings.Split(version, ".")[0]
 
 	srcBin := filepath.Join(tmpDir, "usr", "lib", "postgresql", major, "bin")
-	srcLib := filepath.Join(tmpDir, "usr", "lib", "postgresql", major, "lib")
+	srcPgLib := filepath.Join(tmpDir, "usr", "lib", "postgresql", major, "lib")
 	srcShare := filepath.Join(tmpDir, "usr", "share", "postgresql", major)
 
-	dstBin := filepath.Join(targetDir, "bin")
-	dstLib := filepath.Join(targetDir, "lib")
-	dstShare := filepath.Join(targetDir, "share")
+	// Destination layout mirrors Debian's compile-time prefix so that PG's
+	// make_relative_path() (src/port/path.c) succeeds at runtime. Debian
+	// builds PG with BINDIR=/usr/lib/postgresql/<major>/bin and
+	// SHAREDIR=/usr/share/postgresql/<major>; the common prefix is just
+	// /usr/, so for PG to relocate SHAREDIR to <basedir>/share/postgresql/<major>
+	// the running binary's parent directory must end in
+	// "lib/postgresql/<major>/bin". Same logic applies to PKGLIBDIR.
+	//
+	// We therefore place the real binaries and extension libs under
+	// <basedir>/lib/postgresql/<major>/, and expose them via symlinks at
+	// <basedir>/bin/ so existing callers (sandbox.go, scripts.go) keep
+	// working. On Linux, PG's find_my_exec() reads /proc/self/exe which
+	// resolves symlinks to the real file, so launching via the symlink
+	// still gives PG the relocatable path it needs.
+	dstPgBin := filepath.Join(targetDir, "lib", "postgresql", major, "bin")
+	dstPgLib := filepath.Join(targetDir, "lib", "postgresql", major, "lib")
+	dstShare := filepath.Join(targetDir, "share")                       // flat, for `initdb -L`
+	dstPgShare := filepath.Join(targetDir, "share", "postgresql", major) // nested, for postgres runtime
+	dstBin := filepath.Join(targetDir, "bin")                           // symlinks into dstPgBin
 
-	for _, dir := range []string{dstBin, dstLib, dstShare} {
+	// Make UnpackDebs idempotent: remove any prior extraction artifacts
+	// in the subtrees we own so re-running unpack picks up the latest
+	// layout cleanly (in particular when migrating from a pre-fix layout
+	// where <basedir>/bin/<binary> were real files instead of symlinks).
+	for _, dir := range []string{dstBin, filepath.Join(targetDir, "lib"), dstShare} {
+		if err := os.RemoveAll(dir); err != nil {
+			return fmt.Errorf("removing stale %s: %w", dir, err)
+		}
+	}
+
+	for _, dir := range []string{dstPgBin, dstPgLib, dstShare, dstPgShare, dstBin} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("creating directory %s: %w", dir, err)
 		}
 	}
 
 	copies := []struct{ src, dst string }{
-		{srcBin, dstBin},
-		{srcLib, dstLib},
-		{srcShare, dstShare},
+		{srcBin, dstPgBin},
+		{srcPgLib, dstPgLib},
+		{srcShare, dstShare},   // flat copy for `initdb -L`
+		{srcShare, dstPgShare}, // nested copy for postgres server runtime
 	}
 	for _, c := range copies {
 		if _, err := os.Stat(c.src); os.IsNotExist(err) {
@@ -91,17 +118,21 @@ func UnpackDebs(serverDeb, clientDeb, targetDir string) error {
 		}
 	}
 
-	// The postgres binary resolves share data relative to its own binary as
-	// ../share/postgresql/<major>/ (compiled-in prefix from deb packaging).
-	// Copy share files there too so both initdb (-L share/) and the postgres
-	// server binary can find timezonesets and other share data.
-	pgShareCompat := filepath.Join(dstShare, "postgresql", major)
-	if err := os.MkdirAll(pgShareCompat, 0755); err != nil {
-		return fmt.Errorf("creating compat share dir: %w", err)
+	// Expose every server-side binary as <basedir>/bin/<name>, symlinked
+	// into the nested lib/postgresql/<major>/bin/ directory.
+	entries, err := os.ReadDir(dstPgBin)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", dstPgBin, err)
 	}
-	compatCmd := exec.Command("cp", "-a", srcShare+"/.", pgShareCompat+"/") //nolint:gosec // paths are from controlled deb extraction
-	if output, err := compatCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("copying share to compat path: %s: %w", string(output), err)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		linkTarget := filepath.Join("..", "lib", "postgresql", major, "bin", entry.Name())
+		linkPath := filepath.Join(dstBin, entry.Name())
+		if err := os.Symlink(linkTarget, linkPath); err != nil {
+			return fmt.Errorf("symlinking %s -> %s: %w", linkPath, linkTarget, err)
+		}
 	}
 
 	for _, bin := range RequiredBinaries() {

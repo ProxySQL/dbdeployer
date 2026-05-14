@@ -68,7 +68,11 @@ func unpackTarball(cmd *cobra.Command, args []string) {
 	if !common.DirExists(Basedir) {
 		common.Exit(1,
 			fmt.Sprintf(globals.ErrDirectoryNotFound, Basedir),
-			"You should create it or provide an alternate base directory using --sandbox-binary")
+			"Create it by running:",
+			"    dbdeployer init --skip-all-downloads",
+			"or manually with:",
+			fmt.Sprintf("    mkdir -p %s", Basedir),
+			"or provide an alternate base directory using --sandbox-binary")
 	}
 
 	err = ops.UnpackTarball(ops.UnpackOptions{
