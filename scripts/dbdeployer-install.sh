@@ -69,16 +69,59 @@ then
   exit 1
 fi
 
-# (STEP 2) checks that the needed tools are installed in the system
-for tool in tar curl gzip shasum
+# (STEP 2) checks that the needed tools are installed in the system.
+# For the checksum verification we accept either `sha256sum` (preinstalled
+# on most Linux distros via coreutils) or `shasum` (preinstalled on macOS).
+# All missing tools are collected and reported together with install hints,
+# so the user only has to install once and re-run.
+missing_tools=()
+for tool in tar curl gzip
 do
-    found_tool=$(exists_in_path $tool)
-    if [ -z "$found_tool" ]
+    if [ -z "$(exists_in_path "$tool")" ]
     then
-        echo "tool '$tool' not found"
-        exit 1
+        missing_tools+=("$tool")
     fi
 done
+
+# Pick a checksum command: prefer sha256sum (Linux default), fall back to shasum (macOS default).
+checksum_cmd=""
+if [ -n "$(exists_in_path sha256sum)" ]
+then
+    checksum_cmd="sha256sum -c -"
+elif [ -n "$(exists_in_path shasum)" ]
+then
+    checksum_cmd="shasum -a 256 -c -"
+else
+    missing_tools+=("sha256sum-or-shasum")
+fi
+
+if [ "${#missing_tools[@]}" -ne 0 ]
+then
+    echo "Required tool(s) not found in \$PATH:"
+    for tool in "${missing_tools[@]}"
+    do
+        case "$tool" in
+            tar|curl|gzip)
+                echo "  - $tool"
+                echo "      Debian/Ubuntu: sudo apt-get install -y $tool"
+                echo "      RHEL/Fedora:   sudo dnf install -y $tool"
+                echo "      Alpine:        sudo apk add $tool"
+                echo "      macOS:         preinstalled"
+                ;;
+            sha256sum-or-shasum)
+                echo "  - sha256sum (GNU coreutils) or shasum (Perl Digest::SHA)"
+                echo "      Debian/Ubuntu: sudo apt-get install -y coreutils           # provides sha256sum"
+                echo "                  or sudo apt-get install -y libdigest-sha-perl  # provides shasum"
+                echo "      RHEL/Fedora:   sudo dnf install -y coreutils               # provides sha256sum"
+                echo "                  or sudo dnf install -y perl-Digest-SHA         # provides shasum"
+                echo "      Alpine:        sudo apk add coreutils                      # provides sha256sum"
+                echo "                  or sudo apk add perl-utils                     # provides shasum"
+                echo "      macOS:         shasum is preinstalled"
+                ;;
+        esac
+    done
+    exit 1
+fi
 
 # (STEP 3) collects the latest version from GitHub
 dbdeployer_version=$(curl -s $version_url | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
@@ -167,8 +210,9 @@ then
 fi
 
 # (STEP 10) probes the checksum (extract the line for our file from checksums.txt)
-grep "$filename" "$checksum_file" | shasum -a 256 -c -
-check_exit_code "shasum -c for $filename"
+# $checksum_cmd was selected in STEP 2 — either `sha256sum -c -` or `shasum -a 256 -c -`.
+grep "$filename" "$checksum_file" | $checksum_cmd
+check_exit_code "checksum verification for $filename"
 
 # (STEP 11) unpacks the archive
 tar -xzf "$filename"
