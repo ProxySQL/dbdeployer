@@ -73,9 +73,34 @@ func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName s
 	}
 	installedPorts = append(installedPorts, primaryPort)
 
-	topologyDir := path.Join(sandboxHome, fmt.Sprintf("%s_repl_%d", providerName, primaryPort))
+	sandboxDirName, _ := flags.GetString(globals.SandboxDirectoryLabel)
+	force, _ := flags.GetBool(globals.ForceLabel)
+
+	var topologyDir string
+	if sandboxDirName != "" {
+		topologyDir = path.Join(sandboxHome, sandboxDirName)
+	} else {
+		topologyDir = path.Join(sandboxHome, fmt.Sprintf("%s_repl_%d", providerName, primaryPort))
+	}
+
 	if common.DirExists(topologyDir) {
-		common.Exitf(1, "sandbox directory %s already exists", topologyDir)
+		if !force {
+			common.Exitf(1, "sandbox directory %s already exists", topologyDir)
+		}
+		common.CondPrintf("Overwriting directory %s\n", topologyDir)
+		entries, err := os.ReadDir(topologyDir)
+		if err == nil {
+			for _, entry := range entries {
+				if !entry.IsDir() {
+					continue
+				}
+				stopScript := path.Join(topologyDir, entry.Name(), "stop")
+				if common.ExecExists(stopScript) {
+					_, _ = common.RunCmd(stopScript)
+				}
+			}
+		}
+		common.RmdirAll(topologyDir)
 	}
 	if err := os.MkdirAll(topologyDir, 0755); err != nil {
 		common.Exitf(1, "error creating topology directory %s: %s", topologyDir, err)

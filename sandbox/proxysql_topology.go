@@ -22,6 +22,7 @@ import (
 
 	"github.com/ProxySQL/dbdeployer/common"
 	"github.com/ProxySQL/dbdeployer/providers"
+	"github.com/ProxySQL/dbdeployer/providers/postgresql"
 )
 
 // DeployProxySQLForTopology creates a ProxySQL sandbox configured for a MySQL topology.
@@ -60,10 +61,16 @@ func DeployProxySQLForTopology(sandboxDir string, masterPort int, slavePorts []i
 	proxysqlDir := path.Join(sandboxDir, "proxysql")
 
 	if proxysqlPort == 0 {
-		proxysqlPort = 6032
+		if backendProvider == postgresql.ProviderName {
+			proxysqlPort = postgresql.ProxySQLAdminPort(masterPort)
+		} else {
+			proxysqlPort = 6032
+		}
 	}
-	// Find 2 consecutive free ports (admin + mysql) to avoid TIME_WAIT conflicts
-	freePort, err := common.FindFreePort(proxysqlPort, []int{}, 2)
+	installedPorts := []int{masterPort}
+	installedPorts = append(installedPorts, slavePorts...)
+	// Find 2 consecutive free ports (admin + proxy) to avoid TIME_WAIT conflicts
+	freePort, err := common.FindFreePort(proxysqlPort, installedPorts, 2)
 	if err == nil {
 		proxysqlPort = freePort
 	}

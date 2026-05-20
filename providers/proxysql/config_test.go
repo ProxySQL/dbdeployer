@@ -115,6 +115,12 @@ func TestGenerateConfigPostgreSQL(t *testing.T) {
 	if !strings.Contains(config, "pgsql_variables") {
 		t.Error("expected pgsql_variables block")
 	}
+	if !strings.Contains(config, `pgsql_ifaces="127.0.0.1:6032"`) {
+		t.Error("expected pgsql_ifaces for postgresql backend")
+	}
+	if strings.Contains(config, "mysql_ifaces") {
+		t.Error("should not contain mysql_ifaces for postgresql backend")
+	}
 	if strings.Contains(config, "mysql_servers") {
 		t.Error("should not contain mysql_servers for postgresql backend")
 	}
