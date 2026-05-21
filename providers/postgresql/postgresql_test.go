@@ -127,6 +127,51 @@ func TestGenerateCheckRecoveryScript(t *testing.T) {
 	}
 }
 
+func TestSandboxUserGrantsSQL(t *testing.T) {
+	sql := SandboxUserGrantsSQL()
+	for _, want := range []string{
+		"CREATE USER rsandbox WITH PASSWORD 'rsandbox'",
+		"CREATE DATABASE rsandbox",
+		"GRANT CONNECT ON DATABASE postgres TO rsandbox",
+		"GRANT CONNECT ON DATABASE rsandbox TO rsandbox",
+		"GRANT CREATE ON SCHEMA public TO rsandbox",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("SandboxUserGrantsSQL() missing %q", want)
+		}
+	}
+}
+
+func TestSandboxDatabaseGrantsSQL(t *testing.T) {
+	sql := SandboxDatabaseGrantsSQL()
+	if sql != "GRANT CREATE ON SCHEMA public TO rsandbox;" {
+		t.Errorf("unexpected SandboxDatabaseGrantsSQL: %q", sql)
+	}
+}
+
+func TestGenerateInitSandboxUserScript(t *testing.T) {
+	script := GenerateInitSandboxUserScript(ScriptOptions{
+		BinDir: "/opt/postgresql/16.13/bin",
+		LibDir: "/opt/postgresql/16.13/lib",
+		Port:   16613,
+	})
+	if !strings.Contains(script, "pg_is_in_recovery") {
+		t.Error("init script should skip on recovery standbys")
+	}
+	if !strings.Contains(script, "CREATE USER rsandbox") {
+		t.Error("init script should create rsandbox user")
+	}
+	if strings.Contains(script, `$('`) {
+		t.Error("init script has invalid shell quoting around psql path")
+	}
+	if !strings.Contains(script, `recovery=$("`) {
+		t.Error("init script should quote psql binary path")
+	}
+	if !strings.Contains(script, "-d rsandbox") {
+		t.Error("init script should connect to rsandbox database for schema grants")
+	}
+}
+
 func TestGenerateScripts(t *testing.T) {
 	opts := ScriptOptions{
 		SandboxDir: "/tmp/pg_sandbox",
@@ -138,7 +183,7 @@ func TestGenerateScripts(t *testing.T) {
 	}
 	scripts := GenerateScripts(opts)
 
-	expectedScripts := []string{"start", "stop", "status", "restart", "use", "clear"}
+	expectedScripts := []string{"start", "stop", "status", "restart", "use", "clear", "init_sandbox_user"}
 	for _, name := range expectedScripts {
 		if _, ok := scripts[name]; !ok {
 			t.Errorf("missing script %q", name)
@@ -148,6 +193,9 @@ func TestGenerateScripts(t *testing.T) {
 	start := scripts["start"]
 	if !strings.Contains(start, "pg_ctl") {
 		t.Error("start script missing pg_ctl")
+	}
+	if !strings.Contains(start, "init_sandbox_user") {
+		t.Error("start script should run init_sandbox_user")
 	}
 	if !strings.Contains(start, "LD_LIBRARY_PATH") {
 		t.Error("start script missing LD_LIBRARY_PATH")
