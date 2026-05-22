@@ -491,9 +491,26 @@ func deploySingleNonMySQL(cmd *cobra.Command, args []string, providerName string
 	}
 
 	sandboxHome := defaults.Defaults().SandboxHome
-	sandboxDir := path.Join(sandboxHome, fmt.Sprintf("%s_sandbox_%d", providerName, port))
+	sandboxDirName, _ := flags.GetString(globals.SandboxDirectoryLabel)
+	force, _ := flags.GetBool(globals.ForceLabel)
+
+	var sandboxDir string
+	if sandboxDirName != "" {
+		sandboxDir = path.Join(sandboxHome, sandboxDirName)
+	} else {
+		sandboxDir = path.Join(sandboxHome, fmt.Sprintf("%s_sandbox_%d", providerName, port))
+	}
+
 	if common.DirExists(sandboxDir) {
-		common.Exitf(1, "sandbox directory %s already exists", sandboxDir)
+		if !force {
+			common.Exitf(1, "sandbox directory %s already exists", sandboxDir)
+		}
+		common.CondPrintf("Overwriting directory %s\n", sandboxDir)
+		stopScript := path.Join(sandboxDir, "stop")
+		if common.ExecExists(stopScript) {
+			_, _ = common.RunCmd(stopScript)
+		}
+		common.RmdirAll(sandboxDir)
 	}
 
 	skipStart, _ := flags.GetBool(globals.SkipStartLabel)
