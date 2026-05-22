@@ -119,6 +119,29 @@ func TestPostgreSQLProviderRegister(t *testing.T) {
 	}
 }
 
+func TestGenerateTestReplicationScript(t *testing.T) {
+	script, err := GenerateTestReplicationScript(TestReplicationOptions{
+		SandboxDir: "/home/user/sandboxes/postgresql_repl_16614",
+		ShellPath:  "/bin/bash",
+	})
+	if err != nil {
+		t.Fatalf("GenerateTestReplicationScript: %v", err)
+	}
+	for _, want := range []string{
+		"#!/bin/bash",
+		"/home/user/sandboxes/postgresql_repl_16614",
+		"./primary/use",
+		"./replica$N/use",
+		"pg_current_wal_lsn",
+		"pg_last_wal_replay_lsn",
+		"test_summary",
+	} {
+		if !strings.Contains(script, want) {
+			t.Errorf("test_replication script missing %q", want)
+		}
+	}
+}
+
 func TestGenerateCheckReplicationScript(t *testing.T) {
 	script := GenerateCheckReplicationScript(ScriptOptions{
 		BinDir: "/opt/postgresql/16.13/bin",
