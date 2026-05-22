@@ -31,6 +31,7 @@ func (p *PostgreSQLProvider) CreateReplica(primary providers.SandboxInfo, config
 		"-U", "postgres",
 		"-D", dataDir,
 		"-Fp", "-Xs", "-R",
+		"--checkpoint=fast",
 	)
 	bbCmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", libDir))
 	common.DeployDebugf("pg_basebackup: -h 127.0.0.1 -p %d -D %s (this can take a while)\n", primary.Port, dataDir)
