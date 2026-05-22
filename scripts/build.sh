@@ -76,6 +76,8 @@ then
     version="dev"
 fi
 
+ldflags="-X github.com/ProxySQL/dbdeployer/common.VersionDef=${version}"
+
 if [ -z "$target" ]
 then
     echo "Syntax: target [version]"
@@ -115,8 +117,8 @@ function build_binary {
     temp_binary=$1
     OS=$2
     arch=$3
-    echo "env GOOS=$OS GOARCH=$arch go build $docs_flags -o $temp_binary ."
-    env GOOS=$OS GOARCH=$arch go build $docs_flags -o $temp_binary .
+    echo "env GOOS=$OS GOARCH=$arch go build $docs_flags -ldflags \"$ldflags\" -o $temp_binary ."
+    env GOOS=$OS GOARCH=$arch go build $docs_flags -ldflags "$ldflags" -o $temp_binary .
     if [ "$?" != "0" ]
     then
         echo "ERROR during OSX build! ($temp_binary)"
