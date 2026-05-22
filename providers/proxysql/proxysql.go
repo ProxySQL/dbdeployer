@@ -112,11 +112,11 @@ func (p *ProxySQLProvider) CreateSandbox(config providers.SandboxConfig) (*provi
 			pidFile),
 	}
 	if config.Options["backend_provider"] == "postgresql" {
-		psqlURI := func(port int) string {
-			return fmt.Sprintf("postgresql://%s:%s@%s:%d", monitorUser, monitorPass, host, port)
+		psqlURI := func(user, password string, port int) string {
+			return fmt.Sprintf("postgresql://%s:%s@%s:%d", user, password, host, port)
 		}
-		scripts["use"] = fmt.Sprintf("#!/bin/bash\npsql %s \"$@\"\n", psqlURI(adminPort))
-		scripts["use_proxy"] = fmt.Sprintf("#!/bin/bash\npsql %s \"$@\"\n", psqlURI(mysqlPort))
+		scripts["use"] = fmt.Sprintf("#!/bin/bash\npsql %s \"$@\"\n", psqlURI(adminUser, adminPassword, adminPort))
+		scripts["use_proxy"] = fmt.Sprintf("#!/bin/bash\npsql %s \"$@\"\n", psqlURI(monitorUser, monitorPass, mysqlPort))
 	} else {
 		scripts["use"] = fmt.Sprintf("#!/bin/bash\nmysql -h %s -P %d -u %s -p%s --prompt 'ProxySQL Admin> ' \"$@\"\n",
 			host, adminPort, adminUser, adminPassword)
