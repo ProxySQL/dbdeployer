@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/ProxySQL/dbdeployer/common"
 	"github.com/ProxySQL/dbdeployer/providers"
@@ -74,6 +75,7 @@ func DeployProxySQLForTopology(sandboxDir string, masterPort int, slavePorts []i
 	if err == nil {
 		proxysqlPort = freePort
 	}
+	common.DeployDebugf("ProxySQL ports: admin=%d proxy=%d dir=%s\n", proxysqlPort, proxysqlPort+1, proxysqlDir)
 
 	// Build backends: master = HG 0, slaves = HG 1
 	var backendParts []string
@@ -103,11 +105,14 @@ func DeployProxySQLForTopology(sandboxDir string, masterPort int, slavePorts []i
 	if err != nil {
 		return fmt.Errorf("creating ProxySQL sandbox: %w", err)
 	}
+	common.DeployDebugf("ProxySQL CreateSandbox complete, starting\n")
+	proxysqlStart := time.Now()
 
 	// Start ProxySQL
 	if err := p.StartSandbox(proxysqlDir); err != nil {
 		return fmt.Errorf("starting ProxySQL: %w", err)
 	}
+	common.DeployDebugSince("ProxySQL StartSandbox complete", proxysqlStart)
 
 	fmt.Printf("ProxySQL deployed in %s (admin port: %d, mysql port: %d)\n", proxysqlDir, proxysqlPort, proxysqlPort+1)
 	return nil

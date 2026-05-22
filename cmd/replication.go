@@ -20,6 +20,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/ProxySQL/dbdeployer/common"
 	"github.com/ProxySQL/dbdeployer/defaults"
@@ -117,15 +118,21 @@ func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName s
 		Options: map[string]string{"replication": "true"},
 	}
 
+	skipStart, _ := flags.GetBool(globals.SkipStartLabel)
+	common.DeployDebugf("creating primary in %s (port %d)\n", primaryDir, primaryPort)
+	primaryCreateStart := time.Now()
 	if _, err := p.CreateSandbox(primaryConfig); err != nil {
 		common.Exitf(1, "error creating primary: %s", err)
 	}
+	common.DeployDebugSince("primary CreateSandbox complete", primaryCreateStart)
 
-	skipStart, _ := flags.GetBool(globals.SkipStartLabel)
 	if !skipStart {
+		common.DeployDebugf("starting primary in %s\n", primaryDir)
+		primaryStart := time.Now()
 		if err := p.StartSandbox(primaryDir); err != nil {
 			common.Exitf(1, "error starting primary: %s", err)
 		}
+		common.DeployDebugSince("primary StartSandbox complete", primaryStart)
 	}
 
 	fmt.Printf("  Primary deployed in %s (port: %d)\n", primaryDir, primaryPort)
@@ -144,6 +151,8 @@ func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName s
 		installedPorts = append(installedPorts, replicaPort)
 
 		replicaDir := path.Join(topologyDir, fmt.Sprintf("replica%d", i))
+		common.DeployDebugf("creating replica %d in %s (port %d)\n", i, replicaDir, replicaPort)
+		replicaCreateStart := time.Now()
 		replicaConfig := providers.SandboxConfig{
 			Version: version,
 			Dir:     replicaDir,
@@ -161,6 +170,7 @@ func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName s
 			}
 			common.Exitf(1, "error creating replica %d: %s", i, err)
 		}
+		common.DeployDebugSince(fmt.Sprintf("replica %d CreateReplica complete", i), replicaCreateStart)
 
 		replicaPorts = append(replicaPorts, replicaPort)
 		fmt.Printf("  Replica %d deployed in %s (port: %d)\n", i, replicaDir, replicaPort)
@@ -170,7 +180,7 @@ func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName s
 	home, _ := os.UserHomeDir()
 	basedir := path.Join(home, "opt", "postgresql", version)
 	binDir := path.Join(basedir, "bin")
-	libDir := path.Join(basedir, "lib")
+	libDir := postgresql.LibraryPath(basedir, version)
 
 	scriptOpts := postgresql.ScriptOptions{
 		SandboxDir: topologyDir,
@@ -206,10 +216,13 @@ func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName s
 		if !providers.ContainsString(providers.CompatibleAddons["proxysql"], providerName) {
 			common.Exitf(1, "--with-proxysql is not compatible with provider %q", providerName)
 		}
+		common.DeployDebugf("deploying ProxySQL in %s\n", topologyDir)
+		proxysqlStart := time.Now()
 		err := sandbox.DeployProxySQLForTopology(topologyDir, primaryPort, replicaPorts, 0, "127.0.0.1", providerName)
 		if err != nil {
 			common.Exitf(1, "ProxySQL deployment failed: %s", err)
 		}
+		common.DeployDebugSince("ProxySQL deployment complete", proxysqlStart)
 	}
 
 	// Write a top-level sandbox description so common.GetInstalledPorts()

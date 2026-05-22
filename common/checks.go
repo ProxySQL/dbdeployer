@@ -26,6 +26,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/araddon/dateparse"
 	"github.com/pkg/errors"
@@ -45,6 +46,17 @@ type VersionInfo struct {
 }
 
 var portDebug bool = IsEnvSet("PORT_DEBUG")
+
+func portDebugf(format string, args ...interface{}) {
+	if !portDebug {
+		return
+	}
+	if IsEnvSet("DEPLOY_DEBUG") {
+		CondPrintf("[%s] "+format, append([]interface{}{time.Now().Format("15:04:05")}, args...)...)
+		return
+	}
+	CondPrintf(format, args...)
+}
 
 type PortMap map[int]bool
 
@@ -721,7 +733,7 @@ func findFreePortSingle(requestedPort int, usedPorts PortMap) (int, error) {
 		_, exists := usedPorts[candidatePort]
 		if exists {
 			if portDebug {
-				CondPrintf("- port %d not free\n", candidatePort)
+				portDebugf("- port %d not free\n", candidatePort)
 			}
 		} else {
 			foundPort = candidatePort
@@ -752,7 +764,7 @@ func findFreePortRange(basePort int, usedPorts PortMap, howMany int) (int, error
 			_, exists := usedPorts[candidatePort+counter]
 			if exists {
 				if portDebug {
-					CondPrintf("- port %d is not free\n", candidatePort+counter)
+					portDebugf("- port %d is not free\n", candidatePort+counter)
 				}
 				candidatePort += 1
 				counter = 0
@@ -760,7 +772,7 @@ func findFreePortRange(basePort int, usedPorts PortMap, howMany int) (int, error
 				continue
 			} else {
 				if portDebug {
-					CondPrintf("+ port %d is free\n", candidatePort+counter)
+					portDebugf("+ port %d is free\n", candidatePort+counter)
 				}
 				numPorts += 1
 			}
@@ -789,7 +801,7 @@ func findFreePortRange(basePort int, usedPorts PortMap, howMany int) (int, error
 // Returns the first port of the requested range
 func FindFreePort(basePort int, installedPorts []int, howMany int) (int, error) {
 	if portDebug {
-		CondPrintf("FindFreePort: requested: %d - used: %v - howMany: %d\n", basePort, installedPorts, howMany)
+		portDebugf("FindFreePort: requested: %d - used: %v - howMany: %d\n", basePort, installedPorts, howMany)
 	}
 	usedPorts := make(PortMap)
 

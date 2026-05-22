@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/ProxySQL/dbdeployer/common"
 	"github.com/ProxySQL/dbdeployer/globals"
@@ -18,7 +19,7 @@ func (p *PostgreSQLProvider) CreateReplica(primary providers.SandboxInfo, config
 		return nil, err
 	}
 	binDir := filepath.Join(basedir, "bin")
-	libDir := filepath.Join(basedir, "lib")
+	libDir := LibraryPath(basedir, config.Version)
 	dataDir := filepath.Join(config.Dir, "data")
 	logFile := filepath.Join(config.Dir, "postgresql.log")
 
@@ -32,10 +33,13 @@ func (p *PostgreSQLProvider) CreateReplica(primary providers.SandboxInfo, config
 		"-Fp", "-Xs", "-R",
 	)
 	bbCmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", libDir))
+	common.DeployDebugf("pg_basebackup: -h 127.0.0.1 -p %d -D %s (this can take a while)\n", primary.Port, dataDir)
+	bbStart := time.Now()
 	if output, err := bbCmd.CombinedOutput(); err != nil {
 		os.RemoveAll(config.Dir) // cleanup on failure
 		return nil, fmt.Errorf("pg_basebackup failed: %s: %w", string(output), err)
 	}
+	common.DeployDebugSince("pg_basebackup complete", bbStart)
 
 	// Modify replica's postgresql.conf: update port and unix_socket_directories
 	confPath := filepath.Join(dataDir, "postgresql.conf")
@@ -99,10 +103,13 @@ func (p *PostgreSQLProvider) CreateReplica(primary providers.SandboxInfo, config
 	}
 
 	// Start the replica
+	common.DeployDebugf("starting replica sandbox %s (port %d)\n", config.Dir, config.Port)
+	startStart := time.Now()
 	if err := p.StartSandbox(config.Dir); err != nil {
 		os.RemoveAll(config.Dir)
 		return nil, fmt.Errorf("starting replica: %w", err)
 	}
+	common.DeployDebugSince("replica start complete", startStart)
 
 	return &providers.SandboxInfo{
 		Dir:    config.Dir,

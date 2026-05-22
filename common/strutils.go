@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ProxySQL/dbdeployer/globals"
 )
@@ -39,6 +40,19 @@ func CondPrintf(format string, args ...interface{}) {
 	if globals.UsingDbDeployer {
 		fmt.Printf(format, args...)
 	}
+}
+
+// DeployDebugf prints timestamped deploy tracing when DEPLOY_DEBUG is set.
+func DeployDebugf(format string, args ...interface{}) {
+	if !IsEnvSet("DEPLOY_DEBUG") || !globals.UsingDbDeployer {
+		return
+	}
+	fmt.Printf("[%s] %s", time.Now().Format("15:04:05"), fmt.Sprintf(format, args...))
+}
+
+// DeployDebugSince prints elapsed seconds since start when DEPLOY_DEBUG is set.
+func DeployDebugSince(label string, start time.Time) {
+	DeployDebugf("%s (%.1fs)\n", label, time.Since(start).Seconds())
 }
 
 func CondPrintln(args ...interface{}) {

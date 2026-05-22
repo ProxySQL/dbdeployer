@@ -43,10 +43,10 @@ func unpackTarball(cmd *cobra.Command, args []string) {
 	providerName, _ := flags.GetString(globals.ProviderLabel)
 	if providerName == "postgresql" {
 		if len(args) < 2 {
-			common.Exitf(1, "PostgreSQL unpack requires both server and client .deb files\n"+
-				"Usage: dbdeployer unpack --provider=postgresql postgresql-16_*.deb postgresql-client-16_*.deb")
+			common.Exitf(1, "PostgreSQL unpack requires server and client .deb files, plus libpq5\n"+
+				"Usage: dbdeployer unpack --provider=postgresql postgresql-18_*.deb postgresql-client-18_*.deb libpq5_*.deb")
 		}
-		server, client, err := postgresql.ClassifyDebs(args)
+		server, _, err := postgresql.ClassifyDebs(args)
 		if err != nil {
 			common.Exitf(1, "error classifying deb files: %s", err)
 		}
@@ -59,7 +59,7 @@ func unpackTarball(cmd *cobra.Command, args []string) {
 		}
 		home, _ := os.UserHomeDir()
 		targetDir := filepath.Join(home, "opt", "postgresql", version)
-		if err := postgresql.UnpackDebs(server, client, targetDir); err != nil {
+		if err := postgresql.UnpackDebs(args, targetDir); err != nil {
 			common.Exitf(1, "error unpacking PostgreSQL debs: %s", err)
 		}
 		fmt.Printf("PostgreSQL %s unpacked to %s\n", version, targetDir)

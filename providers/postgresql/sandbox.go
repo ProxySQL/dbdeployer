@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/ProxySQL/dbdeployer/common"
 	"github.com/ProxySQL/dbdeployer/globals"
@@ -18,7 +19,7 @@ func (p *PostgreSQLProvider) CreateSandbox(config providers.SandboxConfig) (*pro
 		return nil, err
 	}
 	binDir := filepath.Join(basedir, "bin")
-	libDir := filepath.Join(basedir, "lib")
+	libDir := LibraryPath(basedir, config.Version)
 	dataDir := filepath.Join(config.Dir, "data")
 	logDir := filepath.Join(dataDir, "log")
 	logFile := filepath.Join(config.Dir, "postgresql.log")
@@ -37,10 +38,13 @@ func (p *PostgreSQLProvider) CreateSandbox(config providers.SandboxConfig) (*pro
 	initdbPath := filepath.Join(binDir, "initdb")
 	initCmd := exec.Command(initdbPath, "-D", dataDir, "--auth=trust", "--username=postgres", "-L", shareDir)
 	initCmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", libDir))
+	common.DeployDebugf("initdb: %s -D %s\n", initdbPath, dataDir)
+	initStart := time.Now()
 	if output, err := initCmd.CombinedOutput(); err != nil {
 		os.RemoveAll(config.Dir) // cleanup on failure
 		return nil, fmt.Errorf("initdb failed: %s: %w", string(output), err)
 	}
+	common.DeployDebugSince("initdb complete", initStart)
 
 	// Create log directory (after initdb, which requires empty data dir)
 	if err := os.MkdirAll(logDir, 0755); err != nil {

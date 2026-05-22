@@ -20,6 +20,10 @@ func ParseDebVersion(filename string) (string, error) {
 	return matches[2], nil
 }
 
+func RequiredBinaries() []string {
+	return []string{"postgres", "initdb", "pg_ctl", "psql", "pg_basebackup"}
+}
+
 func ClassifyDebs(files []string) (server, client string, err error) {
 	for _, f := range files {
 		base := filepath.Base(f)
@@ -38,18 +42,32 @@ func ClassifyDebs(files []string) (server, client string, err error) {
 	return server, client, nil
 }
 
-func RequiredBinaries() []string {
-	return []string{"postgres", "initdb", "pg_ctl", "psql", "pg_basebackup"}
+func findServerDeb(debs []string) (string, error) {
+	for _, deb := range debs {
+		base := filepath.Base(deb)
+		if strings.HasPrefix(base, "postgresql-client-") {
+			continue
+		}
+		if strings.HasPrefix(base, "postgresql-") && strings.HasSuffix(base, ".deb") {
+			return deb, nil
+		}
+	}
+	return "", fmt.Errorf("no server deb found (expected postgresql-NN_*.deb)")
 }
 
-func UnpackDebs(serverDeb, clientDeb, targetDir string) error {
+func UnpackDebs(debs []string, targetDir string) error {
+	serverDeb, err := findServerDeb(debs)
+	if err != nil {
+		return err
+	}
+
 	tmpDir, err := os.MkdirTemp("", "dbdeployer-pg-unpack-*")
 	if err != nil {
 		return fmt.Errorf("creating temp directory: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	for _, deb := range []string{serverDeb, clientDeb} {
+	for _, deb := range debs {
 		cmd := exec.Command("dpkg-deb", "-x", deb, tmpDir)
 		if output, err := cmd.CombinedOutput(); err != nil {
 			return fmt.Errorf("extracting %s: %s: %w", filepath.Base(deb), string(output), err)
@@ -118,6 +136,11 @@ func UnpackDebs(serverDeb, clientDeb, targetDir string) error {
 		}
 	}
 
+	flatLib := filepath.Join(targetDir, "lib")
+	if err := copyClientLibraries(tmpDir, flatLib); err != nil {
+		return err
+	}
+
 	// Expose every server-side binary as <basedir>/bin/<name>, symlinked
 	// into the nested lib/postgresql/<major>/bin/ directory.
 	entries, err := os.ReadDir(dstPgBin)
@@ -142,5 +165,41 @@ func UnpackDebs(serverDeb, clientDeb, targetDir string) error {
 		}
 	}
 
+	return nil
+}
+
+// copyClientLibraries copies libpq from extracted debs into <basedir>/lib.
+// On Debian/Ubuntu libpq ships in the separate libpq5 package, not in
+// postgresql-client itself.
+func copyClientLibraries(tmpDir, dstLib string) error {
+	if err := os.MkdirAll(dstLib, 0755); err != nil {
+		return fmt.Errorf("creating %s: %w", dstLib, err)
+	}
+
+	copied := make(map[string]bool)
+	err := filepath.WalkDir(tmpDir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil || d.IsDir() {
+			return walkErr
+		}
+		if !strings.HasPrefix(d.Name(), "libpq.so") {
+			return nil
+		}
+		cmd := exec.Command("cp", "-a", path, dstLib+"/") //nolint:gosec // paths from controlled deb extraction
+		if output, cpErr := cmd.CombinedOutput(); cpErr != nil {
+			return fmt.Errorf("copying %s to %s: %s: %w", path, dstLib, string(output), cpErr)
+		}
+		copied[d.Name()] = true
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if len(copied) == 0 {
+		return fmt.Errorf(
+			"libpq not found after extracting PostgreSQL debs.\n" +
+				"Client tools need the libpq5 package — download it and pass it to unpack:\n" +
+				"    apt-get download libpq5\n" +
+				"    dbdeployer unpack --provider=postgresql postgresql-NN_*.deb postgresql-client-NN_*.deb libpq5_*.deb")
+	}
 	return nil
 }

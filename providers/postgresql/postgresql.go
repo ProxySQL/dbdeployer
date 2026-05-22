@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/ProxySQL/dbdeployer/common"
 	"github.com/ProxySQL/dbdeployer/providers"
 )
 
@@ -93,11 +95,15 @@ func basedirFromVersion(version string) (string, error) {
 }
 
 func (p *PostgreSQLProvider) StartSandbox(dir string) error {
-	cmd := exec.Command("bash", filepath.Join(dir, "start")) //nolint:gosec // path is from trusted sandbox directory
+	startScript := filepath.Join(dir, "start")
+	common.DeployDebugf("StartSandbox: bash %s\n", startScript)
+	start := time.Now()
+	cmd := exec.Command("bash", startScript) //nolint:gosec // path is from trusted sandbox directory
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("start failed: %s: %w", string(output), err)
 	}
+	common.DeployDebugSince(fmt.Sprintf("StartSandbox complete for %s", dir), start)
 	return nil
 }
 
