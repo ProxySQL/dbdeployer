@@ -212,6 +212,7 @@ func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName s
 
 	// Handle --with-proxysql
 	withProxySQL, _ := flags.GetBool("with-proxysql")
+	proxyPort := 0
 	if withProxySQL {
 		if !providers.ContainsString(providers.CompatibleAddons["proxysql"], providerName) {
 			common.Exitf(1, "--with-proxysql is not compatible with provider %q", providerName)
@@ -223,6 +224,17 @@ func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName s
 			common.Exitf(1, "ProxySQL deployment failed: %s", err)
 		}
 		common.DeployDebugSince("ProxySQL deployment complete", proxysqlStart)
+		proxyPort = postgresql.ProxySQLAdminPort(primaryPort) + 1
+	}
+
+	benchScript := postgresql.GenerateTopologyBenchScript(postgresql.TopologyBenchOptions{
+		BinDir:      binDir,
+		LibDir:      libDir,
+		PrimaryPort: primaryPort,
+		ProxyPort:   proxyPort,
+	})
+	if err := os.WriteFile(path.Join(topologyDir, "bench"), []byte(benchScript), 0755); err != nil { //nolint:gosec // scripts must be executable
+		fmt.Printf("WARNING: could not write bench script: %s\n", err)
 	}
 
 	// Write a top-level sandbox description so common.GetInstalledPorts()

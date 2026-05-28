@@ -226,7 +226,7 @@ func TestGenerateScripts(t *testing.T) {
 	}
 	scripts := GenerateScripts(opts)
 
-	expectedScripts := []string{"start", "stop", "status", "restart", "use", "clear", "init_sandbox_user"}
+	expectedScripts := []string{"start", "stop", "status", "restart", "use", "bench", "clear", "init_sandbox_user"}
 	for _, name := range expectedScripts {
 		if _, ok := scripts[name]; !ok {
 			t.Errorf("missing script %q", name)
@@ -253,5 +253,16 @@ func TestGenerateScripts(t *testing.T) {
 	}
 	if !strings.Contains(use, "16613") {
 		t.Error("use script missing port")
+	}
+
+	bench := scripts["bench"]
+	if !strings.Contains(bench, "pgbench") {
+		t.Error("bench script missing pgbench")
+	}
+	if !strings.Contains(bench, "rsandbox") {
+		t.Error("bench script should use rsandbox user")
+	}
+	if !strings.Contains(bench, "16613") {
+		t.Error("bench script missing port")
 	}
 }

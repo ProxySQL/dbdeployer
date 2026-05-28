@@ -25,6 +25,11 @@ export LD_LIBRARY_PATH="%s"
 unset PGDATA PGPORT PGHOST PGUSER PGDATABASE
 `
 
+// ShellEnvPreamble returns LD_LIBRARY_PATH setup lines for sandbox shell scripts.
+func ShellEnvPreamble(libDir string) string {
+	return fmt.Sprintf("export LD_LIBRARY_PATH=\"%s\"\nunset PGDATA PGPORT PGHOST PGUSER PGDATABASE\n", libDir)
+}
+
 // SandboxUserGrantsSQL returns idempotent SQL to create the sandbox user and database.
 func SandboxUserGrantsSQL() string {
 	return fmt.Sprintf(`DO $$ BEGIN
@@ -81,9 +86,112 @@ func GenerateScripts(opts ScriptOptions) map[string]string {
 		"use": fmt.Sprintf("%s%s/psql -h 127.0.0.1 -p %d -U postgres \"$@\"\n",
 			preamble, opts.BinDir, opts.Port),
 
+		"bench": GenerateBenchScript(opts),
+
 		"clear": fmt.Sprintf("%s%s/pg_ctl -D %s stop -m fast 2>/dev/null\nrm -rf %s\n%s/initdb -D %s --auth=trust --username=postgres\necho \"Sandbox cleared.\"\n",
 			preamble, opts.BinDir, opts.DataDir, opts.DataDir, opts.BinDir, opts.DataDir),
 	}
+}
+
+// GenerateBenchScript returns a pgbench helper for sandbox demos.
+// With no arguments it initializes a small pgbench dataset (if needed) and
+// runs a 30-second TPC-B style benchmark. Any arguments are passed to pgbench.
+func GenerateBenchScript(opts ScriptOptions) string {
+	preamble := fmt.Sprintf(envPreamble, opts.LibDir)
+	return fmt.Sprintf(`%sset -e
+PGBENCH="%s/pgbench"
+PSQL="%s/psql"
+export PGPASSWORD=%s
+HOST=127.0.0.1
+PORT=%d
+USER=%s
+DB=%s
+SCALE=5
+CLIENTS=10
+JOBS=2
+TIME=30
+
+if [ ! -x "$PGBENCH" ]; then
+    echo "pgbench not found at $PGBENCH" >&2
+    exit 1
+fi
+
+if [ $# -gt 0 ]; then
+    exec "$PGBENCH" -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" "$@"
+fi
+
+TABLES=$("$PSQL" -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" -tAc \
+    "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'pgbench_%%';")
+if [ "${TABLES:-0}" -lt 4 ]; then
+    echo "# initializing pgbench tables (scale=${SCALE})"
+    "$PGBENCH" -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" -i -s "$SCALE"
+fi
+
+echo "# running pgbench: ${CLIENTS} clients, ${JOBS} jobs, ${TIME}s"
+exec "$PGBENCH" -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" -c "$CLIENTS" -j "$JOBS" -T "$TIME"
+`, preamble, opts.BinDir, opts.BinDir, SandboxPassword, opts.Port, SandboxUser, SandboxDatabase)
+}
+
+// TopologyBenchOptions configures a topology-level bench script (replication root).
+type TopologyBenchOptions struct {
+	BinDir      string
+	LibDir      string
+	PrimaryPort int
+	ProxyPort   int // 0 when ProxySQL is not deployed
+}
+
+// GenerateTopologyBenchScript returns a bench helper at the replication topology root.
+// Pass --proxysql as the first argument to benchmark through the ProxySQL proxy port.
+func GenerateTopologyBenchScript(opts TopologyBenchOptions) string {
+	preamble := fmt.Sprintf(envPreamble, opts.LibDir)
+	proxyPortLine := "PROXY_PORT=0"
+	if opts.ProxyPort > 0 {
+		proxyPortLine = fmt.Sprintf("PROXY_PORT=%d", opts.ProxyPort)
+	}
+	return fmt.Sprintf(`%sset -e
+PGBENCH="%s/pgbench"
+PSQL="%s/psql"
+export PGPASSWORD=%s
+HOST=127.0.0.1
+PRIMARY_PORT=%d
+%s
+USER=%s
+DB=%s
+SCALE=5
+CLIENTS=10
+JOBS=2
+TIME=30
+
+PORT=$PRIMARY_PORT
+if [ "${1:-}" = "--proxysql" ]; then
+    shift
+    if [ "$PROXY_PORT" -eq 0 ]; then
+        echo "ProxySQL is not deployed in this topology" >&2
+        exit 1
+    fi
+    PORT=$PROXY_PORT
+    echo "# benchmarking via ProxySQL proxy port ${PORT}"
+fi
+
+if [ ! -x "$PGBENCH" ]; then
+    echo "pgbench not found at $PGBENCH" >&2
+    exit 1
+fi
+
+if [ $# -gt 0 ]; then
+    exec "$PGBENCH" -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" "$@"
+fi
+
+TABLES=$("$PSQL" -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" -tAc \
+    "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'pgbench_%%';")
+if [ "${TABLES:-0}" -lt 4 ]; then
+    echo "# initializing pgbench tables on primary (scale=${SCALE})"
+    "$PGBENCH" -h "$HOST" -p "$PRIMARY_PORT" -U "$USER" -d "$DB" -i -s "$SCALE"
+fi
+
+echo "# running pgbench on port ${PORT}: ${CLIENTS} clients, ${JOBS} jobs, ${TIME}s"
+exec "$PGBENCH" -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" -c "$CLIENTS" -j "$JOBS" -T "$TIME"
+`, preamble, opts.BinDir, opts.BinDir, SandboxPassword, opts.PrimaryPort, proxyPortLine, SandboxUser, SandboxDatabase)
 }
 
 func GenerateCheckReplicationScript(opts ScriptOptions) string {
