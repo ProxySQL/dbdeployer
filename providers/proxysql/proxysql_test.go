@@ -1,6 +1,7 @@
 package proxysql
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ProxySQL/dbdeployer/providers"
@@ -53,5 +54,31 @@ func TestProxySQLFindBinary(t *testing.T) {
 	}
 	if path == "" {
 		t.Error("expected non-empty path")
+	}
+}
+
+func TestGeneratePsqlUseScript(t *testing.T) {
+	script := generatePsqlUseScript(
+		"/opt/postgresql/18.4/lib:/opt/postgresql/18.4/lib/postgresql/18/lib",
+		"/opt/postgresql/18.4/bin",
+		"127.0.0.1", 6133, "rsandbox", "rsandbox", "rsandbox",
+	)
+	if !strings.Contains(script, "LD_LIBRARY_PATH") {
+		t.Error("missing LD_LIBRARY_PATH")
+	}
+	if !strings.Contains(script, "unset PGDATA") {
+		t.Error("missing PGDATA unset")
+	}
+	if !strings.Contains(script, "/opt/postgresql/18.4/bin/psql") {
+		t.Error("missing bundled psql path")
+	}
+	if !strings.Contains(script, "PGPASSWORD=rsandbox") {
+		t.Error("missing PGPASSWORD")
+	}
+	if !strings.Contains(script, "-p 6133") {
+		t.Error("missing port")
+	}
+	if !strings.Contains(script, "-d rsandbox") {
+		t.Error("missing database")
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/ProxySQL/dbdeployer/providers"
+	"github.com/ProxySQL/dbdeployer/providers/postgresql"
 )
 
 const ProviderName = "proxysql"
@@ -112,11 +113,13 @@ func (p *ProxySQLProvider) CreateSandbox(config providers.SandboxConfig) (*provi
 			pidFile),
 	}
 	if config.Options["backend_provider"] == "postgresql" {
-		psqlURI := func(user, password string, port int) string {
-			return fmt.Sprintf("postgresql://%s:%s@%s:%d", user, password, host, port)
+		binDir := config.Options["pg_bindir"]
+		libDir := config.Options["pg_libdir"]
+		if binDir == "" || libDir == "" {
+			return nil, fmt.Errorf("PostgreSQL backend requires pg_bindir and pg_libdir in sandbox options")
 		}
-		scripts["use"] = fmt.Sprintf("#!/bin/bash\npsql %s \"$@\"\n", psqlURI(adminUser, adminPassword, adminPort))
-		scripts["use_proxy"] = fmt.Sprintf("#!/bin/bash\npsql %s \"$@\"\n", psqlURI(monitorUser, monitorPass, mysqlPort))
+		scripts["use"] = generatePsqlUseScript(libDir, binDir, host, adminPort, adminUser, adminPassword, "postgres")
+		scripts["use_proxy"] = generatePsqlUseScript(libDir, binDir, host, mysqlPort, monitorUser, monitorPass, postgresql.SandboxDatabase)
 	} else {
 		scripts["use"] = fmt.Sprintf("#!/bin/bash\nmysql -h %s -P %d -u %s -p%s --prompt 'ProxySQL Admin> ' \"$@\"\n",
 			host, adminPort, adminUser, adminPassword)
@@ -186,4 +189,13 @@ func parseBackends(options map[string]string) []BackendServer {
 		}
 	}
 	return backends
+}
+
+func generatePsqlUseScript(libDir, binDir, host string, port int, user, password, database string) string {
+	dbFlag := ""
+	if database != "" {
+		dbFlag = fmt.Sprintf(" -d %s", database)
+	}
+	return fmt.Sprintf("#!/bin/bash\n%sexport PGPASSWORD=%s\n\"%s/psql\" -h %s -p %d -U %s%s \"$@\"\n",
+		postgresql.ShellEnvPreamble(libDir), password, binDir, host, port, user, dbFlag)
 }
