@@ -22,6 +22,83 @@ func TestLibraryPath(t *testing.T) {
 	}
 }
 
+func TestPgBinDir(t *testing.T) {
+	basedir := "/opt/postgresql/18.4"
+	if runtime.GOOS == "linux" {
+		want := basedir + "/lib/postgresql/18/bin"
+		if got := PgBinDir(basedir, "18.4"); got != want {
+			t.Fatalf("PgBinDir = %q, want %q", got, want)
+		}
+	} else if got := PgBinDir(basedir, "18.4"); got != basedir+"/bin" {
+		t.Fatalf("PgBinDir = %q, want %q", got, basedir+"/bin")
+	}
+}
+
+func TestResolvePsqlBinary(t *testing.T) {
+	basedir := filepath.Join(t.TempDir(), "postgresql", "18.4")
+	nestedDir := filepath.Join(basedir, "lib", "postgresql", "18", "bin")
+	flatDir := PgBinDir(basedir, "18.4")
+	for _, dir := range []string{nestedDir, flatDir} {
+		if dir == nestedDir && runtime.GOOS != "linux" {
+			continue
+		}
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	realPsql := filepath.Join(flatDir, "psql")
+	if err := os.WriteFile(realPsql, []byte{0x7f, 'E', 'L', 'F'}, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS == "linux" {
+		if err := os.Remove(realPsql); err != nil {
+			t.Fatal(err)
+		}
+		realPsql = filepath.Join(nestedDir, "psql")
+		if err := os.WriteFile(realPsql, []byte{0x7f, 'E', 'L', 'F'}, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, err := ResolvePsqlBinary(basedir, "18.4")
+	if err != nil {
+		t.Fatalf("ResolvePsqlBinary: %v", err)
+	}
+	if got != realPsql {
+		t.Fatalf("ResolvePsqlBinary = %q, want %q", got, realPsql)
+	}
+
+	wrapper := filepath.Join(flatDir, "psql")
+	if err := os.WriteFile(wrapper, []byte("#!/bin/sh\nexec /usr/bin/pg_wrapper\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS != "linux" {
+		if err := os.Remove(realPsql); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ResolvePsqlBinary(basedir, "18.4"); err == nil {
+			t.Fatal("expected error when only pg_wrapper is available")
+		}
+		return
+	}
+
+	got, err = ResolvePsqlBinary(basedir, "18.4")
+	if err != nil {
+		t.Fatalf("ResolvePsqlBinary with wrapper present: %v", err)
+	}
+	if got != realPsql {
+		t.Fatalf("ResolvePsqlBinary = %q, want nested %q when flat is pg_wrapper", got, realPsql)
+	}
+
+	if err := os.Remove(realPsql); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ResolvePsqlBinary(basedir, "18.4"); err == nil {
+		t.Fatal("expected error when only pg_wrapper is available")
+	}
+}
+
 func TestCopyClientLibraries(t *testing.T) {
 	tmpDir := t.TempDir()
 	usrLib := filepath.Join(tmpDir, "usr", "lib", "aarch64-linux-gnu")

@@ -107,7 +107,12 @@ func DeployProxySQLForTopology(sandboxDir string, masterPort int, slavePorts []i
 		if err != nil {
 			return fmt.Errorf("reading primary sandbox description for PostgreSQL client paths: %w", err)
 		}
-		config.Options["pg_bindir"] = filepath.Join(desc.Basedir, "bin")
+		psqlPath, err := postgresql.ResolvePsqlBinary(desc.Basedir, desc.Version)
+		if err != nil {
+			return err
+		}
+		config.Options["pg_psql"] = psqlPath
+		config.Options["pg_bindir"] = filepath.Dir(psqlPath)
 		config.Options["pg_libdir"] = postgresql.LibraryPath(desc.Basedir, desc.Version)
 	}
 

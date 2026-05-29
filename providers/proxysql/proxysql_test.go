@@ -2,6 +2,7 @@ package proxysql
 
 import (
 	"strings"
+	"strconv"
 	"testing"
 
 	"github.com/ProxySQL/dbdeployer/providers"
@@ -58,9 +59,10 @@ func TestProxySQLFindBinary(t *testing.T) {
 }
 
 func TestGeneratePsqlUseScript(t *testing.T) {
+	psqlPath := "/opt/postgresql/18.4/lib/postgresql/18/bin/psql"
 	script := generatePsqlUseScript(
 		"/opt/postgresql/18.4/lib:/opt/postgresql/18.4/lib/postgresql/18/lib",
-		"/opt/postgresql/18.4/bin",
+		psqlPath,
 		"127.0.0.1", 6133, "rsandbox", "rsandbox", "rsandbox",
 	)
 	if !strings.Contains(script, "LD_LIBRARY_PATH") {
@@ -69,8 +71,11 @@ func TestGeneratePsqlUseScript(t *testing.T) {
 	if !strings.Contains(script, "unset PGDATA") {
 		t.Error("missing PGDATA unset")
 	}
-	if !strings.Contains(script, "/opt/postgresql/18.4/bin/psql") {
-		t.Error("missing bundled psql path")
+	if !strings.Contains(script, "PSQL="+strconv.Quote(psqlPath)) {
+		t.Error("missing quoted bundled psql path")
+	}
+	if strings.Contains(script, "\npsql postgresql://") || strings.Contains(script, "\npsql ") {
+		t.Error("script must not invoke bare psql from PATH")
 	}
 	if !strings.Contains(script, "PGPASSWORD=rsandbox") {
 		t.Error("missing PGPASSWORD")

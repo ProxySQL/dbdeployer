@@ -113,13 +113,23 @@ func (p *ProxySQLProvider) CreateSandbox(config providers.SandboxConfig) (*provi
 			pidFile),
 	}
 	if config.Options["backend_provider"] == "postgresql" {
-		binDir := config.Options["pg_bindir"]
 		libDir := config.Options["pg_libdir"]
-		if binDir == "" || libDir == "" {
-			return nil, fmt.Errorf("PostgreSQL backend requires pg_bindir and pg_libdir in sandbox options")
+		psqlPath := config.Options["pg_psql"]
+		if psqlPath == "" {
+			binDir := config.Options["pg_bindir"]
+			if binDir == "" {
+				return nil, fmt.Errorf("PostgreSQL backend requires pg_psql or pg_bindir in sandbox options")
+			}
+			psqlPath = filepath.Join(binDir, "psql")
 		}
-		scripts["use"] = generatePsqlUseScript(libDir, binDir, host, adminPort, adminUser, adminPassword, "postgres")
-		scripts["use_proxy"] = generatePsqlUseScript(libDir, binDir, host, mysqlPort, monitorUser, monitorPass, postgresql.SandboxDatabase)
+		if libDir == "" {
+			return nil, fmt.Errorf("PostgreSQL backend requires pg_libdir in sandbox options")
+		}
+		if _, err := os.Stat(psqlPath); err != nil {
+			return nil, fmt.Errorf("PostgreSQL client psql not found at %s: %w", psqlPath, err)
+		}
+		scripts["use"] = generatePsqlUseScript(libDir, psqlPath, host, adminPort, adminUser, adminPassword, "postgres")
+		scripts["use_proxy"] = generatePsqlUseScript(libDir, psqlPath, host, mysqlPort, monitorUser, monitorPass, postgresql.SandboxDatabase)
 	} else {
 		scripts["use"] = fmt.Sprintf("#!/bin/bash\nmysql -h %s -P %d -u %s -p%s --prompt 'ProxySQL Admin> ' \"$@\"\n",
 			host, adminPort, adminUser, adminPassword)
@@ -191,11 +201,11 @@ func parseBackends(options map[string]string) []BackendServer {
 	return backends
 }
 
-func generatePsqlUseScript(libDir, binDir, host string, port int, user, password, database string) string {
+func generatePsqlUseScript(libDir, psqlPath, host string, port int, user, password, database string) string {
 	dbFlag := ""
 	if database != "" {
 		dbFlag = fmt.Sprintf(" -d %s", database)
 	}
-	return fmt.Sprintf("#!/bin/bash\n%sexport PGPASSWORD=%s\n\"%s/psql\" -h %s -p %d -U %s%s \"$@\"\n",
-		postgresql.ShellEnvPreamble(libDir), password, binDir, host, port, user, dbFlag)
+	return fmt.Sprintf("#!/bin/bash\n%sPSQL=%q\nexport PGPASSWORD=%s\nexec \"$PSQL\" -h %s -p %d -U %s%s \"$@\"\n",
+		postgresql.ShellEnvPreamble(libDir), psqlPath, password, host, port, user, dbFlag)
 }
