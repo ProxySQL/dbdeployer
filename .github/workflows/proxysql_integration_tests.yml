@@ -410,9 +410,9 @@ jobs:
           sudo apt-get install -y libpq5
 
           # Documented user flow: download the debs, then unpack via dbdeployer.
-          apt-get download postgresql-16 postgresql-client-16
+          apt-get download postgresql-16 postgresql-client-16 libpq5
           ./dbdeployer unpack --provider=postgresql \
-            postgresql-16_*.deb postgresql-client-16_*.deb
+            postgresql-16_*.deb postgresql-client-16_*.deb libpq5_*.deb
           ls ~/opt/postgresql/
 
           # Sanity: confirm no system PG install snuck in via dependencies.
