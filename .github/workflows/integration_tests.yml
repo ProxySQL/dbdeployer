@@ -537,9 +537,9 @@ jobs:
           # Documented user flow: download the debs, then unpack via dbdeployer.
           export HOME="$GITHUB_WORKSPACE/home"
           mkdir -p "$HOME"
-          apt-get download postgresql-16 postgresql-client-16
+          apt-get download postgresql-16 postgresql-client-16 libpq5
           ./dbdeployer unpack --provider=postgresql \
-            postgresql-16_*.deb postgresql-client-16_*.deb
+            postgresql-16_*.deb postgresql-client-16_*.deb libpq5_*.deb
 
           # Sanity: confirm no system PG install snuck in via dependencies.
           if [ -d "/usr/share/postgresql/16" ]; then
@@ -607,12 +607,13 @@ jobs:
           sudo apt-get install -y libpq5
 
           # Documented user flow from README:
-          #   apt-get download postgresql-NN postgresql-client-NN
+          #   apt-get download postgresql-NN postgresql-client-NN libpq5
           #   dbdeployer unpack --provider=postgresql ...
-          apt-get download postgresql-${PG_VERSION} postgresql-client-${PG_VERSION}
+          apt-get download postgresql-${PG_VERSION} postgresql-client-${PG_VERSION} libpq5
           ./dbdeployer unpack --provider=postgresql \
             postgresql-${PG_VERSION}_*.deb \
-            postgresql-client-${PG_VERSION}_*.deb
+            postgresql-client-${PG_VERSION}_*.deb \
+            libpq5_*.deb
           ls ~/opt/postgresql/
 
           # Sanity: confirm we did NOT install postgresql-server side-effects.
