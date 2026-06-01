@@ -71,7 +71,7 @@ func GenerateScripts(opts ScriptOptions) map[string]string {
 	return map[string]string{
 		"init_sandbox_user": initUser,
 
-		"start": fmt.Sprintf("%s%s/pg_ctl -D %s -l %s start\nbash %s/init_sandbox_user\n",
+		"start": fmt.Sprintf("%s%s/pg_ctl -w -D %s -l %s start\nbash %s/init_sandbox_user\n",
 			preamble, opts.BinDir, opts.DataDir, opts.LogFile, opts.SandboxDir),
 
 		"stop": fmt.Sprintf("%s%s/pg_ctl -D %s stop -m fast\n",
@@ -116,6 +116,8 @@ if [ ! -x "$PGBENCH" ]; then
     exit 1
 fi
 
+IS_RECOVERY=$("$PSQL" -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" -tAc "SELECT pg_is_in_recovery();" 2>/dev/null || echo "f")
+
 if [ $# -gt 0 ]; then
     exec "$PGBENCH" -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" "$@"
 fi
@@ -123,12 +125,22 @@ fi
 TABLES=$("$PSQL" -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" -tAc \
     "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'pgbench_%%';")
 if [ "${TABLES:-0}" -lt 4 ]; then
+    if [ "$IS_RECOVERY" = "t" ]; then
+        echo "Error: pgbench tables are not initialized, and this server is a read-only replica." >&2
+        echo "Please run the bench script on the primary server first to initialize the database." >&2
+        exit 1
+    fi
     echo "# initializing pgbench tables (scale=${SCALE})"
     "$PGBENCH" -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" -i -s "$SCALE"
 fi
 
-echo "# running pgbench: ${CLIENTS} clients, ${JOBS} jobs, ${TIME}s"
-exec "$PGBENCH" -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" -c "$CLIENTS" -j "$JOBS" -T "$TIME"
+if [ "$IS_RECOVERY" = "t" ]; then
+    echo "# running pgbench (select-only mode on replica): ${CLIENTS} clients, ${JOBS} jobs, ${TIME}s"
+    exec "$PGBENCH" -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" -c "$CLIENTS" -j "$JOBS" -T "$TIME" -S
+else
+    echo "# running pgbench: ${CLIENTS} clients, ${JOBS} jobs, ${TIME}s"
+    exec "$PGBENCH" -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" -c "$CLIENTS" -j "$JOBS" -T "$TIME"
+fi
 `, preamble, opts.BinDir, opts.BinDir, SandboxPassword, opts.Port, SandboxUser, SandboxDatabase)
 }
 

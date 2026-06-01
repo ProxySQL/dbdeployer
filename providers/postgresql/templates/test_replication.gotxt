@@ -26,12 +26,17 @@ function ok_equal
 function test_summary
 {
     TESTS=$(($PASSED+$FAILED))
+    PERCENT_PASSED=0
+    PERCENT_FAILED=0
+    if [ "$TESTS" -gt 0 ]
+    then
+        PERCENT_PASSED=$(($PASSED*100/$TESTS))
+        PERCENT_FAILED=$(($FAILED*100/$TESTS))
+    fi
     if [ -n "$TAP_TEST" ]
     then
         echo "1..$TESTS"
     else
-        PERCENT_PASSED=$(($PASSED/$TESTS*100))
-        PERCENT_FAILED=$(($FAILED/$TESTS*100))
         printf "# Tests : %5d\n" $TESTS
     fi
     exit_code=0
@@ -67,14 +72,16 @@ sleep 0.5
 PRIMARY_RECS=$($PRIMARY -Atqc 'SELECT COUNT(*) FROM t1')
 
 PRIMARY_POS=$($PRIMARY -Atqc 'SELECT pg_current_wal_lsn()')
-for N in $(seq 1 9)
+for REPLICA_DIR in ./{{.ReplicaAbbr}}*/
 do
-    REPLICA="./{{.ReplicaAbbr}}$N/use"
+    [ -d "$REPLICA_DIR" ] || continue
+    REPLICA="${REPLICA_DIR}use"
     [ ! -x ${REPLICA} ] && continue
-    echo "# Testing {{.ReplicaLabel}} #$N"
+    NAME=$(basename "$REPLICA_DIR")
+    echo "# Testing ${NAME}"
     REPLICA_POS=$($REPLICA -Atqc 'SELECT pg_last_wal_replay_lsn()')
     REPLICA_RECS=$($REPLICA -Atqc 'SELECT count(*) FROM t1')
-    ok_equal ${PRIMARY_POS} ${REPLICA_POS} "$N LSN"
-    ok_equal ${PRIMARY_RECS} ${REPLICA_RECS} "$N records"
+    ok_equal "${PRIMARY_POS}" "${REPLICA_POS}" "${NAME} LSN"
+    ok_equal "${PRIMARY_RECS}" "${REPLICA_RECS}" "${NAME} records"
 done
 test_summary

@@ -42,7 +42,7 @@ func unpackTarball(cmd *cobra.Command, args []string) {
 	Version, _ := flags.GetString(globals.UnpackVersionLabel)
 	providerName, _ := flags.GetString(globals.ProviderLabel)
 	if providerName == "postgresql" {
-		if len(args) < 2 {
+		if len(args) < 3 {
 			common.Exitf(1, "PostgreSQL unpack requires server and client .deb files, plus libpq5\n"+
 				"Usage: dbdeployer unpack --provider=postgresql postgresql-18_*.deb postgresql-client-18_*.deb libpq5_*.deb")
 		}

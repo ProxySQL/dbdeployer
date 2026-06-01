@@ -78,14 +78,7 @@ func validPsqlBinary(path string) (bool, error) {
 	if info.IsDir() {
 		return false, fmt.Errorf("%s is a directory", path)
 	}
-
 	resolved := path
-	if info.Mode()&os.ModeSymlink != 0 {
-		resolved, err = filepath.EvalSymlinks(path)
-		if err != nil {
-			return false, err
-		}
-	}
 	if isShellScript(resolved) {
 		return false, nil
 	}

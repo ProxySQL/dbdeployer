@@ -49,7 +49,10 @@ func findServerDeb(debs []string) (string, error) {
 			continue
 		}
 		if strings.HasPrefix(base, "postgresql-") && strings.HasSuffix(base, ".deb") {
-			return deb, nil
+			suffix := base[len("postgresql-"):]
+			if len(suffix) > 0 && suffix[0] >= '0' && suffix[0] <= '9' {
+				return deb, nil
+			}
 		}
 	}
 	return "", fmt.Errorf("no server deb found (expected postgresql-NN_*.deb)")

@@ -103,6 +103,9 @@ func DeployProxySQLForTopology(sandboxDir string, masterPort int, slavePorts []i
 	}
 	if backendProvider == postgresql.ProviderName {
 		primaryDir := path.Join(sandboxDir, "primary")
+		if !common.DirExists(primaryDir) {
+			primaryDir = sandboxDir
+		}
 		desc, err := common.ReadSandboxDescription(primaryDir)
 		if err != nil {
 			return fmt.Errorf("reading primary sandbox description for PostgreSQL client paths: %w", err)

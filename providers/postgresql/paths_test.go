@@ -48,7 +48,7 @@ func TestResolvePsqlBinary(t *testing.T) {
 	}
 
 	realPsql := filepath.Join(flatDir, "psql")
-	if err := os.WriteFile(realPsql, []byte{0x7f, 'E', 'L', 'F'}, 0755); err != nil {
+	if err := os.WriteFile(realPsql, []byte{0x7f, 'E', 'L', 'F'}, 0600); err != nil {
 		t.Fatal(err)
 	}
 	if runtime.GOOS == "linux" {
@@ -56,7 +56,7 @@ func TestResolvePsqlBinary(t *testing.T) {
 			t.Fatal(err)
 		}
 		realPsql = filepath.Join(nestedDir, "psql")
-		if err := os.WriteFile(realPsql, []byte{0x7f, 'E', 'L', 'F'}, 0755); err != nil {
+		if err := os.WriteFile(realPsql, []byte{0x7f, 'E', 'L', 'F'}, 0600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -70,7 +70,7 @@ func TestResolvePsqlBinary(t *testing.T) {
 	}
 
 	wrapper := filepath.Join(flatDir, "psql")
-	if err := os.WriteFile(wrapper, []byte("#!/bin/sh\nexec /usr/bin/pg_wrapper\n"), 0755); err != nil {
+	if err := os.WriteFile(wrapper, []byte("#!/bin/sh\nexec /usr/bin/pg_wrapper\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if runtime.GOOS != "linux" {
