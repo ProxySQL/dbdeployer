@@ -24,7 +24,7 @@ Originally created by [Giuseppe Maxia](https://github.com/datacharmer) as a Go r
 | PXC | 8.0, 8.4 | — | yes | — | yes | — | 8.0, 8.4 |
 | PostgreSQL | 16 | yes | — | — | — | — | yes |
 
-CI also runs on: `ubuntu-latest`, `macos-latest` with Go 1.22 and 1.23.
+CI also runs on: `ubuntu-latest`, `macos-latest` with Go 1.23.
 
 </details>
 

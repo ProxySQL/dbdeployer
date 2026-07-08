@@ -161,6 +161,9 @@ var (
 	//go:embed templates/single/after_start.gotxt
 	afterStartTemplate string
 
+	//go:embed templates/single/wait_wsrep_after_start.gotxt
+	waitWsrepAfterStartTemplate string
+
 	//go:embed templates/single/sb_include.gotxt
 	sbIncludeTemplate string
 
@@ -376,6 +379,11 @@ var (
 			Description: "commands to run after the database started",
 			Notes:       "This script does nothing. You can change it and reuse through --use-template",
 			Contents:    afterStartTemplate,
+		},
+		globals.TmplWaitWsrepAfterStart: TemplateDesc{
+			Description: "wait for wsrep_ready before grants/DML (PXC/Galera)",
+			Notes:       "Best-effort; exits 0 quickly on non-Galera sandboxes",
+			Contents:    waitWsrepAfterStartTemplate,
 		},
 		globals.TmplSbInclude: TemplateDesc{
 			Description: "Common variables and routines for sandboxes scripts",

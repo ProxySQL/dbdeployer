@@ -935,6 +935,7 @@ func createSingleSandbox(sandboxDef SandboxDef) (execList []concurrent.Execution
 			{globals.ScriptTestSb, globals.TmplTestSb, true},
 			{globals.ScriptMySandboxCnf, globals.TmplMyCnf, false},
 			{globals.ScriptAfterStart, globals.TmplAfterStart, true},
+			{globals.ScriptWaitWsrepAfterStart, globals.TmplWaitWsrepAfterStart, true},
 			{globals.ScriptConnectionSql, globals.TmplConnectionInfoSql, false},
 			{globals.ScriptConnectionConf, globals.TmplConnectionInfoConf, false},
 			{globals.ScriptConnectionSuperConf, globals.TmplConnectionInfoSuperConf, false},
@@ -1039,6 +1040,10 @@ func createSingleSandbox(sandboxDef SandboxDef) (execList []concurrent.Execution
 					Cmd:  path.Join(sandboxDir, globals.ScriptAfterStart),
 					Args: []string{},
 				}
+				eCmdWaitWsrep = concurrent.ExecCommand{
+					Cmd:  path.Join(sandboxDir, globals.ScriptWaitWsrepAfterStart),
+					Args: []string{},
+				}
 				eCmdPreGrants = concurrent.ExecCommand{
 					Cmd:  path.Join(sandboxDir, globals.ScriptLoadGrants),
 					Args: []string{globals.ScriptPreGrantsSql},
@@ -1053,13 +1058,15 @@ func createSingleSandbox(sandboxDef SandboxDef) (execList []concurrent.Execution
 				}
 			)
 			logger.Printf("Adding after start command to execution list\n")
+			logger.Printf("Adding wait-wsrep command to execution list (no-op on non-Galera)\n")
 			logger.Printf("Adding pre grants command to execution list\n")
 			logger.Printf("Adding load grants command to execution list\n")
 			logger.Printf("Adding post grants command to execution list\n")
 			execList = append(execList, concurrent.ExecutionList{Logger: logger, Priority: 3, Command: eCmdAfterStart})
-			execList = append(execList, concurrent.ExecutionList{Logger: logger, Priority: 4, Command: eCmdPreGrants})
-			execList = append(execList, concurrent.ExecutionList{Logger: logger, Priority: 5, Command: eCmdLoadGrants})
-			execList = append(execList, concurrent.ExecutionList{Logger: logger, Priority: 6, Command: eCmdPostGrants})
+			execList = append(execList, concurrent.ExecutionList{Logger: logger, Priority: 4, Command: eCmdWaitWsrep})
+			execList = append(execList, concurrent.ExecutionList{Logger: logger, Priority: 5, Command: eCmdPreGrants})
+			execList = append(execList, concurrent.ExecutionList{Logger: logger, Priority: 6, Command: eCmdLoadGrants})
+			execList = append(execList, concurrent.ExecutionList{Logger: logger, Priority: 7, Command: eCmdPostGrants})
 		}
 	} else {
 		if !sandboxDef.SkipStart {
@@ -1077,6 +1084,8 @@ func createSingleSandbox(sandboxDef SandboxDef) (execList []concurrent.Execution
 			if err != nil {
 				return emptyExecutionList, err
 			}
+			logger.Printf("Running wait-wsrep script (no-op on non-Galera)\n")
+			_, _ = common.RunCmd(path.Join(sandboxDir, globals.ScriptWaitWsrepAfterStart))
 			if sandboxDef.LoadGrants {
 				logger.Printf("Running pre grants script\n")
 				_, err = common.RunCmdWithArgs(path.Join(sandboxDir, globals.ScriptLoadGrants), []string{globals.ScriptPreGrantsSql})

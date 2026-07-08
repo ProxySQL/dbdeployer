@@ -139,13 +139,22 @@ func TestVersionToList(t *testing.T) {
 
 func TestGreaterOrEqualVersion(t *testing.T) {
 
+	// `GreaterOrEqualVersion` is a flavor-blind heuristic. It deliberately
+	// returns false for any version whose major >= 10 — that range is
+	// reserved for MariaDB (10.x, 11.x, ...), which has diverged from the
+	// MySQL version line that the *MinimumVersion* constants in globals/
+	// were derived against. MySQL has not shipped a 10.x or 11.x major
+	// line; if it ever does, callers should already have migrated to
+	// `common.HasCapability(flavor, feature, version)`, which is the
+	// flavor-aware replacement.
 	var versions = []versionPair{
 		{"5.0.0", []int{5, 6, 0}, false},
 		{"8.0.0", []int{5, 6, 0}, true},
 		{"ps5.7.5", []int{5, 7, 0}, true},
 		{"10.0.1", []int{5, 6, 0}, false},
-		{"22.0.0", []int{22, 0, 0}, true},
-		{"22.10.2", []int{22, 10, 2}, true},
+		{"11.4.9", []int{8, 0, 23}, false}, // MariaDB 11.x must not be treated as MySQL >= 8.0.23 (issue #82)
+		{"22.0.0", []int{22, 0, 0}, false}, // major >= 10 is treated as MariaDB
+		{"22.10.2", []int{22, 10, 2}, false},
 	}
 	for _, v := range versions {
 		result, err := GreaterOrEqualVersion(v.version, v.versionList)

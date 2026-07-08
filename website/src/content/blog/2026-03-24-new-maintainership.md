@@ -12,7 +12,7 @@ We're excited to announce that dbdeployer is now maintained by the ProxySQL team
 
 Since taking over in March 2026, we've:
 
-- **Modernized the stack** — Go 1.22+, refreshed dependencies, fixed all CVEs
+- **Modernized the stack** — Go 1.23+, refreshed dependencies, fixed all CVEs
 - **Added MySQL 8.4 LTS and 9.x support** — full compatibility with modern MySQL
 - **Built a provider architecture** — extensible system for deploying different database types
 - **Integrated ProxySQL** — deploy read/write split stacks with `--with-proxysql`

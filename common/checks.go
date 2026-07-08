@@ -669,8 +669,15 @@ func GreaterOrEqualVersion(version string, comparedTo []int) (bool, error) {
 	minor := verList[1]
 	rev := verList[2]
 
-	// TODO: MariaDB 10.4 has changed behavior with regards to the above assumptions - Needs some more work
-	if major == 10 {
+	// MariaDB 10.x and 11.x retain the historical replication syntax
+	// (CHANGE MASTER TO, show slave status, master_pos_wait, etc.) and do
+	// not adopt the MySQL 8.0.23+ SOURCE-named replacements. MySQL itself
+	// has not shipped a 10.x or 11.x major line, so treating any version
+	// with major >= 10 as MariaDB is safe in practice. Without this guard,
+	// MariaDB 11+ was being treated as "newer than MySQL 8.0.23" and the
+	// generated init_slaves script emitted CHANGE REPLICATION SOURCE TO,
+	// which MariaDB rejects with a syntax error (issue #82).
+	if major >= 10 {
 		return false, nil
 	}
 	versionText := fmt.Sprintf("%02d%02d%02d", major, minor, rev)

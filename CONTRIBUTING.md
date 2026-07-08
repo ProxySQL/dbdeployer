@@ -6,7 +6,7 @@ The following guidelines want to help and simplify the process of contributing t
 
 ## Development Setup
 
-- **Go 1.22+** is required to build and test dbdeployer.
+- **Go 1.23+** is required to build and test dbdeployer.
 - **[golangci-lint](https://golangci-lint.run/)** is required for linting:
   ```bash
   go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest

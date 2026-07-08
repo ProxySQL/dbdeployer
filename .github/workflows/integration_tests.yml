@@ -32,7 +32,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Install system libraries
         run: |
@@ -119,7 +119,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Install system libraries
         run: |
@@ -191,7 +191,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Install system libraries
         run: |
@@ -275,7 +275,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Install system libraries
         run: |
@@ -321,11 +321,18 @@ jobs:
           echo "Deploying PXC $VERSION..."
           ./dbdeployer deploy replication "$VERSION" --topology=pxc --sandbox-binary="$SANDBOX_BINARY"
           SBDIR=$(ls -d ~/sandboxes/pxc_msb_*)
-          for i in $(seq 1 15); do
+          echo "Waiting for PXC nodes to be ready..."
+          for i in $(seq 1 30); do
             "$SBDIR/check_nodes" && break
             sleep 2
           done
           "$SBDIR/check_nodes"
+          # Ensure the primary is application-ready before any grants/DML
+          for i in $(seq 1 30); do
+            "$SBDIR/n1" -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -qi 'ON' && break
+            echo "  Waiting for wsrep_ready on n1... ($i/30)"
+            sleep 2
+          done
           "$SBDIR/n1" -e "CREATE DATABASE ci_test; USE ci_test; CREATE TABLE t1(id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'pxc_ci_test');"
           for i in $(seq 1 10); do
             RESULT=$("$SBDIR/n3" -BN -e "SELECT val FROM ci_test.t1;" 2>/dev/null) || true
@@ -363,7 +370,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Install system libraries
         run: |
@@ -416,16 +423,22 @@ jobs:
           echo "Deploying MariaDB Galera $VERSION..."
           ./dbdeployer deploy replication "$VERSION" --topology=galera --sandbox-binary="$SANDBOX_BINARY"
           SBDIR=$(ls -d ~/sandboxes/galera_msb_*)
-          for i in $(seq 1 15); do
+          echo "Waiting for Galera nodes to be ready..."
+          for i in $(seq 1 30); do
             "$SBDIR/check_nodes" && break
             sleep 2
           done
           "$SBDIR/check_nodes"
+          # Ensure the primary is application-ready before grants/DML
+          for i in $(seq 1 30); do
+            "$SBDIR/n1" -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -qi 'ON' && break
+            echo "  Waiting for wsrep_ready on n1... ($i/30)"
+            sleep 2
+          done
           "$SBDIR/n1" -e "CREATE DATABASE ci_test; USE ci_test; CREATE TABLE t1(id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'galera_ci_test');"
           for i in $(seq 1 10); do
             RESULT=$("$SBDIR/n3" -BN -e "SELECT val FROM ci_test.t1;" 2>/dev/null) || true
             echo "$RESULT" | grep -q "galera_ci_test" && break
-            echo "  Waiting for MariaDB Galera replication... ($i/10)"
             sleep 2
           done
           echo "$RESULT" | grep -q "galera_ci_test" || { echo "FAIL: data not replicated after 20s"; exit 1; }
@@ -450,7 +463,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Install system libraries
         run: |
@@ -582,7 +595,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Add PostgreSQL apt repo
         run: |
@@ -791,7 +804,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Build dbdeployer
         run: go build -o dbdeployer .
@@ -871,7 +884,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Install system libraries
         run: |
@@ -1112,7 +1125,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Install system libraries
         run: |
@@ -1170,7 +1183,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Install system libraries
         run: |
@@ -1316,7 +1329,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Install system libraries
         run: |
