@@ -635,7 +635,7 @@ func testCreateReplicationSandbox(t *testing.T) {
 	if !common.ExecExists(slaveUse) {
 		t.Fatalf("expected replica use script at %s", slaveUse)
 	}
-	out, err := common.RunCmd(slaveUse, "-BN", "-e", "SELECT 1;")
+	out, err := common.RunCmdWithArgs(slaveUse, []string{"-BN", "-e", "SELECT 1;"})
 	if err != nil {
 		t.Fatalf("replica not ready immediately after deploy replication: %v\noutput: %s", err, out)
 	}
