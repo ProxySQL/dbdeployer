@@ -163,6 +163,17 @@ func deployReplicationNonMySQL(cmd *cobra.Command, args []string, providerName s
 		fmt.Printf("WARNING: could not write check_recovery script: %s\n", err)
 	}
 
+	testReplOpts := postgresql.ScriptOptions{
+		SandboxDir: topologyDir,
+		BinDir:     binDir,
+		LibDir:     libDir,
+		Port:       primaryPort,
+	}
+	testReplScript := postgresql.GenerateTestReplicationScript(testReplOpts, len(replicaPorts))
+	if err := os.WriteFile(path.Join(topologyDir, "test_replication"), []byte(testReplScript), 0755); err != nil { //nolint:gosec // scripts must be executable
+		fmt.Printf("WARNING: could not write test_replication script: %s\n", err)
+	}
+
 	// Handle --with-proxysql
 	withProxySQL, _ := flags.GetBool("with-proxysql")
 	if withProxySQL {

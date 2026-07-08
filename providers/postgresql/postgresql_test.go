@@ -127,6 +127,34 @@ func TestGenerateCheckRecoveryScript(t *testing.T) {
 	}
 }
 
+func TestGenerateTestReplicationScript(t *testing.T) {
+	script := GenerateTestReplicationScript(ScriptOptions{
+		SandboxDir: "/home/test/sandboxes/postgresql_repl_16614",
+		BinDir:     "/opt/postgresql/16.13/bin",
+		LibDir:     "/opt/postgresql/16.13/lib",
+		Port:       16614,
+	}, 2)
+	expectedSubstrings := []string{
+		`SBDIR=/home/test/sandboxes/postgresql_repl_16614`,
+		"./primary/use",
+		"pg_current_wal_lsn()",
+		"pg_last_wal_replay_lsn()",
+		"pg_is_in_recovery()",
+		"./replica1/use",
+		"./replica2/use",
+		"test_summary",
+	}
+	for _, want := range expectedSubstrings {
+		if !strings.Contains(script, want) {
+			t.Errorf("script missing %q", want)
+		}
+	}
+	// numReplicas=2 should NOT mention replica3
+	if strings.Contains(script, "./replica3/use") {
+		t.Error("script unexpectedly references replica3")
+	}
+}
+
 func TestGenerateScripts(t *testing.T) {
 	opts := ScriptOptions{
 		SandboxDir: "/tmp/pg_sandbox",
