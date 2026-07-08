@@ -71,8 +71,30 @@ do
             go clean -testcache || true
             sleep 2
         fi
-        go test -v -timeout 30m -count=1
-        test_rc=$?
+
+        # On macOS + Go 1.22 the cmd package test binary is sometimes produced
+        # without LC_UUID and the dynamic linker aborts with "missing LC_UUID".
+        # Standard `go test` fails. Build explicitly and force-codesign the binary.
+        if [ "$(uname -s)" = "Darwin" ] && [ "$dir" = "cmd" ]; then
+            echo "# macOS special handling for cmd package (build + codesign)"
+            TESTBIN=$(mktemp -t dbdeployer_cmd_test.XXXXXX)
+            if CGO_ENABLED=1 go test -c -o "$TESTBIN" -count=1 . 2>&1; then
+                codesign --force --deep --sign - "$TESTBIN" 2>/dev/null || true
+                if "$TESTBIN" -test.v -test.timeout=30m; then
+                    rm -f "$TESTBIN"
+                    test_rc=0
+                else
+                    test_rc=$?
+                    rm -f "$TESTBIN"
+                fi
+            else
+                test_rc=1
+            fi
+        else
+            go test -v -timeout 30m -count=1
+            test_rc=$?
+        fi
+
         if [ $test_rc -eq 0 ]; then
             break
         fi
