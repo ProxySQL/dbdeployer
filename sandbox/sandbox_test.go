@@ -626,23 +626,37 @@ func testCreateReplicationSandbox(t *testing.T) {
 		t.Fatalf(globals.ErrCreatingSandbox, err)
 	}
 
-	// Immediately query a replica (without extra sleep) to verify the
-	// readiness wait added for #131. If the wait in initialize_slaves*
-	// is missing or broken, this can fail with connection/ auth errors
-	// right after deploy on 8.4+ / 9.x.
+	// #131 fix test: replicas must answer queries immediately (exercises wait in initialize_slaves*)
 	sandboxDir := path.Join(sandboxDef.SandboxDir, defaults.Defaults().MasterSlavePrefix+pathVersion)
-	slaveUse := path.Join(sandboxDir, defaults.Defaults().NodePrefix+"1", "use")
-	if !common.ExecExists(slaveUse) {
-		t.Fatalf("expected replica use script at %s", slaveUse)
+	for _, n := range []string{"1", "2"} {
+		use := path.Join(sandboxDir, defaults.Defaults().NodePrefix+n, "use")
+		if !common.ExecExists(use) {
+			t.Fatalf("expected replica use script at %s", use)
+		}
+		// RunCmdWithArgs (RunCmd takes only the cmd string)
+		out, err := common.RunCmdWithArgs(use, []string{"-BN", "-e", "SELECT 1;"}); // tests #131 fix: replica must be ready immediately (no sleep) after deploy
+		if err != nil {
+			t.Fatalf("replica n%s not ready immediately after deploy replication: %v\noutput: %s", n, err, out)
+		}
+		if strings.TrimSpace(out) != "1" {
+			t.Fatalf("replica n%s: expected '1', got %q", n, out)
+		}
 	}
-	out, err := common.RunCmdWithArgs(slaveUse, []string{"-BN", "-e", "SELECT 1;"})
-	if err != nil {
-		t.Fatalf("replica not ready immediately after deploy replication: %v\noutput: %s", err, out)
+	t.Logf("ok - both replicas accepted queries immediately after deploy (no manual sleep)")
+
+	// Directly assert the generated script contains the waits (the actual fix).
+	initSlavesScript := path.Join(sandboxDir, "initialize_slaves")
+	initContent, rerr := os.ReadFile(initSlavesScript)
+	if rerr != nil {
+		t.Fatalf("could not read initialize_slaves: %v", rerr)
 	}
-	if strings.TrimSpace(out) != "1" {
-		t.Fatalf("expected replica to return '1', got %q", out)
+	initStr := string(initContent)
+	if !strings.Contains(initStr, `wait_until_replica_ready "$SBDIR/n1/use" 60 1`) {
+		t.Errorf("initialize_slaves missing wait_until_replica_ready for n1 (the #131 fix)")
 	}
-	t.Logf("ok - replica accepted query immediately after deploy (no manual sleep)")
+	if !strings.Contains(initStr, `wait_until_replica_ready "$SBDIR/n2/use" 60 1`) {
+		t.Errorf("initialize_slaves missing wait_until_replica_ready for n2 (the #131 fix)")
+	}
 
 	sandboxDir = path.Join(sandboxDef.SandboxDir, defaults.Defaults().MasterSlavePrefix+pathVersion)
 	okDirExists(t, sandboxDir)
