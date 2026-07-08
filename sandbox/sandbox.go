@@ -210,13 +210,11 @@ func checkDirectory(sandboxDef SandboxDef) (SandboxDef, error) {
 			if err != nil {
 				return sandboxDef, fmt.Errorf(globals.ErrWhileStoppingSandbox, sandboxDir)
 			}
-			_, err = common.RunCmdWithArgs("rm", []string{"-rf", sandboxDir})
-			if err != nil {
+			if err = removeDirWithRetry(sandboxDir); err != nil {
 				return sandboxDef, fmt.Errorf(globals.ErrWhileDeletingSandbox, sandboxDir)
 			}
 			if logDirectory != "" {
-				_, err = common.RunCmdWithArgs("rm", []string{"-rf", logDirectory})
-				if err != nil {
+				if err = removeDirWithRetry(logDirectory); err != nil {
 					return sandboxDef, fmt.Errorf("error while deleting log directory %s", logDirectory)
 				}
 			}
@@ -1183,6 +1181,30 @@ func getLogDirFromSbDescription(fullPath string) (string, error) {
 	return logDirectory, nil
 }
 
+// removeDirWithRetry runs `rm -rf <target>` with a short exponential backoff
+// retry loop. After the stop/send_kill script returns, the killed mysqld
+// process may not yet have finished releasing its open file descriptors —
+// during that brief window, last buffered writes can land in master/data/
+// after rm's readdir() walk, making the final rmdir(2) return ENOTEMPTY
+// ("Directory not empty"). Retrying handles that race (issue #121).
+// Total max wait: 200+400+800+1600+3200ms ≈ 6.2s.
+func removeDirWithRetry(target string) error {
+	backoff := 200 * time.Millisecond
+	var lastErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		if attempt > 0 {
+			time.Sleep(backoff)
+			backoff *= 2
+		}
+		if _, err := common.RunCmdWithArgs("rm", []string{"-rf", target}); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+	}
+	return lastErr
+}
+
 // Deprecated: use RemoveCustomSandbox instead
 func RemoveSandbox(sandboxDir, sandbox string, runConcurrently bool) (execList []concurrent.ExecutionList, err error) {
 	fullPath := path.Join(sandboxDir, sandbox)
@@ -1273,8 +1295,7 @@ func RemoveSandbox(sandboxDir, sandbox string, runConcurrently bool) (execList [
 			if globals.UsingDbDeployer && target != logDirectory {
 				common.CondPrintf("Running %s\n", cmdStr)
 			}
-			_, err = common.RunCmdWithArgs("rm", rmArgs)
-			if err != nil {
+			if err = removeDirWithRetry(target); err != nil {
 				return emptyExecutionList, fmt.Errorf(globals.ErrWhileDeletingSandbox, target)
 			}
 			if globals.UsingDbDeployer && target != logDirectory {
@@ -1394,8 +1415,7 @@ func RemoveCustomSandbox(sandboxDir, sandbox string, runConcurrently, useStop bo
 			if globals.UsingDbDeployer && target != logDirectory {
 				common.CondPrintf("Running %s\n", cmdStr)
 			}
-			_, err = common.RunCmdWithArgs("rm", rmArgs)
-			if err != nil {
+			if err = removeDirWithRetry(target); err != nil {
 				return emptyExecutionList, fmt.Errorf(globals.ErrWhileDeletingSandbox, target)
 			}
 			if globals.UsingDbDeployer && target != logDirectory {
