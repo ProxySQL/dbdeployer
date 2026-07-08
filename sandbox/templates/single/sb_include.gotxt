@@ -66,3 +66,21 @@ function check_output
         esac
     fi
 }
+
+# Wait until wsrep_ready is ON for Galera/PXC nodes.
+# This prevents grants and user DML from running before the node
+# has joined the cluster.
+function wait_until_wsrep_ready
+{
+    local use_cmd=${1:-$SBDIR/use}
+    local max_attempts=${2:-60}
+    local sleep_sec=${3:-2}
+    for i in $(seq 1 $max_attempts); do
+        if $use_cmd -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -qi 'ON' ; then
+            return 0
+        fi
+        sleep $sleep_sec
+    done
+    echo "WARNING: wsrep_ready not ON after $((max_attempts * sleep_sec))s" >&2
+    return 1
+}

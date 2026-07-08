@@ -265,6 +265,7 @@ const (
 	ScriptGrantsMysql         = "grants.mysql"
 	ScriptInitDb              = "init_db"
 	ScriptAfterStart          = "after_start"
+	ScriptWaitWsrepAfterStart = "wait_wsrep_after_start"
 	ScriptLoadGrants          = "load_grants"
 	ScriptMy                  = "my"
 	ScriptMySandboxCnf        = "my.sandbox.cnf"

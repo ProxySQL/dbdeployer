@@ -119,6 +119,7 @@ const (
 	TmplLoadGrants              = "load_grants"
 	TmplMy                      = "my"
 	TmplAfterStart              = "after_start"
+	TmplWaitWsrepAfterStart     = "wait_wsrep_after_start"
 	TmplConnectionInfoJson      = "connection_info_json"
 	TmplConnectionInfoSuperJson = "connection_info_super_json"
 	TmplClear                   = "clear"
@@ -186,6 +187,6 @@ const (
 	TmplRouterStop           = "router_stop"
 
 	// MySQL 8.4+ specific templates
-	TmplInitSlaves84          = "init_slaves_84"
+	TmplInitSlaves84           = "init_slaves_84"
 	TmplReplCrashSafeOptions84 = "repl_crash_safe_options84"
 )

@@ -55,7 +55,33 @@ do
 
     cd $dir
     echo "# Testing $dir"
-    go test -v -timeout 30m
+
+    # On macOS the Go test binary for some packages (notably cmd) can
+    # transiently fail to execute due to dyld "missing LC_UUID" issues.
+    # We retry with cache clean instead of skipping.
+    max_attempts=1
+    if [ "$(uname -s)" = "Darwin" ]; then
+        max_attempts=3
+    fi
+
+    attempt=1
+    while [ $attempt -le $max_attempts ]; do
+        if [ $attempt -gt 1 ]; then
+            echo "# macOS retry $attempt for $dir (cleaning test cache)"
+            go clean -testcache || true
+            sleep 2
+        fi
+        go test -v -timeout 30m -count=1
+        test_rc=$?
+        if [ $test_rc -eq 0 ]; then
+            break
+        fi
+        if [ $attempt -eq $max_attempts ]; then
+            exit $test_rc
+        fi
+        attempt=$((attempt + 1))
+    done
+
     check_exit_code
     cd $maindir
 done
