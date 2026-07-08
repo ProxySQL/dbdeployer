@@ -30,7 +30,7 @@ Deploy a MySQL replication cluster with ProxySQL in front:
 
 ```bash
 # 1. Install prerequisites
-#    - Go 1.22+ (for building from source)
+#    - Go 1.23+ (for building from source)
 #    - ProxySQL binary in PATH
 #    - MySQL tarballs unpacked
 

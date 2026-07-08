@@ -1,6 +1,6 @@
 module github.com/ProxySQL/dbdeployer
 
-go 1.22
+go 1.23
 
 require (
 	github.com/alexeyco/simpletable v1.0.0

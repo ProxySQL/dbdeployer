@@ -6,7 +6,7 @@ about: Create a report to help us improve
 
 **Environment**
 - dbdeployer version: [e.g. 1.80.0]
-- Go version (if building from source): [e.g. 1.21]
+- Go version (if building from source): [e.g. 1.23]
 - OS: [e.g. macOS 14.2, Ubuntu 22.04]
 - MySQL/database version: [e.g. 8.0.34]
 - Flavor: [MySQL | Percona | MariaDB | NDB | PXC | TiDB]
