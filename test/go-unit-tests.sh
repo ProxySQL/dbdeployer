@@ -72,23 +72,39 @@ do
             sleep 2
         fi
 
-        # On macOS + Go 1.22 the cmd package test binary is sometimes produced
-        # without LC_UUID and the dynamic linker aborts with "missing LC_UUID".
-        # Standard `go test` fails. Build explicitly and force-codesign the binary.
+        # On macOS the cmd package test binary produced by Go 1.22 (and sometimes
+        # other versions) on GitHub runners lacks LC_UUID, causing:
+        #   dyld: missing LC_UUID load command
+        #   signal: abort trap
+        # We build explicitly, try both CGO_ENABLED values, codesign, and run.
+        # Never skip the package on macOS.
         if [ "$(uname -s)" = "Darwin" ] && [ "$dir" = "cmd" ]; then
-            echo "# macOS special handling for cmd package (build + codesign)"
-            TESTBIN=$(mktemp -t dbdeployer_cmd_test.XXXXXX)
-            if CGO_ENABLED=1 go test -c -o "$TESTBIN" -count=1 . 2>&1; then
-                codesign --force --deep --sign - "$TESTBIN" 2>/dev/null || true
-                if "$TESTBIN" -test.v -test.timeout=30m; then
-                    rm -f "$TESTBIN"
-                    test_rc=0
+            echo "# macOS special handling for cmd package (build + codesign + CGO variants)"
+            test_rc=1
+            for cgo in 0 1; do
+                echo "# trying CGO_ENABLED=$cgo for cmd test binary"
+                TESTBIN=$(mktemp -t dbdeployer_cmd_test.XXXXXX 2>/dev/null || mktemp)
+                rm -f "$TESTBIN" 2>/dev/null || true
+                if CGO_ENABLED=$cgo go test -c -o "$TESTBIN" -count=1 . 2>&1; then
+                    codesign --force --deep --sign - "$TESTBIN" 2>/dev/null || true
+                    if "$TESTBIN" -test.v -test.timeout=30m 2>&1; then
+                        echo "# cmd tests passed with CGO_ENABLED=$cgo"
+                        rm -f "$TESTBIN" 2>/dev/null || true
+                        test_rc=0
+                        break
+                    else
+                        rc=$?
+                        echo "# run of cmd test binary (CGO=$cgo) exited $rc"
+                        rm -f "$TESTBIN" 2>/dev/null || true
+                        test_rc=$rc
+                    fi
                 else
-                    test_rc=$?
-                    rm -f "$TESTBIN"
+                    echo "# build of cmd test binary with CGO_ENABLED=$cgo failed"
+                    test_rc=1
                 fi
-            else
-                test_rc=1
+            done
+            if [ $test_rc -ne 0 ]; then
+                echo "# WARNING: cmd package tests failed on macOS after all workarounds (known toolchain LC_UUID issue on some Go 1.22 images)"
             fi
         else
             go test -v -timeout 30m -count=1
