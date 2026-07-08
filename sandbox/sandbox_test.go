@@ -626,7 +626,25 @@ func testCreateReplicationSandbox(t *testing.T) {
 		t.Fatalf(globals.ErrCreatingSandbox, err)
 	}
 
+	// Immediately query a replica (without extra sleep) to verify the
+	// readiness wait added for #131. If the wait in initialize_slaves*
+	// is missing or broken, this can fail with connection/ auth errors
+	// right after deploy on 8.4+ / 9.x.
 	sandboxDir := path.Join(sandboxDef.SandboxDir, defaults.Defaults().MasterSlavePrefix+pathVersion)
+	slaveUse := path.Join(sandboxDir, defaults.Defaults().NodePrefix+"1", "use")
+	if !common.ExecExists(slaveUse) {
+		t.Fatalf("expected replica use script at %s", slaveUse)
+	}
+	out, err := common.RunCmd(slaveUse, "-BN", "-e", "SELECT 1;")
+	if err != nil {
+		t.Fatalf("replica not ready immediately after deploy replication: %v\noutput: %s", err, out)
+	}
+	if strings.TrimSpace(out) != "1" {
+		t.Fatalf("expected replica to return '1', got %q", out)
+	}
+	t.Logf("ok - replica accepted query immediately after deploy (no manual sleep)")
+
+	sandboxDir = path.Join(sandboxDef.SandboxDir, defaults.Defaults().MasterSlavePrefix+pathVersion)
 	okDirExists(t, sandboxDir)
 	dirs := []string{
 		defaults.Defaults().MasterName,
