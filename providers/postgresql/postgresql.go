@@ -41,6 +41,15 @@ func (p *PostgreSQLProvider) DefaultPorts() providers.PortRange {
 	return providers.PortRange{BasePort: 15000, PortsPerInstance: 1}
 }
 
+const proxySQLPortBase = 4518
+
+// ProxySQLAdminPort returns the default ProxySQL admin port for a PostgreSQL
+// sandbox primary. It mirrors VersionToPort in the 4518+ range so ProxySQL
+// does not reuse the MySQL-default 6032 ports.
+func ProxySQLAdminPort(primaryPort int) int {
+	return primaryPort - (15000 - proxySQLPortBase)
+}
+
 func (p *PostgreSQLProvider) SupportedTopologies() []string {
 	return []string{"single", "multiple", "replication"}
 }

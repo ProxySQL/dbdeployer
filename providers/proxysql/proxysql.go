@@ -110,13 +110,16 @@ func (p *ProxySQLProvider) CreateSandbox(config providers.SandboxConfig) (*provi
 			pidFile, cfgPath),
 		"status": fmt.Sprintf("#!/bin/bash\nPIDFILE=%s\nif [ -f $PIDFILE ] && kill -0 $(cat $PIDFILE) 2>/dev/null; then\n  echo \"ProxySQL running (pid $(cat $PIDFILE))\"\nelse\n  echo 'ProxySQL not running'\n  exit 1\nfi\n",
 			pidFile),
-		"use": fmt.Sprintf("#!/bin/bash\nmysql -h %s -P %d -u %s -p%s --prompt 'ProxySQL Admin> ' \"$@\"\n",
-			host, adminPort, adminUser, adminPassword),
 	}
 	if config.Options["backend_provider"] == "postgresql" {
-		scripts["use_proxy"] = fmt.Sprintf("#!/bin/bash\npsql -h %s -p %d -U %s \"$@\"\n",
-			host, mysqlPort, monitorUser)
+		psqlURI := func(user, password string, port int) string {
+			return fmt.Sprintf("postgresql://%s:%s@%s:%d", user, password, host, port)
+		}
+		scripts["use"] = fmt.Sprintf("#!/bin/bash\npsql %s \"$@\"\n", psqlURI(adminUser, adminPassword, adminPort))
+		scripts["use_proxy"] = fmt.Sprintf("#!/bin/bash\npsql %s \"$@\"\n", psqlURI(monitorUser, monitorPass, mysqlPort))
 	} else {
+		scripts["use"] = fmt.Sprintf("#!/bin/bash\nmysql -h %s -P %d -u %s -p%s --prompt 'ProxySQL Admin> ' \"$@\"\n",
+			host, adminPort, adminUser, adminPassword)
 		// use_proxy connects as msandbox (app user), not the monitor user (rsandbox)
 		scripts["use_proxy"] = fmt.Sprintf("#!/bin/bash\nmysql -h %s -P %d -u msandbox -pmsandbox --prompt 'ProxySQL> ' \"$@\"\n",
 			host, mysqlPort)

@@ -31,12 +31,16 @@ func GenerateConfig(cfg ProxySQLConfig) string {
 
 	b.WriteString(fmt.Sprintf("datadir=\"%s\"\n\n", cfg.DataDir))
 
+	isPgsql := cfg.BackendProvider == "postgresql"
+
 	b.WriteString("admin_variables=\n{\n")
 	b.WriteString(fmt.Sprintf("    admin_credentials=\"%s:%s\"\n", cfg.AdminUser, cfg.AdminPassword))
-	b.WriteString(fmt.Sprintf("    mysql_ifaces=\"%s:%d\"\n", cfg.AdminHost, cfg.AdminPort))
+	if isPgsql {
+		b.WriteString(fmt.Sprintf("    pgsql_ifaces=\"%s:%d\"\n", cfg.AdminHost, cfg.AdminPort))
+	} else {
+		b.WriteString(fmt.Sprintf("    mysql_ifaces=\"%s:%d\"\n", cfg.AdminHost, cfg.AdminPort))
+	}
 	b.WriteString("}\n\n")
-
-	isPgsql := cfg.BackendProvider == "postgresql"
 
 	if isPgsql {
 		b.WriteString("pgsql_variables=\n{\n")

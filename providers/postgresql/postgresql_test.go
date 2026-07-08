@@ -62,6 +62,26 @@ func TestPostgreSQLProviderSupportedTopologies(t *testing.T) {
 	}
 }
 
+func TestPostgreSQLProxySQLAdminPort(t *testing.T) {
+	tests := []struct {
+		version  string
+		expected int
+	}{
+		{"16.14", 6132},
+		{"16.13", 6131},
+		{"16.3", 6121},
+	}
+	for _, tt := range tests {
+		primaryPort, err := VersionToPort(tt.version)
+		if err != nil {
+			t.Fatalf("VersionToPort(%q): %v", tt.version, err)
+		}
+		if got := ProxySQLAdminPort(primaryPort); got != tt.expected {
+			t.Errorf("ProxySQLAdminPort(%q) = %d, want %d", tt.version, got, tt.expected)
+		}
+	}
+}
+
 func TestPostgreSQLVersionToPort(t *testing.T) {
 	tests := []struct {
 		version  string
