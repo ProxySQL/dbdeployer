@@ -177,3 +177,48 @@ func TestReplicationStopAndUse_DelegateToSingleTemplates(t *testing.T) {
 		}
 	}
 }
+
+// TestInitSlavesTemplates_IncludeReplicaReadyWait ensures that the
+// replication initialization templates (used by "deploy replication")
+// contain the wait_until_replica_ready logic introduced to fix #131.
+// This is a pure template test and does not require any MySQL binaries.
+func TestInitSlavesTemplates_IncludeReplicaReadyWait(t *testing.T) {
+	for name, tmplContent := range map[string]string{
+		"init_slaves":    initSlavesTemplate,
+		"init_slaves_84": initSlaves84Template,
+	} {
+		data := common.StringMap{
+			"ShellPath":          "/bin/bash",
+			"Copyright":          "# test",
+			"AppVersion":         "test",
+			"DateTime":           "now",
+			"TemplateName":       name,
+			"SandboxDir":         "/tmp/rsandbox_1234",
+			"MasterLabel":        "master",
+			"MasterIp":           "127.0.0.1",
+			"RplUser":            "rsandbox",
+			"RplPassword":        "rsandbox",
+			"MasterAutoPosition": "",
+			"ChangeMasterExtra":  "",
+			"StartReplica":       "START REPLICA",
+			"NodeLabel":          "n",
+			"SlaveLabel":         "slave",
+			"Slaves": []common.StringMap{
+				{"NodeLabel": "n", "Node": 1, "SlaveLabel": "slave"},
+				{"NodeLabel": "n", "Node": 2, "SlaveLabel": "slave"},
+			},
+		}
+		result := renderTemplate(t, tmplContent, data)
+
+		if !strings.Contains(result, "wait_until_replica_ready") {
+			t.Errorf("%s template must define the wait_until_replica_ready helper (regression for #131)", name)
+		}
+		// The call must appear for each slave after the START REPLICA line.
+		if !strings.Contains(result, `wait_until_replica_ready "$SBDIR/n1/use" 60 1`) {
+			t.Errorf("%s template must invoke wait for the first replica", name)
+		}
+		if !strings.Contains(result, `wait_until_replica_ready "$SBDIR/n2/use" 60 1`) {
+			t.Errorf("%s template must invoke wait for the second replica", name)
+		}
+	}
+}

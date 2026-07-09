@@ -6,6 +6,26 @@
 # This script is called by 'start_all' when needed
 SBDIR={{.SandboxDir}}
 cd "$SBDIR"
+
+# Wait until a replica is ready to accept queries from the sandbox user.
+# This is called after START REPLICA (or START SLAVE) during replication
+# initialization to prevent the race where the first client command on a
+# just-started replica fails with "Access denied" or connection errors.
+# Observed especially with MySQL 8.4+ and 9.x.
+wait_until_replica_ready() {
+    local use_cmd=${1:-$SBDIR/use}
+    local max_attempts=${2:-60}
+    local sleep_sec=${3:-1}
+    for i in $(seq 1 $max_attempts); do
+        if $use_cmd -BN -e "SELECT 1;" >/dev/null 2>&1 ; then
+            return 0
+        fi
+        sleep $sleep_sec
+    done
+    echo "WARNING: replica not ready to accept queries after $((max_attempts * sleep_sec))s (cmd: $use_cmd)" >&2
+    return 1
+}
+
 # workaround for Bug#89959
 $SBDIR/{{.MasterLabel}}/use -h {{.MasterIp}} -u {{.RplUser}} -p{{.RplPassword}} -e 'set @a=1'
 if [ ! -f needs_initialization ]
@@ -18,6 +38,8 @@ fi
 echo "initializing {{.SlaveLabel}} {{.Node}}"
 echo '{{.ChangeMasterTo}}  {{.MasterHostParam}}="{{.MasterIp}}",  {{.MasterPortParam}}={{.MasterPort}},  {{.MasterUserParam}}="{{.RplUser}}",  {{.MasterPasswordParam}}="{{.RplPassword}}" {{.MasterAutoPosition}} {{.ChangeMasterExtra}}' | $SBDIR/{{.NodeLabel}}{{.Node}}/use -u root
 $SBDIR/{{.NodeLabel}}{{.Node}}/use -u root -e '{{.StartReplica}}'
+# Ensure the replica is serving queries before we return from initialization.
+wait_until_replica_ready "$SBDIR/{{.NodeLabel}}{{.Node}}/use" 60 1
 {{end}}
 if [ -x ./post_initialization ]
 then
