@@ -42,7 +42,7 @@ jobs:
           which dbdeployer
           dbdeployer --version
           INSTALLED_VERSION=$(dbdeployer --version | awk '{print $NF}')
-          EXPECTED_VERSION=$(gh release view --json tagName --jq '.tagName' | sed 's/^v//')
+          EXPECTED_VERSION=$(gh release view --repo ProxySQL/dbdeployer --json tagName --jq '.tagName' | sed 's/^v//')
           echo "Installed: $INSTALLED_VERSION"
           echo "Expected:  $EXPECTED_VERSION"
           [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION" ] || {
