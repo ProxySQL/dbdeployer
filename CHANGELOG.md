@@ -1,5 +1,54 @@
 ## Unreleased
 
+## 2.4.0	28-Jul-2026
+
+## NEW FEATURES
+
+* Add the PostgreSQL `test_replication` script and replication data-flow
+  verification.
+* Add MariaDB Galera 11.8.6 to the tested configurations and CI coverage.
+
+## BUGS FIXED
+
+* Wait for PostgreSQL replicas to be ready to serve queries before returning
+  from deployment (issue #131).
+* Prevent PostgreSQL port collisions across single, replication, and multiple
+  deployments.
+* Fix PostgreSQL + ProxySQL ports, scripts, and sandbox-directory handling.
+* Fix PostgreSQL deb extraction layout and sharedir relocation, including the
+  required `libpq5` runtime dependency.
+* Treat MariaDB 11+ versions correctly in version comparisons and replication
+  authentication.
+* Retry sandbox deletion when a killed process still holds files open.
+* Improve install-script dependency diagnostics and checksum handling.
+
+## CI
+
+* Stabilize PXC and MariaDB Galera startup and macOS test execution.
+* Require Go 1.23 in CI and add regression coverage for replica readiness.
+* Fix the install-script test's release lookup when running without a checkout.
+
+## 2.3.0	05-May-2026
+
+## NEW FEATURES
+
+* Add MariaDB downloads through the MariaDB Foundation API, including Galera
+  support and MariaDB 11.8 coverage.
+* Add PXC and MariaDB Galera integration tests and tested configurations.
+* Add MariaDB flavor template coverage and derive the application version from
+  git tags.
+
+## BUGS FIXED
+
+* Improve MariaDB client handling, minimal-download fallback, and checksum
+  detection.
+* Stabilize Galera and PXC CI dependency setup and replication templates.
+
+## DOCUMENTATION
+
+* Add CI badges and the tested configurations table.
+* Add Galera and PXC provider documentation.
+
 ## 2.2.3	24-Apr-2026
 
 ## SECURITY
