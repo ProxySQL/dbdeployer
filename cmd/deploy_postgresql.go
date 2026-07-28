@@ -40,7 +40,26 @@ func deploySandboxPostgreSQL(cmd *cobra.Command, args []string) {
 		common.Exitf(1, "invalid version: %s", err)
 	}
 
-	if _, err := p.FindBinary(version); err != nil {
+	// Binary discovery. The --sandbox-binary flag is shared with the MySQL
+	// path and defaults to ~/opt/mysql, so it is only applied to PostgreSQL
+	// when explicitly provided. When set, binaries are expected at
+	// <sandbox-binary>/<version>/bin/postgres and that directory becomes the
+	// sandbox basedir (bin/lib/share). When not set, fall back to the strict
+	// historical behavior: ~/opt/postgresql/<version>.
+	options := map[string]string{}
+	if flags.Changed(globals.SandboxBinaryLabel) {
+		sandboxBinary, _ := flags.GetString(globals.SandboxBinaryLabel)
+		sbAbs, err := common.AbsolutePath(sandboxBinary)
+		if err != nil {
+			common.Exitf(1, "error defining absolute path for --%s: %s", globals.SandboxBinaryLabel, err)
+		}
+		basedir := path.Join(sbAbs, version)
+		binPath := path.Join(basedir, "bin", "postgres")
+		if !common.FileExists(binPath) {
+			common.Exitf(1, "PostgreSQL binary not found at %s", binPath)
+		}
+		options["basedir"] = basedir
+	} else if _, err := p.FindBinary(version); err != nil {
 		common.Exitf(1, "PostgreSQL binaries not found: %s\nRun: dbdeployer unpack --provider=postgresql <server.deb> <client.deb>", err)
 	}
 
@@ -98,7 +117,7 @@ func deploySandboxPostgreSQL(cmd *cobra.Command, args []string) {
 		Host:       "127.0.0.1",
 		DbUser:     dbUser,
 		DbPassword: dbPassword,
-		Options:    map[string]string{},
+		Options:    options,
 	}
 
 	if _, err := p.CreateSandbox(config); err != nil {

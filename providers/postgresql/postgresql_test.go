@@ -1,6 +1,8 @@
 package postgresql
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -276,5 +278,35 @@ func TestGenerateCheckRecoveryScriptDbUser(t *testing.T) {
 	}
 	if !strings.Contains(script, "16614") || !strings.Contains(script, "16615") {
 		t.Error("recovery script missing replica ports")
+	}
+}
+
+// TestResolveBasedir locks in the contract that deploy_postgresql.go relies on:
+// an explicit Options["basedir"] override (set when --sandbox-binary is given)
+// is honored as-is, and absent/empty values fall back to ~/opt/postgresql/<ver>.
+func TestResolveBasedir(t *testing.T) {
+	p := NewPostgreSQLProvider()
+	home, _ := os.UserHomeDir()
+	wantDefault := filepath.Join(home, "opt", "postgresql", "18.4")
+
+	// Explicit override is returned verbatim.
+	got, err := p.resolveBasedir(providers.SandboxConfig{
+		Version: "18.4",
+		Options: map[string]string{"basedir": "/custom/root/18.4"},
+	})
+	if err != nil || got != "/custom/root/18.4" {
+		t.Errorf("override: got (%q, %v), want /custom/root/18.4", got, err)
+	}
+
+	// No Options: falls back to ~/opt/postgresql/<version>.
+	got, err = p.resolveBasedir(providers.SandboxConfig{Version: "18.4", Options: map[string]string{}})
+	if err != nil || got != wantDefault {
+		t.Errorf("fallback: got (%q, %v), want %q", got, err, wantDefault)
+	}
+
+	// Empty basedir value is treated as unset (falls back).
+	got, err = p.resolveBasedir(providers.SandboxConfig{Version: "18.4", Options: map[string]string{"basedir": ""}})
+	if err != nil || got != wantDefault {
+		t.Errorf("empty basedir: got (%q, %v), want %q", got, err, wantDefault)
 	}
 }
