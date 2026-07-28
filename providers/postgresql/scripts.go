@@ -23,6 +23,14 @@ export LD_LIBRARY_PATH="%s"
 unset PGDATA PGPORT PGHOST PGUSER PGDATABASE
 `
 
+// shellQuote wraps s in POSIX single quotes (escaping any embedded single
+// quotes) so it is safe to interpolate into a generated bash script. This
+// preserves any valid PostgreSQL role name while neutralizing shell
+// metacharacters in user-supplied values.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
 func GenerateScripts(opts ScriptOptions) map[string]string {
 	preamble := fmt.Sprintf(envPreamble, opts.LibDir)
 	dbUser := opts.DbUser
@@ -44,10 +52,10 @@ func GenerateScripts(opts ScriptOptions) map[string]string {
 			preamble, opts.BinDir, opts.DataDir, opts.LogFile),
 
 		"use": fmt.Sprintf("%s%s/psql -h 127.0.0.1 -p %d -U %s \"$@\"\n",
-			preamble, opts.BinDir, opts.Port, dbUser),
+			preamble, opts.BinDir, opts.Port, shellQuote(dbUser)),
 
 		"clear": fmt.Sprintf("%s%s/pg_ctl -D %s stop -m fast 2>/dev/null\nrm -rf %s\n%s/initdb -D %s --auth=trust --username=%s\necho \"Sandbox cleared.\"\n",
-			preamble, opts.BinDir, opts.DataDir, opts.DataDir, opts.BinDir, opts.DataDir, dbUser),
+			preamble, opts.BinDir, opts.DataDir, opts.DataDir, opts.BinDir, opts.DataDir, shellQuote(dbUser)),
 	}
 }
 
@@ -59,7 +67,7 @@ func GenerateCheckReplicationScript(opts ScriptOptions) string {
 	}
 	return fmt.Sprintf(`%s%s/psql -h 127.0.0.1 -p %d -U %s -c \
   "SELECT client_addr, state, sent_lsn, write_lsn, flush_lsn, replay_lsn FROM pg_stat_replication;"
-`, preamble, opts.BinDir, opts.Port, dbUser)
+`, preamble, opts.BinDir, opts.Port, shellQuote(dbUser))
 }
 
 func GenerateCheckRecoveryScript(opts ScriptOptions, replicaPorts []int) string {
@@ -72,7 +80,7 @@ func GenerateCheckRecoveryScript(opts ScriptOptions, replicaPorts []int) string 
 	b.WriteString(preamble)
 	for _, port := range replicaPorts {
 		b.WriteString(fmt.Sprintf("echo \"=== Replica port %d ===\"\n", port))
-		b.WriteString(fmt.Sprintf("%s/psql -h 127.0.0.1 -p %d -U %s -c \"SELECT pg_is_in_recovery();\"\n", opts.BinDir, port, dbUser))
+		b.WriteString(fmt.Sprintf("%s/psql -h 127.0.0.1 -p %d -U %s -c \"SELECT pg_is_in_recovery();\"\n", opts.BinDir, port, shellQuote(dbUser)))
 	}
 	return b.String()
 }

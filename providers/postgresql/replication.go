@@ -22,12 +22,20 @@ func (p *PostgreSQLProvider) CreateReplica(primary providers.SandboxInfo, config
 	dataDir := filepath.Join(config.Dir, "data")
 	logFile := filepath.Join(config.Dir, "postgresql.log")
 
+	// The replica connects to the primary as the configured superuser, which
+	// matches the role created by initdb --username=<db-user>. Fall back to
+	// "postgres" to preserve the historical behavior when no user is set.
+	dbUser := config.DbUser
+	if dbUser == "" {
+		dbUser = "postgres"
+	}
+
 	// pg_basebackup from the running primary
 	pgBasebackup := filepath.Join(binDir, "pg_basebackup")
 	bbCmd := exec.Command(pgBasebackup,
 		"-h", "127.0.0.1",
 		"-p", fmt.Sprintf("%d", primary.Port),
-		"-U", "postgres",
+		"-U", dbUser,
 		"-D", dataDir,
 		"-Fp", "-Xs", "-R",
 	)

@@ -214,24 +214,24 @@ func TestGenerateScripts(t *testing.T) {
 }
 
 // TestGenerateScriptsDbUserPropagation ensures the configured db-user is embedded
-// in the generated psql/initdb invocations, and that an empty DbUser falls back
-// to the historical "postgres" default.
+// (shell-quoted) in the generated psql/initdb invocations, and that an empty
+// DbUser falls back to the historical "postgres" default.
 func TestGenerateScriptsDbUserPropagation(t *testing.T) {
-	// Explicit user: scripts must reference it and not the default.
+	// Explicit user: scripts must reference it (shell-quoted) and not the default.
 	custom := GenerateScripts(ScriptOptions{
 		BinDir:  "/opt/postgresql/16.13/bin",
 		DataDir: "/tmp/pg/data",
 		Port:    16613,
-		DbUser:  "wse",
+		DbUser:  "testuser",
 	})
-	if !strings.Contains(custom["use"], "-U wse") {
-		t.Errorf("use script must embed -U wse; got: %q", custom["use"])
+	if !strings.Contains(custom["use"], "-U 'testuser'") {
+		t.Errorf("use script must embed -U 'testuser'; got: %q", custom["use"])
 	}
 	if strings.Contains(custom["use"], "-U postgres") {
 		t.Errorf("use script must not reference -U postgres; got: %q", custom["use"])
 	}
-	if !strings.Contains(custom["clear"], "--username=wse") {
-		t.Errorf("clear script must embed --username=wse; got: %q", custom["clear"])
+	if !strings.Contains(custom["clear"], "--username='testuser'") {
+		t.Errorf("clear script must embed --username='testuser'; got: %q", custom["clear"])
 	}
 
 	// Empty user: falls back to "postgres" (backward compatible).
@@ -240,20 +240,41 @@ func TestGenerateScriptsDbUserPropagation(t *testing.T) {
 		DataDir: "/tmp/pg/data",
 		Port:    16613,
 	})
-	if !strings.Contains(def["use"], "-U postgres") {
-		t.Errorf("default use script must embed -U postgres; got: %q", def["use"])
+	if !strings.Contains(def["use"], "-U 'postgres'") {
+		t.Errorf("default use script must embed -U 'postgres'; got: %q", def["use"])
 	}
-	if !strings.Contains(def["clear"], "--username=postgres") {
-		t.Errorf("default clear script must embed --username=postgres; got: %q", def["clear"])
+	if !strings.Contains(def["clear"], "--username='postgres'") {
+		t.Errorf("default clear script must embed --username='postgres'; got: %q", def["clear"])
 	}
 
 	// Replication scripts honor DbUser too.
 	repl := GenerateCheckReplicationScript(ScriptOptions{
 		BinDir: "/opt/postgresql/16.13/bin",
 		Port:   16613,
-		DbUser: "wse",
+		DbUser: "testuser",
 	})
-	if !strings.Contains(repl, "-U wse") {
-		t.Errorf("replication script must embed -U wse; got: %q", repl)
+	if !strings.Contains(repl, "-U 'testuser'") {
+		t.Errorf("replication script must embed -U 'testuser'; got: %q", repl)
+	}
+}
+
+// TestGenerateCheckRecoveryScriptDbUser ensures the recovery-check script embeds
+// the configured db-user (shell-quoted), complementing the existing
+// TestGenerateCheckRecoveryScript which only checks the query text and ports.
+func TestGenerateCheckRecoveryScriptDbUser(t *testing.T) {
+	ports := []int{16614, 16615}
+	script := GenerateCheckRecoveryScript(ScriptOptions{
+		BinDir: "/opt/postgresql/16.13/bin",
+		Port:   16613,
+		DbUser: "testuser",
+	}, ports)
+	if !strings.Contains(script, "pg_is_in_recovery") {
+		t.Error("missing pg_is_in_recovery query")
+	}
+	if !strings.Contains(script, "-U 'testuser'") {
+		t.Errorf("recovery script must embed -U 'testuser'; got: %q", script)
+	}
+	if !strings.Contains(script, "16614") || !strings.Contains(script, "16615") {
+		t.Error("recovery script missing replica ports")
 	}
 }
