@@ -72,6 +72,7 @@ func (p *PostgreSQLProvider) CreateReplica(primary providers.SandboxInfo, config
 		LibDir:     libDir,
 		Port:       config.Port,
 		LogFile:    logFile,
+		DbUser:     config.DbUser,
 	})
 	for name, content := range scripts {
 		scriptPath := filepath.Join(config.Dir, name)

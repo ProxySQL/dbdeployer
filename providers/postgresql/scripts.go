@@ -12,6 +12,10 @@ type ScriptOptions struct {
 	LibDir     string
 	Port       int
 	LogFile    string
+	// DbUser is the database user embedded in the generated psql/initdb
+	// invocations. When empty, it defaults to the PostgreSQL superuser
+	// "postgres" to preserve the historical sandbox behavior.
+	DbUser string
 }
 
 const envPreamble = `#!/bin/bash
@@ -21,6 +25,10 @@ unset PGDATA PGPORT PGHOST PGUSER PGDATABASE
 
 func GenerateScripts(opts ScriptOptions) map[string]string {
 	preamble := fmt.Sprintf(envPreamble, opts.LibDir)
+	dbUser := opts.DbUser
+	if dbUser == "" {
+		dbUser = "postgres"
+	}
 
 	return map[string]string{
 		"start": fmt.Sprintf("%s%s/pg_ctl -D %s -l %s start\n",
@@ -35,28 +43,36 @@ func GenerateScripts(opts ScriptOptions) map[string]string {
 		"restart": fmt.Sprintf("%s%s/pg_ctl -D %s -l %s restart\n",
 			preamble, opts.BinDir, opts.DataDir, opts.LogFile),
 
-		"use": fmt.Sprintf("%s%s/psql -h 127.0.0.1 -p %d -U postgres \"$@\"\n",
-			preamble, opts.BinDir, opts.Port),
+		"use": fmt.Sprintf("%s%s/psql -h 127.0.0.1 -p %d -U %s \"$@\"\n",
+			preamble, opts.BinDir, opts.Port, dbUser),
 
-		"clear": fmt.Sprintf("%s%s/pg_ctl -D %s stop -m fast 2>/dev/null\nrm -rf %s\n%s/initdb -D %s --auth=trust --username=postgres\necho \"Sandbox cleared.\"\n",
-			preamble, opts.BinDir, opts.DataDir, opts.DataDir, opts.BinDir, opts.DataDir),
+		"clear": fmt.Sprintf("%s%s/pg_ctl -D %s stop -m fast 2>/dev/null\nrm -rf %s\n%s/initdb -D %s --auth=trust --username=%s\necho \"Sandbox cleared.\"\n",
+			preamble, opts.BinDir, opts.DataDir, opts.DataDir, opts.BinDir, opts.DataDir, dbUser),
 	}
 }
 
 func GenerateCheckReplicationScript(opts ScriptOptions) string {
 	preamble := fmt.Sprintf(envPreamble, opts.LibDir)
-	return fmt.Sprintf(`%s%s/psql -h 127.0.0.1 -p %d -U postgres -c \
+	dbUser := opts.DbUser
+	if dbUser == "" {
+		dbUser = "postgres"
+	}
+	return fmt.Sprintf(`%s%s/psql -h 127.0.0.1 -p %d -U %s -c \
   "SELECT client_addr, state, sent_lsn, write_lsn, flush_lsn, replay_lsn FROM pg_stat_replication;"
-`, preamble, opts.BinDir, opts.Port)
+`, preamble, opts.BinDir, opts.Port, dbUser)
 }
 
 func GenerateCheckRecoveryScript(opts ScriptOptions, replicaPorts []int) string {
 	preamble := fmt.Sprintf(envPreamble, opts.LibDir)
+	dbUser := opts.DbUser
+	if dbUser == "" {
+		dbUser = "postgres"
+	}
 	var b strings.Builder
 	b.WriteString(preamble)
 	for _, port := range replicaPorts {
 		b.WriteString(fmt.Sprintf("echo \"=== Replica port %d ===\"\n", port))
-		b.WriteString(fmt.Sprintf("%s/psql -h 127.0.0.1 -p %d -U postgres -c \"SELECT pg_is_in_recovery();\"\n", opts.BinDir, port))
+		b.WriteString(fmt.Sprintf("%s/psql -h 127.0.0.1 -p %d -U %s -c \"SELECT pg_is_in_recovery();\"\n", opts.BinDir, port, dbUser))
 	}
 	return b.String()
 }
