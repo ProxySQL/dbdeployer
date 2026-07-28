@@ -20,7 +20,7 @@ import (
 	"path"
 
 	"github.com/ProxySQL/dbdeployer/common"
-	"github.com/ProxySQL/dbdeployer/defaults"
+	"github.com/ProxySQL/dbdeployer/globals"
 	"github.com/ProxySQL/dbdeployer/providers"
 	"github.com/ProxySQL/dbdeployer/providers/postgresql"
 	"github.com/spf13/cobra"
@@ -44,22 +44,51 @@ func deploySandboxPostgreSQL(cmd *cobra.Command, args []string) {
 		common.Exitf(1, "PostgreSQL binaries not found: %s\nRun: dbdeployer unpack --provider=postgresql <server.deb> <client.deb>", err)
 	}
 
-	port, err := postgresql.VersionToPort(version)
+	// sandbox-home: honor --sandbox-home. The flag is registered on the root
+	// command with defaults.Defaults().SandboxHome as its default, so reading it
+	// directly already falls back to the configured default when not provided.
+	sandboxHome, err := getAbsolutePathFromFlag(cmd, globals.SandboxHomeLabel)
 	if err != nil {
-		common.Exitf(1, "error computing port: %s", err)
+		common.Exitf(1, "error defining absolute path for --%s: %s", globals.SandboxHomeLabel, err)
 	}
 
-	sandboxHome := defaults.Defaults().SandboxHome
-	installedPorts, _ := common.GetInstalledPorts(sandboxHome)
-	freePort, portErr := common.FindFreePort(port, installedPorts, 1)
-	if portErr == nil {
-		port = freePort
+	// port: honor --port; if not provided (<=0), compute it from the version and
+	// pick the next free port, matching the previous behavior.
+	port, _ := flags.GetInt(globals.PortLabel)
+	if port <= 0 {
+		port, err = postgresql.VersionToPort(version)
+		if err != nil {
+			common.Exitf(1, "error computing port: %s", err)
+		}
+		installedPorts, _ := common.GetInstalledPorts(sandboxHome)
+		freePort, portErr := common.FindFreePort(port, installedPorts, 1)
+		if portErr == nil {
+			port = freePort
+		}
 	}
 
-	sandboxDir := path.Join(sandboxHome, fmt.Sprintf("pg_sandbox_%d", port))
+	// sandbox-directory: honor --sandbox-directory; fall back to pg_sandbox_<port>.
+	sandboxDirectory, _ := flags.GetString(globals.SandboxDirectoryLabel)
+	if sandboxDirectory == "" {
+		sandboxDirectory = fmt.Sprintf("pg_sandbox_%d", port)
+	}
+	sandboxDir := path.Join(sandboxHome, sandboxDirectory)
 
 	if common.DirExists(sandboxDir) {
 		common.Exitf(1, "sandbox directory %s already exists", sandboxDir)
+	}
+
+	// db-user / db-password: these flags are registered on "deploy" with the
+	// MySQL default ("msandbox"). To preserve the PostgreSQL default
+	// ("postgres" / "") when they are not explicitly provided, only honor them
+	// when changed on the command line.
+	dbUser := "postgres"
+	if flags.Changed(globals.DbUserLabel) {
+		dbUser, _ = flags.GetString(globals.DbUserLabel)
+	}
+	dbPassword := ""
+	if flags.Changed(globals.DbPasswordLabel) {
+		dbPassword, _ = flags.GetString(globals.DbPasswordLabel)
 	}
 
 	config := providers.SandboxConfig{
@@ -67,8 +96,8 @@ func deploySandboxPostgreSQL(cmd *cobra.Command, args []string) {
 		Dir:        sandboxDir,
 		Port:       port,
 		Host:       "127.0.0.1",
-		DbUser:     "postgres",
-		DbPassword: "",
+		DbUser:     dbUser,
+		DbPassword: dbPassword,
 		Options:    map[string]string{},
 	}
 
