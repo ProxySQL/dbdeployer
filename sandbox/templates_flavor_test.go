@@ -276,11 +276,16 @@ func TestSbInclude_WaitUntilWsrepReady_DetectsNonGalera(t *testing.T) {
 	data := baseTemplateData("mysql")
 	result := renderTemplate(t, sbIncludeTemplate, data)
 
-	// The early-return guard: grep for 'wsrep_ready' string in the output
-	// of SHOW STATUS. On non-Galera the output is empty and the function
-	// returns 0 immediately.
-	if !strings.Contains(result, `grep -q 'wsrep_ready'`) {
+	// The early-return guard: connect as root via socket and check if the
+	// query returns any rows. On non-Galera the output is empty and the
+	// function returns 0 immediately without blocking.
+	if !strings.Contains(result, `if [ -z "$wsrep_check" ]; then`) {
 		t.Error("wait_until_wsrep_ready must check if wsrep_ready variable exists (regression: #131 2-min delay on non-Galera)")
+	}
+	// The guard connects as root (no password) so it works before the
+	// sandbox user (msandbox) has been created by load_grants.
+	if !strings.Contains(result, `--no-defaults -S "$SOCKET_FILE" -u root`) {
+		t.Error("wait_until_wsrep_ready must connect as root via socket for the guard check")
 	}
 	// The default max_attempts for wsrep should not exceed the budget.
 	if !strings.Contains(result, "local max_attempts=${2:-60}") {

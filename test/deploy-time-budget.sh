@@ -91,7 +91,7 @@ echo "# Testing with MySQL $VERSION"
 echo "# Deploying replication (1 slave)..."
 
 SECONDS=0
-dbdeployer deploy replication "$VERSION" -n 1 \
+dbdeployer deploy replication "$VERSION" -n 2 \
     --sandbox-binary="$SANDBOX_BINARY" 2>&1
 deploy_exit=$?
 elapsed=$SECONDS
