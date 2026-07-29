@@ -71,10 +71,10 @@ func TestStartTemplate_MySQL(t *testing.T) {
 	data := baseTemplateData("mysql")
 	result := renderTemplate(t, startTemplate, data)
 	if !strings.Contains(result, `MYSQLD_SAFE="bin/mysqld_safe"`) {
-		t.Error("mysql start template should use mysqld_safe")
+		t.Error("mysql start template should default to mysqld_safe")
 	}
-	if strings.Contains(result, "mariadbd-safe") {
-		t.Error("mysql start template should not reference mariadbd-safe")
+	if !strings.Contains(result, `MYSQLD_SAFE="bin/mariadbd-safe"`) {
+		t.Error("mysql start template must have a mariadb branch (shell-level if)")
 	}
 }
 
@@ -89,18 +89,18 @@ func TestStartTemplate_MariaDB(t *testing.T) {
 func TestStopTemplate_MySQL(t *testing.T) {
 	data := baseTemplateData("mysql")
 	result := renderTemplate(t, stopTemplate, data)
-	if !strings.Contains(result, `$CLIENT_BASEDIR/bin/mysqladmin`) {
-		t.Error("mysql stop template should use mysqladmin")
+	if !strings.Contains(result, `MYSQL_ADMIN="$CLIENT_BASEDIR/bin/mysqladmin"`) {
+		t.Error("mysql stop template should default to mysqladmin")
 	}
-	if strings.Contains(result, "mariadb-admin") {
-		t.Error("mysql stop template should not reference mariadb-admin")
+	if !strings.Contains(result, `MYSQL_ADMIN="$CLIENT_BASEDIR/bin/mariadb-admin"`) {
+		t.Error("mysql stop template must have a mariadb branch (shell-level if)")
 	}
 }
 
 func TestStopTemplate_MariaDB(t *testing.T) {
 	data := baseTemplateData("mariadb")
 	result := renderTemplate(t, stopTemplate, data)
-	if !strings.Contains(result, `$CLIENT_BASEDIR/bin/mariadb-admin`) {
+	if !strings.Contains(result, `MYSQL_ADMIN="$CLIENT_BASEDIR/bin/mariadb-admin"`) {
 		t.Error("mariadb stop template should use mariadb-admin")
 	}
 }
@@ -108,18 +108,18 @@ func TestStopTemplate_MariaDB(t *testing.T) {
 func TestUseTemplate_MySQL(t *testing.T) {
 	data := baseTemplateData("mysql")
 	result := renderTemplate(t, useTemplate, data)
-	if !strings.Contains(result, `$CLIENT_BASEDIR/bin/mysql"`) {
-		t.Error("mysql use template should use mysql client")
+	if !strings.Contains(result, `MYCLIENT="mysql"`) {
+		t.Error("mysql use template should default to mysql client")
 	}
-	if strings.Contains(result, `bin/mariadb`) {
-		t.Error("mysql use template should not reference mariadb client")
+	if !strings.Contains(result, `MYCLIENT="mariadb"`) {
+		t.Error("mysql use template must have a mariadb branch (shell-level if)")
 	}
 }
 
 func TestUseTemplate_MariaDB(t *testing.T) {
 	data := baseTemplateData("mariadb")
 	result := renderTemplate(t, useTemplate, data)
-	if !strings.Contains(result, `$CLIENT_BASEDIR/bin/mariadb"`) {
+	if !strings.Contains(result, `MYCLIENT="mariadb"`) {
 		t.Error("mariadb use template should use mariadb client")
 	}
 }
@@ -174,17 +174,17 @@ func TestReplicationStopAndUse_DelegateToSingleTemplates(t *testing.T) {
 		useResult := renderTemplate(t, useTemplate, data)
 
 		if flavor == "mariadb" {
-			if !strings.Contains(stopResult, "mariadb-admin") {
+			if !strings.Contains(stopResult, `MYSQL_ADMIN="$CLIENT_BASEDIR/bin/mariadb-admin"`) {
 				t.Errorf("replication node stop for mariadb should use mariadb-admin")
 			}
-			if !strings.Contains(useResult, "bin/mariadb") {
+			if !strings.Contains(useResult, `MYCLIENT="mariadb"`) {
 				t.Errorf("replication node use for mariadb should use mariadb client")
 			}
 		} else {
-			if !strings.Contains(stopResult, "mysqladmin") {
+			if !strings.Contains(stopResult, `MYSQL_ADMIN="$CLIENT_BASEDIR/bin/mysqladmin"`) {
 				t.Errorf("replication node stop for mysql should use mysqladmin")
 			}
-			if !strings.Contains(useResult, "bin/mysql") {
+			if !strings.Contains(useResult, `MYCLIENT="mysql"`) {
 				t.Errorf("replication node use for mysql should use mysql client")
 			}
 		}
