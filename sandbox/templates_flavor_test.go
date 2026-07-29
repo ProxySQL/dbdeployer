@@ -282,13 +282,17 @@ func TestSbInclude_WaitUntilWsrepReady_DetectsNonGalera(t *testing.T) {
 	if !strings.Contains(result, `if [ -z "$wsrep_check" ]; then`) {
 		t.Error("wait_until_wsrep_ready must check if wsrep_ready variable exists (regression: #131 2-min delay on non-Galera)")
 	}
-	// The guard connects as root (no password) so it works before the
-	// sandbox user (msandbox) has been created by load_grants.
+	// The guard connects as root (no password) via socket so it works
+	// before the sandbox user (msandbox) has been created by load_grants.
 	if !strings.Contains(result, `--no-defaults -S "$SOCKET_FILE" -u root`) {
 		t.Error("wait_until_wsrep_ready must connect as root via socket for the guard check")
 	}
+	// Both detection AND polling use root socket to work before load_grants.
+	if !strings.Contains(result, "$mysql_cmd --no-defaults -S \"$SOCKET_FILE\" -u root -BN -e \"SHOW STATUS LIKE 'wsrep_ready';\"") {
+		t.Error("wait_until_wsrep_ready must use root socket for polling, not $SBDIR/use (msandbox does not exist yet)")
+	}
 	// The default max_attempts for wsrep should not exceed the budget.
-	if !strings.Contains(result, "local max_attempts=${2:-60}") {
+	if !strings.Contains(result, "local max_attempts=${1:-60}") {
 		t.Error("wait_until_wsrep_ready default max_attempts must remain 60 for Galera nodes, but the guard above must short-circuit on non-Galera")
 	}
 }

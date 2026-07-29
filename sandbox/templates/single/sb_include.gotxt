@@ -72,28 +72,25 @@ function check_output
 # has joined the cluster.
 # On non-Galera servers the status variable does not exist and
 # this function returns immediately (no delay).
-# Note: the initial detection connects as root via socket (no password),
-# because the sandbox user (msandbox) may not exist yet. Once the
-# Galera/PXC nature is confirmed, the function polls using the caller-
-# provided use_cmd (typically the sandbox user).
+# Detection and polling connect as root via socket (no password),
+# because the sandbox user (msandbox) may not exist yet on fresh
+# nodes (load_grants has not run).
 function wait_until_wsrep_ready
 {
-    local use_cmd=${1:-$SBDIR/use}
-    local max_attempts=${2:-60}
-    local sleep_sec=${3:-2}
-    # Detect Galera by connecting as root (no password) via the local
-    # socket. If wsrep_ready exists, this is a Galera/PXC node.
-    local wsrep_check
+    local max_attempts=${1:-60}
+    local sleep_sec=${2:-2}
+    local mysql_cmd
     if [ -x "$CLIENT_BASEDIR/bin/mysql" ]; then
-        wsrep_check=$("$CLIENT_BASEDIR/bin/mysql" --no-defaults -S "$SOCKET_FILE" -u root -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null)
+        mysql_cmd="$CLIENT_BASEDIR/bin/mysql"
     else
-        wsrep_check=$("$BASEDIR/bin/mysql" --no-defaults -S "$SOCKET_FILE" -u root -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null)
+        mysql_cmd="$BASEDIR/bin/mysql"
     fi
+    local wsrep_check=$($mysql_cmd --no-defaults -S "$SOCKET_FILE" -u root -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null)
     if [ -z "$wsrep_check" ]; then
         return 0
     fi
     for i in $(seq 1 $max_attempts); do
-        if $use_cmd -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -qi 'ON' ; then
+        if $mysql_cmd --no-defaults -S "$SOCKET_FILE" -u root -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -qi 'ON' ; then
             return 0
         fi
         sleep $sleep_sec
