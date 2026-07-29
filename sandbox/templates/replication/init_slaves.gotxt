@@ -14,7 +14,7 @@ cd "$SBDIR"
 # Observed especially with MySQL 8.4+ and 9.x.
 wait_until_replica_ready() {
     local use_cmd=${1:-$SBDIR/use}
-    local max_attempts=${2:-60}
+    local max_attempts=${2:-20}
     local sleep_sec=${3:-1}
     for i in $(seq 1 $max_attempts); do
         if $use_cmd -BN -e "SELECT 1;" >/dev/null 2>&1 ; then
@@ -39,7 +39,7 @@ echo "initializing {{.SlaveLabel}} {{.Node}}"
 echo '{{.ChangeMasterTo}}  {{.MasterHostParam}}="{{.MasterIp}}",  {{.MasterPortParam}}={{.MasterPort}},  {{.MasterUserParam}}="{{.RplUser}}",  {{.MasterPasswordParam}}="{{.RplPassword}}" {{.MasterAutoPosition}} {{.ChangeMasterExtra}}' | $SBDIR/{{.NodeLabel}}{{.Node}}/use -u root
 $SBDIR/{{.NodeLabel}}{{.Node}}/use -u root -e '{{.StartReplica}}'
 # Ensure the replica is serving queries before we return from initialization.
-wait_until_replica_ready "$SBDIR/{{.NodeLabel}}{{.Node}}/use" 60 1
+wait_until_replica_ready "$SBDIR/{{.NodeLabel}}{{.Node}}/use" 20 1
 {{end}}
 if [ -x ./post_initialization ]
 then
