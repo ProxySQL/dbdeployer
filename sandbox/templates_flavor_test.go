@@ -276,22 +276,33 @@ func TestSbInclude_WaitUntilWsrepReady_DetectsNonGalera(t *testing.T) {
 	data := baseTemplateData("mysql")
 	result := renderTemplate(t, sbIncludeTemplate, data)
 
-	// The early-return guard: connect as root via socket and check if the
-	// query returns any rows. On non-Galera the output is empty and the
-	// function returns 0 immediately without blocking.
+	// Must wait for a successful root connection before deciding Galera vs not.
+	// Empty output while the server is still starting must not short-circuit.
+	if !strings.Contains(result, `SELECT 1`) {
+		t.Error("wait_until_wsrep_ready must wait for root socket connect before Galera detection")
+	}
+	if !strings.Contains(result, `if [ "$connected" -ne 1 ]; then`) {
+		t.Error("wait_until_wsrep_ready must fail (not short-circuit) when root cannot connect")
+	}
+	// After connect succeeds: empty SHOW STATUS means non-Galera → return 0.
 	if !strings.Contains(result, `if [ -z "$wsrep_check" ]; then`) {
 		t.Error("wait_until_wsrep_ready must check if wsrep_ready variable exists (regression: #131 2-min delay on non-Galera)")
 	}
-	// The guard connects as root (no password) via socket so it works
-	// before the sandbox user (msandbox) has been created by load_grants.
+	// Root via socket (no password) before load_grants creates msandbox.
 	if !strings.Contains(result, `--no-defaults -S "$SOCKET_FILE" -u root`) {
 		t.Error("wait_until_wsrep_ready must connect as root via socket for the guard check")
 	}
-	// Both detection AND polling use root socket to work before load_grants.
-	if !strings.Contains(result, "$mysql_cmd --no-defaults -S \"$SOCKET_FILE\" -u root -BN -e \"SHOW STATUS LIKE 'wsrep_ready';\"") {
-		t.Error("wait_until_wsrep_ready must use root socket for polling, not $SBDIR/use (msandbox does not exist yet)")
+	// Shell-level FLAVOR if: both preference orders must be present.
+	if !strings.Contains(result, `clients="mysql mariadb"`) {
+		t.Error("wait_until_wsrep_ready must prefer mysql client for non-MariaDB flavor")
 	}
-	// The default max_attempts for wsrep should not exceed the budget.
+	if !strings.Contains(result, `clients="mariadb mysql"`) {
+		t.Error("wait_until_wsrep_ready must prefer mariadb client when FLAVOR=mariadb")
+	}
+	// Match wsrep_ready ON specifically, not a bare 'ON' substring.
+	if !strings.Contains(result, `wsrep_ready[[:space:]]+ON`) {
+		t.Error("wait_until_wsrep_ready must match wsrep_ready ON specifically")
+	}
 	if !strings.Contains(result, "local max_attempts=${1:-60}") {
 		t.Error("wait_until_wsrep_ready default max_attempts must remain 60 for Galera nodes, but the guard above must short-circuit on non-Galera")
 	}
@@ -307,7 +318,7 @@ func TestSbInclude_WaitUntilReplicaReady_BoundedWait(t *testing.T) {
 	result := renderTemplate(t, sbIncludeTemplate, data)
 
 	// wait_until_replica_ready must have max_attempts=${2:-20}
-	// (wait_until_wsrep_ready keeps ${2:-60} for Galera nodes).
+	// (wait_until_wsrep_ready keeps ${1:-60} for Galera nodes).
 	if !strings.Contains(result, `max_attempts=${2:-20}`) {
 		t.Errorf("wait_until_replica_ready max_attempts should be 20 to keep total wait ≤ %ds",
 			maxAllowedWaitSeconds)
