@@ -423,7 +423,11 @@ func createSingleSandbox(sandboxDef SandboxDef) (execList []concurrent.Execution
 
 	versionFname := common.VersionToName(sandboxDef.Version)
 	if sandboxDef.Prompt == "" && !sandboxDef.FlavorInPrompt {
-		sandboxDef.Prompt = "mysql"
+		if sandboxDef.Flavor == common.MariaDbFlavor {
+			sandboxDef.Prompt = "MariaDB"
+		} else {
+			sandboxDef.Prompt = "mysql"
+		}
 	}
 	if sandboxDef.FlavorInPrompt {
 		sandboxDef.Prompt = sandboxDef.Flavor + "-" + sandboxDef.Prompt
