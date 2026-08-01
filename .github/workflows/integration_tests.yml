@@ -112,6 +112,8 @@ jobs:
       MAX_DEPLOY_SECONDS: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-go@v5
         with:

@@ -45,31 +45,34 @@ MAX_DEPLOY_SECONDS="${MAX_DEPLOY_SECONDS:-45}"
 exit_code=0
 
 # Find a MySQL version >= 8.4 to test with (these are the versions
-# most affected by the #131 race condition).
+# most affected by the #131 race condition). Diagnostics go to stderr
+# so a failed discovery leaves stdout (captured into VERSION) empty.
 function find_test_version {
     if [ ! -d "$SANDBOX_BINARY" ]; then
-        echo "# SANDBOX_BINARY ($SANDBOX_BINARY) not found"
+        echo "# SANDBOX_BINARY ($SANDBOX_BINARY) not found" >&2
         return 1
     fi
+    local versions
     versions=$(ls "$SANDBOX_BINARY" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -t. -k1,1n -k2,2n -k3,3n)
     if [ -z "$versions" ]; then
-        echo "# No MySQL versions found in $SANDBOX_BINARY"
+        echo "# No MySQL versions found in $SANDBOX_BINARY" >&2
         return 1
     fi
-    # Prefer 8.4.x or 9.x (most affected by #131), fall back to any version
+    # Select the first 8.4+ or 9.x version (most affected by #131).
+    local v major minor
     for v in $versions; do
         major=$(echo "$v" | cut -d. -f1)
-        if [ "$major" -ge 8 ]; then
+        minor=$(echo "$v" | cut -d. -f2)
+        if [ "$major" -gt 8 ] || { [ "$major" -eq 8 ] && [ "$minor" -ge 4 ]; }; then
             echo "$v"
             return 0
         fi
     done
-    # Fallback to the last version found
-    echo "$versions" | tail -1
+    echo "# No MySQL version >= 8.4 found in $SANDBOX_BINARY" >&2
+    return 1
 }
 
 function cleanup {
-    local skip_confirm=""
     if command -v dbdeployer &>/dev/null; then
         dbdeployer delete all --skip-confirm 2>/dev/null || true
     fi
@@ -80,15 +83,17 @@ trap cleanup INT
 
 test_header "deploy-time-budget" "MAX_DEPLOY_SECONDS=$MAX_DEPLOY_SECONDS"
 
-VERSION=$(find_test_version)
-if [ -z "$VERSION" ]; then
-    echo "# No MySQL version available. Set SANDBOX_BINARY and unpack a tarball first."
-    echo "# SKIPPED: deploy-time-budget (no MySQL binaries)"
+if ! VERSION=$(find_test_version); then
+    echo "# No MySQL version >= 8.4 available. Set SANDBOX_BINARY and unpack a tarball first."
+    echo "# SKIPPED: deploy-time-budget (no suitable MySQL binaries)"
     exit 0
 fi
 
 echo "# Testing with MySQL $VERSION"
 echo "# Deploying replication (1 slave)..."
+
+# Start from a clean fixture so a stale rsandbox_* cannot make this pass.
+cleanup
 
 SECONDS=0
 dbdeployer deploy replication "$VERSION" -n 2 \
