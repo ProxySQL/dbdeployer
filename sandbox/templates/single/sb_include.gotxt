@@ -122,11 +122,15 @@ function wait_until_wsrep_ready
         echo "WARNING: cannot connect as root via socket after $((connect_attempts * connect_sleep))s" >&2
         return 1
     fi
-    # Connected: empty SHOW STATUS means wsrep_ready does not exist (non-Galera).
+    # Connected: a SHOW STATUS that succeeds with no rows means wsrep_ready
+    # does not exist (non-Galera) -> short-circuit. Only the successful-empty
+    # case may bypass the wait: if the probe itself fails, fall through to the
+    # polling loop so a transient error cannot skip the wsrep_ready gate.
     local wsrep_check
-    wsrep_check=$($mysql_cmd --no-defaults -S "$SOCKET_FILE" -u root -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null)
-    if [ -z "$wsrep_check" ]; then
-        return 0
+    if wsrep_check=$($mysql_cmd --no-defaults -S "$SOCKET_FILE" -u root -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null); then
+        if [ -z "$wsrep_check" ]; then
+            return 0
+        fi
     fi
     for i in $(seq 1 $max_attempts); do
         if $mysql_cmd --no-defaults -S "$SOCKET_FILE" -u root -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -qiE 'wsrep_ready[[:space:]]+ON'; then

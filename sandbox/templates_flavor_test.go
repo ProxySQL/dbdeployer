@@ -288,6 +288,11 @@ func TestSbInclude_WaitUntilWsrepReady_DetectsNonGalera(t *testing.T) {
 	if !strings.Contains(result, `if [ -z "$wsrep_check" ]; then`) {
 		t.Error("wait_until_wsrep_ready must check if wsrep_ready variable exists (regression: #131 2-min delay on non-Galera)")
 	}
+	// The empty-result short-circuit must be gated on the probe's exit status,
+	// so a failed SHOW STATUS cannot be misread as "non-Galera" (CodeRabbit).
+	if !strings.Contains(result, `if wsrep_check=$($mysql_cmd`) {
+		t.Error("wait_until_wsrep_ready must only short-circuit when the wsrep probe succeeds (check exit status)")
+	}
 	// Root via socket (no password) before load_grants creates msandbox.
 	if !strings.Contains(result, `--no-defaults -S "$SOCKET_FILE" -u root`) {
 		t.Error("wait_until_wsrep_ready must connect as root via socket for the guard check")
