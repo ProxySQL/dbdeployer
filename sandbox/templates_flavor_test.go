@@ -245,6 +245,13 @@ func TestInitSlavesTemplates_IncludeReplicaReadyWait(t *testing.T) {
 		if !strings.Contains(result, expectedWarning) {
 			t.Errorf("%s template must include a timeout warning message", name)
 		}
+		// The probe must clear NOPASSWORD so it authenticates as the sandbox
+		// user. init_slaves exports NOPASSWORD=1 for the root steps; if it leaks
+		// into the probe, 'use' drops the password and the check fails with
+		// "Access denied" for the whole budget (~20s wasted on every deploy).
+		if !strings.Contains(result, `NOPASSWORD= $use_cmd -BN -e "SELECT 1;"`) {
+			t.Errorf("%s template must clear NOPASSWORD for the replica-ready probe", name)
+		}
 	}
 }
 
@@ -327,5 +334,10 @@ func TestSbInclude_WaitUntilReplicaReady_BoundedWait(t *testing.T) {
 	if !strings.Contains(result, `max_attempts=${2:-20}`) {
 		t.Errorf("wait_until_replica_ready max_attempts should be 20 to keep total wait ≤ %ds",
 			maxAllowedWaitSeconds)
+	}
+	// The probe must clear NOPASSWORD so it authenticates as the sandbox user
+	// (callers such as init_slaves export NOPASSWORD=1 for the root steps).
+	if !strings.Contains(result, `NOPASSWORD= $use_cmd -BN -e "SELECT 1;"`) {
+		t.Error("wait_until_replica_ready must clear NOPASSWORD for the probe, or it fails with Access denied and burns the whole budget")
 	}
 }

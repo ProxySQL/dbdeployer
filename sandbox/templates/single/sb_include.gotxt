@@ -148,13 +148,17 @@ function wait_until_wsrep_ready
 # just-started replica fails with "Access denied" or connection errors.
 # Observed especially with MySQL 8.4+ and 9.x.
 # Usage: wait_until_replica_ready "$SBDIR/s1/use" 20 1
+# NOTE: callers (e.g. init_slaves) may export NOPASSWORD=1 for root steps; it
+# must not leak into this probe, or 'use' would drop the sandbox-user password
+# and the check would fail with "Access denied" even once the user exists.
+# Clear NOPASSWORD for the probe so it authenticates normally.
 function wait_until_replica_ready
 {
     local use_cmd=${1:-$SBDIR/use}
     local max_attempts=${2:-20}
     local sleep_sec=${3:-1}
     for i in $(seq 1 $max_attempts); do
-        if $use_cmd -BN -e "SELECT 1;" >/dev/null 2>&1 ; then
+        if NOPASSWORD= $use_cmd -BN -e "SELECT 1;" >/dev/null 2>&1 ; then
             return 0
         fi
         sleep $sleep_sec
