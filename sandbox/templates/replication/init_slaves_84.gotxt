@@ -13,12 +13,16 @@ cd "$SBDIR"
 # initialization to prevent the race where the first client command on a
 # just-started replica fails with "Access denied" or connection errors.
 # Observed especially with MySQL 8.4+ and 9.x.
+# NOTE: init_slaves exports NOPASSWORD=1 for the root steps; that must NOT
+# leak into this probe, or 'use' would drop the sandbox-user password and the
+# check would fail with "Access denied" even once the user exists (burning the
+# whole budget). Clear NOPASSWORD for the probe so it authenticates normally.
 wait_until_replica_ready() {
     local use_cmd=${1:-$SBDIR/use}
-    local max_attempts=${2:-60}
+    local max_attempts=${2:-20}
     local sleep_sec=${3:-1}
     for i in $(seq 1 $max_attempts); do
-        if $use_cmd -BN -e "SELECT 1;" >/dev/null 2>&1 ; then
+        if NOPASSWORD= $use_cmd -BN -e "SELECT 1;" >/dev/null 2>&1 ; then
             return 0
         fi
         sleep $sleep_sec
@@ -40,7 +44,7 @@ echo "initializing {{.SlaveLabel}} {{.Node}}"
 echo '{{.ChangeMasterTo}}  {{.MasterHostParam}}="{{.MasterIp}}",  {{.MasterPortParam}}={{.MasterPort}},  {{.MasterUserParam}}="{{.RplUser}}",  {{.MasterPasswordParam}}="{{.RplPassword}}" {{.MasterAutoPosition}} {{.ChangeMasterExtra}}' | $SBDIR/{{.NodeLabel}}{{.Node}}/use -u root
 $SBDIR/{{.NodeLabel}}{{.Node}}/use -u root -e '{{.StartReplica}}'
 # Ensure the replica is serving queries before we return from initialization.
-wait_until_replica_ready "$SBDIR/{{.NodeLabel}}{{.Node}}/use" 60 1
+wait_until_replica_ready "$SBDIR/{{.NodeLabel}}{{.Node}}/use" 20 1
 {{end}}
 if [ -x ./post_initialization ]
 then

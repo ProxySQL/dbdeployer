@@ -70,13 +70,70 @@ function check_output
 # Wait until wsrep_ready is ON for Galera/PXC nodes.
 # This prevents grants and user DML from running before the node
 # has joined the cluster.
+# On non-Galera servers the status variable does not exist and
+# this function returns immediately (no delay) once the server accepts
+# connections.
+# Detection and polling connect as root via socket (no password),
+# because the sandbox user (msandbox) may not exist yet on fresh
+# nodes (load_grants has not run).
+# Connect failures are NOT treated as non-Galera: the pid file can
+# appear before the server accepts connections, so we retry until
+# root can connect, then check whether wsrep_ready exists.
 function wait_until_wsrep_ready
 {
-    local use_cmd=${1:-$SBDIR/use}
-    local max_attempts=${2:-60}
-    local sleep_sec=${3:-2}
+    local max_attempts=${1:-60}
+    local sleep_sec=${2:-2}
+    local mysql_cmd=""
+    local clients
+    if [ "$FLAVOR" = "mariadb" ]; then
+        clients="mariadb mysql"
+    else
+        clients="mysql mariadb"
+    fi
+    local d c
+    for d in "$CLIENT_BASEDIR/bin" "$BASEDIR/bin"; do
+        for c in $clients; do
+            if [ -x "$d/$c" ]; then
+                mysql_cmd="$d/$c"
+                break 2
+            fi
+        done
+    done
+    if [ -z "$mysql_cmd" ]; then
+        echo "WARNING: no mysql/mariadb client found under $CLIENT_BASEDIR/bin or $BASEDIR/bin" >&2
+        return 1
+    fi
+    # Wait until root can connect via socket. Empty query output before
+    # connect succeeds must not be treated as "non-Galera".
+    # Keep this budget separate and modest: pid-file can appear slightly
+    # before the server accepts connections, but not for minutes.
+    local connect_attempts=30
+    local connect_sleep=1
+    local connected=0
+    local i
+    for i in $(seq 1 $connect_attempts); do
+        if $mysql_cmd --no-defaults -S "$SOCKET_FILE" -u root -BN -e "SELECT 1" >/dev/null 2>&1; then
+            connected=1
+            break
+        fi
+        sleep $connect_sleep
+    done
+    if [ "$connected" -ne 1 ]; then
+        echo "WARNING: cannot connect as root via socket after $((connect_attempts * connect_sleep))s" >&2
+        return 1
+    fi
+    # Connected: a SHOW STATUS that succeeds with no rows means wsrep_ready
+    # does not exist (non-Galera) -> short-circuit. Only the successful-empty
+    # case may bypass the wait: if the probe itself fails, fall through to the
+    # polling loop so a transient error cannot skip the wsrep_ready gate.
+    local wsrep_check
+    if wsrep_check=$($mysql_cmd --no-defaults -S "$SOCKET_FILE" -u root -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null); then
+        if [ -z "$wsrep_check" ]; then
+            return 0
+        fi
+    fi
     for i in $(seq 1 $max_attempts); do
-        if $use_cmd -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -qi 'ON' ; then
+        if $mysql_cmd --no-defaults -S "$SOCKET_FILE" -u root -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -qiE 'wsrep_ready[[:space:]]+ON'; then
             return 0
         fi
         sleep $sleep_sec
@@ -90,14 +147,18 @@ function wait_until_wsrep_ready
 # initialization to prevent the race where the first client command on a
 # just-started replica fails with "Access denied" or connection errors.
 # Observed especially with MySQL 8.4+ and 9.x.
-# Usage: wait_until_replica_ready "$SBDIR/s1/use" 60 1
+# Usage: wait_until_replica_ready "$SBDIR/s1/use" 20 1
+# NOTE: callers (e.g. init_slaves) may export NOPASSWORD=1 for root steps; it
+# must not leak into this probe, or 'use' would drop the sandbox-user password
+# and the check would fail with "Access denied" even once the user exists.
+# Clear NOPASSWORD for the probe so it authenticates normally.
 function wait_until_replica_ready
 {
     local use_cmd=${1:-$SBDIR/use}
-    local max_attempts=${2:-60}
+    local max_attempts=${2:-20}
     local sleep_sec=${3:-1}
     for i in $(seq 1 $max_attempts); do
-        if $use_cmd -BN -e "SELECT 1;" >/dev/null 2>&1 ; then
+        if NOPASSWORD= $use_cmd -BN -e "SELECT 1;" >/dev/null 2>&1 ; then
             return 0
         fi
         sleep $sleep_sec

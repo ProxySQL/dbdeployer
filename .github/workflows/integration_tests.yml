@@ -100,6 +100,64 @@ jobs:
           ./dbdeployer delete all --skip-confirm 2>/dev/null || true
           pkill -9 -u "$USER" mysqld 2>/dev/null || true
 
+  # Time-bounded deploy test: verifies that "deploy replication" completes
+  # within MAX_DEPLOY_SECONDS and replicas serve queries immediately after
+  # deploy (regression test for issue #131).
+  deploy-time-budget:
+    name: Deploy time budget (8.4)
+    runs-on: ubuntu-22.04
+    env:
+      GO111MODULE: on
+      SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
+      MAX_DEPLOY_SECONDS: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libaio1 libnuma1 libncurses5 libldap-2.5-0
+
+      - name: Build dbdeployer
+        run: go build -o dbdeployer .
+
+      - name: Cache MySQL tarball
+        uses: actions/cache@v4
+        with:
+          path: /tmp/mysql-tarball
+          key: mysql-8.4.4-linux-x86_64-v1
+
+      - name: Download MySQL 8.4.4
+        run: |
+          mkdir -p /tmp/mysql-tarball
+          TARBALL="mysql-8.4.4-linux-glibc2.17-x86_64.tar.xz"
+          curl -L -f -o "/tmp/mysql-tarball/$TARBALL" \
+            "https://dev.mysql.com/get/Downloads/MySQL-8.4/$TARBALL" \
+            || curl -L -f -o "/tmp/mysql-tarball/$TARBALL" \
+            "https://downloads.mysql.com/archives/get/p/23/file/$TARBALL"
+          ls -lh "/tmp/mysql-tarball/$TARBALL"
+
+      - name: Unpack MySQL
+        run: |
+          mkdir -p "$SANDBOX_BINARY"
+          ./dbdeployer unpack "/tmp/mysql-tarball/mysql-8.4.4-linux-glibc2.17-x86_64.tar.xz" \
+            --sandbox-binary="$SANDBOX_BINARY"
+
+      - name: Run deploy time budget test
+        run: ./test/deploy-time-budget.sh
+
+      - name: Cleanup
+        if: always()
+        run: |
+          ./dbdeployer delete all --skip-confirm 2>/dev/null || true
+          pkill -9 -u "$USER" mysqld 2>/dev/null || true
+
   # Test Percona Server: single + replication with data verification
   percona-test:
     name: Percona Server (${{ matrix.percona-version }})

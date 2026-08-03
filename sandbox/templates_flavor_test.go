@@ -22,26 +22,39 @@ import (
 	"github.com/ProxySQL/dbdeployer/common"
 )
 
+// maxAllowedWaitSeconds is the maximum total wait time (in seconds) that any
+// generated shell script should impose during normal operation on non-Galera
+// MySQL. Setting this too high hides regressions (e.g. the 120s wsrep spin on
+// vanilla MySQL from commit a2caf94); setting it too low causes flaky failures
+// on slow CI runners. This value must be ≥ the per-node replica-ready poll.
+const maxAllowedWaitSeconds = 30
+
 func baseTemplateData(flavor string) common.StringMap {
 	return common.StringMap{
-		"ShellPath":      "/bin/bash",
-		"SandboxDir":     "/tmp/sandbox/rsandbox_1234",
-		"Basedir":        "/opt/mysql/11.4",
-		"ClientBasedir":  "/opt/mysql/11.4",
-		"Copyright":      "# test",
-		"CustomMysqld":  "",
-		"Port":           "1234",
-		"Flavor":         flavor,
-		"Version":        "11.4.10",
-		"VersionMajor":   "11",
-		"VersionMinor":   "4",
-		"VersionRev":     "10",
+		"ShellPath":       "/bin/bash",
+		"SandboxDir":      "/tmp/sandbox/rsandbox_1234",
+		"Basedir":         "/opt/mysql/11.4",
+		"ClientBasedir":   "/opt/mysql/11.4",
+		"Copyright":       "# test",
+		"CustomMysqld":    "",
+		"Port":            "1234",
+		"MysqlXPort":      "0",
+		"MysqlXSocket":    "",
+		"AdminPort":       "0",
+		"ServerId":        "100",
+		"SocketFile":      "/tmp/sandbox/mysql_sandbox.sock",
+		"Flavor":          flavor,
+		"Version":         "11.4.10",
+		"VersionMajor":    "11",
+		"VersionMinor":    "4",
+		"VersionRev":      "10",
 		"SortableVersion": "011004010",
-		"HistoryDir":     "/tmp/sandbox/rsandbox_1234",
-		"SbHost":         "127.0.0.1",
-		"SBType":         "replication-node",
-		"EngineClause":   "",
-		"TemplateName":   "test",
+		"HistoryDir":      "/tmp/sandbox/rsandbox_1234",
+		"SbHost":          "127.0.0.1",
+		"SBType":          "replication-node",
+		"SandboxType":     "single",
+		"EngineClause":    "",
+		"TemplateName":    "test",
 	}
 }
 
@@ -58,10 +71,10 @@ func TestStartTemplate_MySQL(t *testing.T) {
 	data := baseTemplateData("mysql")
 	result := renderTemplate(t, startTemplate, data)
 	if !strings.Contains(result, `MYSQLD_SAFE="bin/mysqld_safe"`) {
-		t.Error("mysql start template should use mysqld_safe")
+		t.Error("mysql start template should default to mysqld_safe")
 	}
-	if strings.Contains(result, "mariadbd-safe") {
-		t.Error("mysql start template should not reference mariadbd-safe")
+	if !strings.Contains(result, `MYSQLD_SAFE="bin/mariadbd-safe"`) {
+		t.Error("mysql start template must have a mariadb branch (shell-level if)")
 	}
 }
 
@@ -76,18 +89,18 @@ func TestStartTemplate_MariaDB(t *testing.T) {
 func TestStopTemplate_MySQL(t *testing.T) {
 	data := baseTemplateData("mysql")
 	result := renderTemplate(t, stopTemplate, data)
-	if !strings.Contains(result, `$CLIENT_BASEDIR/bin/mysqladmin`) {
-		t.Error("mysql stop template should use mysqladmin")
+	if !strings.Contains(result, `MYSQL_ADMIN="$CLIENT_BASEDIR/bin/mysqladmin"`) {
+		t.Error("mysql stop template should default to mysqladmin")
 	}
-	if strings.Contains(result, "mariadb-admin") {
-		t.Error("mysql stop template should not reference mariadb-admin")
+	if !strings.Contains(result, `MYSQL_ADMIN="$CLIENT_BASEDIR/bin/mariadb-admin"`) {
+		t.Error("mysql stop template must have a mariadb branch (shell-level if)")
 	}
 }
 
 func TestStopTemplate_MariaDB(t *testing.T) {
 	data := baseTemplateData("mariadb")
 	result := renderTemplate(t, stopTemplate, data)
-	if !strings.Contains(result, `$CLIENT_BASEDIR/bin/mariadb-admin`) {
+	if !strings.Contains(result, `MYSQL_ADMIN="$CLIENT_BASEDIR/bin/mariadb-admin"`) {
 		t.Error("mariadb stop template should use mariadb-admin")
 	}
 }
@@ -95,18 +108,18 @@ func TestStopTemplate_MariaDB(t *testing.T) {
 func TestUseTemplate_MySQL(t *testing.T) {
 	data := baseTemplateData("mysql")
 	result := renderTemplate(t, useTemplate, data)
-	if !strings.Contains(result, `$CLIENT_BASEDIR/bin/mysql"`) {
-		t.Error("mysql use template should use mysql client")
+	if !strings.Contains(result, `MYCLIENT="mysql"`) {
+		t.Error("mysql use template should default to mysql client")
 	}
-	if strings.Contains(result, `bin/mariadb`) {
-		t.Error("mysql use template should not reference mariadb client")
+	if !strings.Contains(result, `MYCLIENT="mariadb"`) {
+		t.Error("mysql use template must have a mariadb branch (shell-level if)")
 	}
 }
 
 func TestUseTemplate_MariaDB(t *testing.T) {
 	data := baseTemplateData("mariadb")
 	result := renderTemplate(t, useTemplate, data)
-	if !strings.Contains(result, `$CLIENT_BASEDIR/bin/mariadb"`) {
+	if !strings.Contains(result, `MYCLIENT="mariadb"`) {
 		t.Error("mariadb use template should use mariadb client")
 	}
 }
@@ -161,17 +174,17 @@ func TestReplicationStopAndUse_DelegateToSingleTemplates(t *testing.T) {
 		useResult := renderTemplate(t, useTemplate, data)
 
 		if flavor == "mariadb" {
-			if !strings.Contains(stopResult, "mariadb-admin") {
+			if !strings.Contains(stopResult, `MYSQL_ADMIN="$CLIENT_BASEDIR/bin/mariadb-admin"`) {
 				t.Errorf("replication node stop for mariadb should use mariadb-admin")
 			}
-			if !strings.Contains(useResult, "bin/mariadb") {
+			if !strings.Contains(useResult, `MYCLIENT="mariadb"`) {
 				t.Errorf("replication node use for mariadb should use mariadb client")
 			}
 		} else {
-			if !strings.Contains(stopResult, "mysqladmin") {
+			if !strings.Contains(stopResult, `MYSQL_ADMIN="$CLIENT_BASEDIR/bin/mysqladmin"`) {
 				t.Errorf("replication node stop for mysql should use mysqladmin")
 			}
-			if !strings.Contains(useResult, "bin/mysql") {
+			if !strings.Contains(useResult, `MYCLIENT="mysql"`) {
 				t.Errorf("replication node use for mysql should use mysql client")
 			}
 		}
@@ -188,21 +201,27 @@ func TestInitSlavesTemplates_IncludeReplicaReadyWait(t *testing.T) {
 		"init_slaves_84": initSlaves84Template,
 	} {
 		data := common.StringMap{
-			"ShellPath":          "/bin/bash",
-			"Copyright":          "# test",
-			"AppVersion":         "test",
-			"DateTime":           "now",
-			"TemplateName":       name,
-			"SandboxDir":         "/tmp/rsandbox_1234",
-			"MasterLabel":        "master",
-			"MasterIp":           "127.0.0.1",
-			"RplUser":            "rsandbox",
-			"RplPassword":        "rsandbox",
-			"MasterAutoPosition": "",
-			"ChangeMasterExtra":  "",
-			"StartReplica":       "START REPLICA",
-			"NodeLabel":          "n",
-			"SlaveLabel":         "slave",
+			"ShellPath":           "/bin/bash",
+			"Copyright":           "# test",
+			"AppVersion":          "test",
+			"DateTime":            "now",
+			"TemplateName":        name,
+			"SandboxDir":          "/tmp/rsandbox_1234",
+			"MasterLabel":         "master",
+			"MasterIp":            "127.0.0.1",
+			"RplUser":             "rsandbox",
+			"RplPassword":         "rsandbox",
+			"MasterAutoPosition":  "",
+			"ChangeMasterExtra":   "",
+			"StartReplica":        "START REPLICA",
+			"NodeLabel":           "n",
+			"SlaveLabel":          "slave",
+			"ChangeMasterTo":      "CHANGE MASTER TO",
+			"MasterHostParam":     "MASTER_HOST",
+			"MasterPort":          "12345",
+			"MasterPortParam":     "MASTER_PORT",
+			"MasterUserParam":     "MASTER_USER",
+			"MasterPasswordParam": "MASTER_PASSWORD",
 			"Slaves": []common.StringMap{
 				{"NodeLabel": "n", "Node": 1, "SlaveLabel": "slave"},
 				{"NodeLabel": "n", "Node": 2, "SlaveLabel": "slave"},
@@ -214,11 +233,111 @@ func TestInitSlavesTemplates_IncludeReplicaReadyWait(t *testing.T) {
 			t.Errorf("%s template must define the wait_until_replica_ready helper (regression for #131)", name)
 		}
 		// The call must appear for each slave after the START REPLICA line.
-		if !strings.Contains(result, `wait_until_replica_ready "$SBDIR/n1/use" 60 1`) {
+		if !strings.Contains(result, `wait_until_replica_ready "$SBDIR/n1/use" 20 1`) {
 			t.Errorf("%s template must invoke wait for the first replica", name)
 		}
-		if !strings.Contains(result, `wait_until_replica_ready "$SBDIR/n2/use" 60 1`) {
+		if !strings.Contains(result, `wait_until_replica_ready "$SBDIR/n2/use" 20 1`) {
 			t.Errorf("%s template must invoke wait for the second replica", name)
 		}
+		// Verify the timeout warning message reflects the reduced max_attempts.
+		// This ensures the generated script won't wait longer than expected.
+		expectedWarning := "after $((max_attempts * sleep_sec))s"
+		if !strings.Contains(result, expectedWarning) {
+			t.Errorf("%s template must include a timeout warning message", name)
+		}
+		// The probe must clear NOPASSWORD so it authenticates as the sandbox
+		// user. init_slaves exports NOPASSWORD=1 for the root steps; if it leaks
+		// into the probe, 'use' drops the password and the check fails with
+		// "Access denied" for the whole budget (~20s wasted on every deploy).
+		if !strings.Contains(result, `NOPASSWORD= $use_cmd -BN -e "SELECT 1;"`) {
+			t.Errorf("%s template must clear NOPASSWORD for the replica-ready probe", name)
+		}
+	}
+}
+
+// TestWaitWsrepAfterStart_DoesNotBlockNonGalera verifies that the
+// wait_wsrep_after_start template (which runs for every sandbox node
+// after start, regardless of flavor) exits quickly on non-Galera MySQL.
+// On vanilla MySQL the wsrep status variable does not exist; the function
+// must detect this and return immediately. This is a pure template test.
+func TestWaitWsrepAfterStart_DoesNotBlockNonGalera(t *testing.T) {
+	data := baseTemplateData("mysql")
+	result := renderTemplate(t, waitWsrepAfterStartTemplate, data)
+
+	if !strings.Contains(result, "wait_until_wsrep_ready") {
+		t.Error("wait_wsrep_after_start template must call wait_until_wsrep_ready")
+	}
+	// The template appends '|| true' to make the wait best-effort.
+	if !strings.Contains(result, "|| true") {
+		t.Error("wait_wsrep_after_start must use '|| true' for best-effort semantics")
+	}
+}
+
+// TestSbInclude_WaitUntilWsrepReady_DetectsNonGalera verifies that the
+// wait_until_wsrep_ready function in sb_include.gotxt checks for the
+// existence of the wsrep_ready status variable before polling. Without
+// this guard, every non-Galera node would spin for the full timeout
+// (up to 120s per node), which caused the 5-minute total delay reported
+// on issue #131 after the v2.4.0 release.
+func TestSbInclude_WaitUntilWsrepReady_DetectsNonGalera(t *testing.T) {
+	data := baseTemplateData("mysql")
+	result := renderTemplate(t, sbIncludeTemplate, data)
+
+	// Must wait for a successful root connection before deciding Galera vs not.
+	// Empty output while the server is still starting must not short-circuit.
+	if !strings.Contains(result, `SELECT 1`) {
+		t.Error("wait_until_wsrep_ready must wait for root socket connect before Galera detection")
+	}
+	if !strings.Contains(result, `if [ "$connected" -ne 1 ]; then`) {
+		t.Error("wait_until_wsrep_ready must fail (not short-circuit) when root cannot connect")
+	}
+	// After connect succeeds: empty SHOW STATUS means non-Galera → return 0.
+	if !strings.Contains(result, `if [ -z "$wsrep_check" ]; then`) {
+		t.Error("wait_until_wsrep_ready must check if wsrep_ready variable exists (regression: #131 2-min delay on non-Galera)")
+	}
+	// The empty-result short-circuit must be gated on the probe's exit status,
+	// so a failed SHOW STATUS cannot be misread as "non-Galera" (CodeRabbit).
+	if !strings.Contains(result, `if wsrep_check=$($mysql_cmd`) {
+		t.Error("wait_until_wsrep_ready must only short-circuit when the wsrep probe succeeds (check exit status)")
+	}
+	// Root via socket (no password) before load_grants creates msandbox.
+	if !strings.Contains(result, `--no-defaults -S "$SOCKET_FILE" -u root`) {
+		t.Error("wait_until_wsrep_ready must connect as root via socket for the guard check")
+	}
+	// Shell-level FLAVOR if: both preference orders must be present.
+	if !strings.Contains(result, `clients="mysql mariadb"`) {
+		t.Error("wait_until_wsrep_ready must prefer mysql client for non-MariaDB flavor")
+	}
+	if !strings.Contains(result, `clients="mariadb mysql"`) {
+		t.Error("wait_until_wsrep_ready must prefer mariadb client when FLAVOR=mariadb")
+	}
+	// Match wsrep_ready ON specifically, not a bare 'ON' substring.
+	if !strings.Contains(result, `wsrep_ready[[:space:]]+ON`) {
+		t.Error("wait_until_wsrep_ready must match wsrep_ready ON specifically")
+	}
+	if !strings.Contains(result, "local max_attempts=${1:-60}") {
+		t.Error("wait_until_wsrep_ready default max_attempts must remain 60 for Galera nodes, but the guard above must short-circuit on non-Galera")
+	}
+}
+
+// TestSbInclude_WaitUntilReplicaReady_BoundedWait verifies that the
+// wait_until_replica_ready function in sb_include.gotxt has a default
+// max_attempts that keeps the total wait within the allowed budget.
+// This prevents the 60s-per-replica delay that was part of the #131
+// v2.4.0 regression.
+func TestSbInclude_WaitUntilReplicaReady_BoundedWait(t *testing.T) {
+	data := baseTemplateData("mysql")
+	result := renderTemplate(t, sbIncludeTemplate, data)
+
+	// wait_until_replica_ready must have max_attempts=${2:-20}
+	// (wait_until_wsrep_ready keeps ${1:-60} for Galera nodes).
+	if !strings.Contains(result, `max_attempts=${2:-20}`) {
+		t.Errorf("wait_until_replica_ready max_attempts should be 20 to keep total wait ≤ %ds",
+			maxAllowedWaitSeconds)
+	}
+	// The probe must clear NOPASSWORD so it authenticates as the sandbox user
+	// (callers such as init_slaves export NOPASSWORD=1 for the root steps).
+	if !strings.Contains(result, `NOPASSWORD= $use_cmd -BN -e "SELECT 1;"`) {
+		t.Error("wait_until_replica_ready must clear NOPASSWORD for the probe, or it fails with Access denied and burns the whole budget")
 	}
 }
