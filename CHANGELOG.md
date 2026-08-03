@@ -1,5 +1,25 @@
 ## Unreleased
 
+## 2.4.1	03-Aug-2026
+
+## BUGS FIXED
+
+* Fix excessive wait times after `deploy replication`: deployments that took
+  about 5 minutes in 2.4.0 now complete in seconds (issue #131). The wsrep
+  readiness check no longer spins on non-Galera servers, and the
+  replica-readiness poll is bounded and authenticates as the sandbox user.
+* `deploy postgresql` now honors `--sandbox-home`, `--port`,
+  `--sandbox-directory`, `--db-user`, and `--db-password`, enabling
+  per-project and multi-sandbox PostgreSQL deployments. Behavior is unchanged
+  when no flags are provided.
+* Use a flavor-appropriate default prompt: MariaDB sandboxes now show a
+  `MariaDB` prompt instead of always `mysql`.
+
+## CI
+
+* Add a time-bounded `deploy replication` regression test
+  (`deploy-time-budget`) to catch wait-time regressions.
+
 ## 2.4.0	28-Jul-2026
 
 ## NEW FEATURES

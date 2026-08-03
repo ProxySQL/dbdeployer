@@ -80,26 +80,19 @@ Basedir: $HOME/opt/mysql
 
 ### 2. producing the binaries.
 
-To run the test suite, you need to create the dbdeployer executables.
-
-`common/set_version.sh NEW_VERSION`
-
-(Please read the Semantic Versioning section in the README)
-
-If the addition changes the API, you should also change the compatible version
-
-`common/set_version NEW_VERSION compatible`
-
-Then build the  executables:
+To run the test suite, you need to create the dbdeployer executables:
 
 ```bash
 ./scripts/build.sh all
 MKDOCS=1 ./scripts/build.sh all
 ```
 
-You will have, among other things, binaries named `dbdeployer-NEW_VERSION.linux` and `dbdeployer-NEW_VERSION-docs.linux`
+The version is derived automatically from the most recent git tag (falling back to
+`dev`); you do not set it by hand. You will have, among other things, binaries named
+`dbdeployer-NEW_VERSION.linux` and `dbdeployer-NEW_VERSION-docs.linux`.
 
-You need to copy these executable to a place in your `$PATH` where they are picked up automatically. For example:
+You need to copy these executables to a place in your `$PATH` where they are picked
+up automatically. For example:
 
 ```bash
 cp dbdeployer-NEW_VERSION.YOUR_OS $GOPATH/bin
@@ -107,6 +100,9 @@ cp dbdeployer-NEW_VERSION-docs.YOUR_OS $GOPATH/bin
 ```
 
 Make sure that running `$ dbdeployer --version` you now get the newest one.
+
+> To cut an actual release (version tag, binaries, and GitHub release), see
+> `RELEASING.md`.
 
 
 ### 3. Running the tests with your own MySQL binaries
