@@ -1,6 +1,8 @@
 package postgresql
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -210,5 +212,101 @@ func TestGenerateScripts(t *testing.T) {
 	}
 	if !strings.Contains(use, "16613") {
 		t.Error("use script missing port")
+	}
+}
+
+// TestGenerateScriptsDbUserPropagation ensures the configured db-user is embedded
+// (shell-quoted) in the generated psql/initdb invocations, and that an empty
+// DbUser falls back to the historical "postgres" default.
+func TestGenerateScriptsDbUserPropagation(t *testing.T) {
+	// Explicit user: scripts must reference it (shell-quoted) and not the default.
+	custom := GenerateScripts(ScriptOptions{
+		BinDir:  "/opt/postgresql/16.13/bin",
+		DataDir: "/tmp/pg/data",
+		Port:    16613,
+		DbUser:  "testuser",
+	})
+	if !strings.Contains(custom["use"], "-U 'testuser'") {
+		t.Errorf("use script must embed -U 'testuser'; got: %q", custom["use"])
+	}
+	if strings.Contains(custom["use"], "-U postgres") {
+		t.Errorf("use script must not reference -U postgres; got: %q", custom["use"])
+	}
+	if !strings.Contains(custom["clear"], "--username='testuser'") {
+		t.Errorf("clear script must embed --username='testuser'; got: %q", custom["clear"])
+	}
+
+	// Empty user: falls back to "postgres" (backward compatible).
+	def := GenerateScripts(ScriptOptions{
+		BinDir:  "/opt/postgresql/16.13/bin",
+		DataDir: "/tmp/pg/data",
+		Port:    16613,
+	})
+	if !strings.Contains(def["use"], "-U 'postgres'") {
+		t.Errorf("default use script must embed -U 'postgres'; got: %q", def["use"])
+	}
+	if !strings.Contains(def["clear"], "--username='postgres'") {
+		t.Errorf("default clear script must embed --username='postgres'; got: %q", def["clear"])
+	}
+
+	// Replication scripts honor DbUser too.
+	repl := GenerateCheckReplicationScript(ScriptOptions{
+		BinDir: "/opt/postgresql/16.13/bin",
+		Port:   16613,
+		DbUser: "testuser",
+	})
+	if !strings.Contains(repl, "-U 'testuser'") {
+		t.Errorf("replication script must embed -U 'testuser'; got: %q", repl)
+	}
+}
+
+// TestGenerateCheckRecoveryScriptDbUser ensures the recovery-check script embeds
+// the configured db-user (shell-quoted), complementing the existing
+// TestGenerateCheckRecoveryScript which only checks the query text and ports.
+func TestGenerateCheckRecoveryScriptDbUser(t *testing.T) {
+	ports := []int{16614, 16615}
+	script := GenerateCheckRecoveryScript(ScriptOptions{
+		BinDir: "/opt/postgresql/16.13/bin",
+		Port:   16613,
+		DbUser: "testuser",
+	}, ports)
+	if !strings.Contains(script, "pg_is_in_recovery") {
+		t.Error("missing pg_is_in_recovery query")
+	}
+	if !strings.Contains(script, "-U 'testuser'") {
+		t.Errorf("recovery script must embed -U 'testuser'; got: %q", script)
+	}
+	if !strings.Contains(script, "16614") || !strings.Contains(script, "16615") {
+		t.Error("recovery script missing replica ports")
+	}
+}
+
+// TestResolveBasedir locks in the contract that deploy_postgresql.go relies on:
+// an explicit Options["basedir"] override (set when --sandbox-binary is given)
+// is honored as-is, and absent/empty values fall back to ~/opt/postgresql/<ver>.
+func TestResolveBasedir(t *testing.T) {
+	p := NewPostgreSQLProvider()
+	home, _ := os.UserHomeDir()
+	wantDefault := filepath.Join(home, "opt", "postgresql", "18.4")
+
+	// Explicit override is returned verbatim.
+	got, err := p.resolveBasedir(providers.SandboxConfig{
+		Version: "18.4",
+		Options: map[string]string{"basedir": "/custom/root/18.4"},
+	})
+	if err != nil || got != "/custom/root/18.4" {
+		t.Errorf("override: got (%q, %v), want /custom/root/18.4", got, err)
+	}
+
+	// No Options: falls back to ~/opt/postgresql/<version>.
+	got, err = p.resolveBasedir(providers.SandboxConfig{Version: "18.4", Options: map[string]string{}})
+	if err != nil || got != wantDefault {
+		t.Errorf("fallback: got (%q, %v), want %q", got, err, wantDefault)
+	}
+
+	// Empty basedir value is treated as unset (falls back).
+	got, err = p.resolveBasedir(providers.SandboxConfig{Version: "18.4", Options: map[string]string{"basedir": ""}})
+	if err != nil || got != wantDefault {
+		t.Errorf("empty basedir: got (%q, %v), want %q", got, err, wantDefault)
 	}
 }

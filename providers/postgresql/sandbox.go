@@ -35,11 +35,45 @@ func (p *PostgreSQLProvider) CreateSandbox(config providers.SandboxConfig) (*pro
 	// won't match our extracted layout at ~/opt/postgresql/<version>/share/.
 	shareDir := filepath.Join(basedir, "share")
 	initdbPath := filepath.Join(binDir, "initdb")
-	initCmd := exec.Command(initdbPath, "-D", dataDir, "--auth=trust", "--username=postgres", "-L", shareDir)
+	// The initial PostgreSQL superuser is the sandbox db-user (defaults to
+	// "postgres" via the deploy layer). When a password is provided, it is set
+	// on this superuser through a temporary pwfile so the credential does not
+	// leak through the process list. The sandbox keeps trust auth
+	// (GeneratePgHbaConf), so the password is stored but not enforced unless
+	// pg_hba.conf is tightened.
+	initArgs := []string{"-D", dataDir, "--auth=trust", "--username=" + config.DbUser, "-L", shareDir}
+	var pwFile string
+	if config.DbPassword != "" {
+		tmp, err := os.CreateTemp("", "dbdeployer-pg-pw-*")
+		if err != nil {
+			os.RemoveAll(config.Dir)
+			return nil, fmt.Errorf("creating password file: %w", err)
+		}
+		if _, err := tmp.WriteString(config.DbPassword); err != nil {
+			tmp.Close()
+			os.Remove(tmp.Name())
+			os.RemoveAll(config.Dir)
+			return nil, fmt.Errorf("writing password file: %w", err)
+		}
+		if err := tmp.Close(); err != nil {
+			os.Remove(tmp.Name())
+			os.RemoveAll(config.Dir)
+			return nil, fmt.Errorf("closing password file: %w", err)
+		}
+		pwFile = tmp.Name()
+		initArgs = append(initArgs, "--pwfile="+pwFile)
+	}
+	initCmd := exec.Command(initdbPath, initArgs...)
 	initCmd.Env = append(os.Environ(), fmt.Sprintf("LD_LIBRARY_PATH=%s", libDir))
 	if output, err := initCmd.CombinedOutput(); err != nil {
 		os.RemoveAll(config.Dir) // cleanup on failure
+		if pwFile != "" {
+			os.Remove(pwFile)
+		}
 		return nil, fmt.Errorf("initdb failed: %s: %w", string(output), err)
+	}
+	if pwFile != "" {
+		os.Remove(pwFile)
 	}
 
 	// Create log directory (after initdb, which requires empty data dir)
@@ -78,6 +112,7 @@ func (p *PostgreSQLProvider) CreateSandbox(config providers.SandboxConfig) (*pro
 		LibDir:     libDir,
 		Port:       config.Port,
 		LogFile:    logFile,
+		DbUser:     config.DbUser,
 	})
 	for name, content := range scripts {
 		scriptPath := filepath.Join(config.Dir, name)
