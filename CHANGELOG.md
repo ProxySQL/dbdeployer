@@ -1,5 +1,21 @@
 ## Unreleased
 
+## BUGS FIXED
+
+* Fix a ~2 minute wait per node when deploying MariaDB without Galera
+  (issue #142). MariaDB reports `wsrep_ready OFF` even without Galera, so the
+  wsrep readiness check introduced for #131 never short-circuited on it; a
+  3-node MariaDB replication deploy took about 8 minutes. The check now
+  detects Galera through `wsrep_on`.
+
+## CI
+
+* Deploy MariaDB 11.4.13, 12.3.3, and 13.0.2 (in addition to 10.11.9) in the
+  MariaDB integration job, asserting `CHANGE MASTER TO` replication syntax and
+  a deploy time budget for each (issues #139, #140, #141).
+* `test/deploy-time-budget.sh` accepts `DEPLOY_VERSION` to test a specific
+  version, and always runs the `DBDEPLOYER_BINARY` it was given.
+
 ## 2.4.1	03-Aug-2026
 
 ## BUGS FIXED

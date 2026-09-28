@@ -120,6 +120,25 @@ dbdeployer deploy single my_maria --flavor=mariadb
 
 Flavor affects which features are enabled, default configuration, and which topology options are available.
 
+## MariaDB versions
+
+CI deploys `single` and `replication` sandboxes for every MariaDB release line below, on Ubuntu 22.04:
+
+| Version | Minimum glibc |
+|---------|---------------|
+| 10.11.9 | 2.17 |
+| 11.4.13 | 2.17 |
+| 12.3.3  | 2.28 |
+| 13.0.2  | 2.28 |
+
+All MariaDB versions use the legacy replication syntax (`CHANGE MASTER TO`, `START SLAVE`), because MariaDB does not accept the MySQL 8.0.23+ `CHANGE REPLICATION SOURCE TO` form.
+
+MariaDB releases that are not in dbdeployer's tarball registry are fetched from the MariaDB downloads API by version:
+
+```bash
+dbdeployer downloads get-by-version 12.3.3 --flavor=mariadb --unpack
+```
+
 ## Related Pages
 
 - [Versions & Flavors](/dbdeployer/concepts/flavors)
