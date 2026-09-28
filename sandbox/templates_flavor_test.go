@@ -279,9 +279,20 @@ func TestWaitWsrepAfterStart_DoesNotBlockNonGalera(t *testing.T) {
 // this guard, every non-Galera node would spin for the full timeout
 // (up to 120s per node), which caused the 5-minute total delay reported
 // on issue #131 after the v2.4.0 release.
+//
+// Rendered for both flavors: MariaDB without Galera reports wsrep_ready OFF
+// rather than no row, so the guard must key on wsrep_on (issue #142).
+// TestWaitUntilWsrepReady_Behavior executes the function for each case.
 func TestSbInclude_WaitUntilWsrepReady_DetectsNonGalera(t *testing.T) {
-	data := baseTemplateData("mysql")
-	result := renderTemplate(t, sbIncludeTemplate, data)
+	for _, flavor := range []string{"mysql", "mariadb"} {
+		t.Run(flavor, func(t *testing.T) {
+			checkWaitUntilWsrepReadyGuard(t, renderTemplate(t, sbIncludeTemplate, baseTemplateData(flavor)))
+		})
+	}
+}
+
+func checkWaitUntilWsrepReadyGuard(t *testing.T, result string) {
+	t.Helper()
 
 	// Must wait for a successful root connection before deciding Galera vs not.
 	// Empty output while the server is still starting must not short-circuit.
@@ -291,9 +302,13 @@ func TestSbInclude_WaitUntilWsrepReady_DetectsNonGalera(t *testing.T) {
 	if !strings.Contains(result, `if [ "$connected" -ne 1 ]; then`) {
 		t.Error("wait_until_wsrep_ready must fail (not short-circuit) when root cannot connect")
 	}
-	// After connect succeeds: empty SHOW STATUS means non-Galera → return 0.
-	if !strings.Contains(result, `if [ -z "$wsrep_check" ]; then`) {
-		t.Error("wait_until_wsrep_ready must check if wsrep_ready variable exists (regression: #131 2-min delay on non-Galera)")
+	// After connect succeeds: no wsrep_on row (MySQL) or wsrep_on OFF
+	// (MariaDB without Galera) means non-Galera → return 0.
+	if !strings.Contains(result, `SHOW VARIABLES LIKE 'wsrep_on';`) {
+		t.Error("wait_until_wsrep_ready must detect Galera via wsrep_on, not wsrep_ready (regression: #142 2-min delay on MariaDB)")
+	}
+	if !strings.Contains(result, `if [ -z "$wsrep_check" ] || echo "$wsrep_check" | grep -qiE 'wsrep_on[[:space:]]+OFF'; then`) {
+		t.Error("wait_until_wsrep_ready must short-circuit on missing wsrep_on (#131) and on wsrep_on OFF (#142)")
 	}
 	// The empty-result short-circuit must be gated on the probe's exit status,
 	// so a failed SHOW STATUS cannot be misread as "non-Galera" (CodeRabbit).
