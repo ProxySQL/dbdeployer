@@ -1,5 +1,29 @@
 ## Unreleased
 
+## BUGS FIXED
+
+* Fix a ~2 minute wait per node when deploying MariaDB without Galera
+  (issue #142): a 3-node MariaDB replication deploy took about 8 minutes.
+  The wsrep readiness wait is now generated only for Galera and PXC nodes,
+  instead of guessing at runtime whether the server is a cluster node;
+  other sandboxes no longer query the server for it at all.
+* A Galera or PXC node that does not become ready (`wsrep_ready` ON) within
+  120 seconds now fails the deploy with an error naming the node and its
+  log, instead of continuing and failing later at grants.
+* Joining Galera and PXC nodes are now actually waited on. They receive the
+  first node's grants by SST, so the wait's passwordless root login was
+  rejected; after 30 seconds the wait gave up silently and the deploy went
+  on without checking `wsrep_ready`. Joining nodes now log in with the
+  sandbox credentials.
+
+## CI
+
+* Deploy MariaDB 11.4.13, 12.3.3, and 13.0.2 (in addition to 10.11.9) in the
+  MariaDB integration job, asserting `CHANGE MASTER TO` replication syntax and
+  a deploy time budget for each (issues #139, #140, #141).
+* `test/deploy-time-budget.sh` accepts `DEPLOY_VERSION` to test a specific
+  version, and always runs the `DBDEPLOYER_BINARY` it was given.
+
 ## 2.4.1	03-Aug-2026
 
 ## BUGS FIXED

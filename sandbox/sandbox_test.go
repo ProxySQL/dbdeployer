@@ -651,11 +651,13 @@ func testCreateReplicationSandbox(t *testing.T) {
 		t.Fatalf("could not read initialize_slaves: %v", rerr)
 	}
 	initStr := string(initContent)
-	if !strings.Contains(initStr, `wait_until_replica_ready "$SBDIR/n1/use" 60 1`) {
-		t.Errorf("initialize_slaves missing wait_until_replica_ready for n1 (the #131 fix)")
-	}
-	if !strings.Contains(initStr, `wait_until_replica_ready "$SBDIR/n2/use" 60 1`) {
-		t.Errorf("initialize_slaves missing wait_until_replica_ready for n2 (the #131 fix)")
+	// The wait targets the node directories (e.g. $SBDIR/node1/use), not the
+	// n1/n2 shortcut scripts, with the bounded 20x1s budget.
+	for _, n := range []string{"1", "2"} {
+		want := `wait_until_replica_ready "$SBDIR/` + defaults.Defaults().NodePrefix + n + `/use" 20 1`
+		if !strings.Contains(initStr, want) {
+			t.Errorf("initialize_slaves missing %q (the #131 fix)", want)
+		}
 	}
 
 	sandboxDir = path.Join(sandboxDef.SandboxDir, defaults.Defaults().MasterSlavePrefix+pathVersion)

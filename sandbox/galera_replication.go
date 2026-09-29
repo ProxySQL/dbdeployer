@@ -338,7 +338,7 @@ func CreateGaleraReplication(sandboxDef SandboxDef, origin string, nodes int, ma
 			sandboxDef.LoadGrants = false
 		}
 		sandboxDef.Prompt = fmt.Sprintf("%s%d", nodeLabel, i)
-		sandboxDef.SBType = "galera-node"
+		sandboxDef.SBType = globals.SbTypeGaleraNode
 		sandboxDef.NodeNum = i
 		logger.Printf("Create single sandbox for node %d\n", i)
 		execList, err := CreateChildSandbox(sandboxDef)

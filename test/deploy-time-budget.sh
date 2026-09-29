@@ -27,6 +27,10 @@
 #
 # The test deploys replication with one slave, measures wall-clock time,
 # and asserts completion within MAX_DEPLOY_SECONDS (default 45).
+#
+# Set DEPLOY_VERSION to test a specific version (e.g. a MariaDB release,
+# where issue #142 made every node wait ~120s for wsrep_ready). Without it,
+# the first MySQL >= 8.4 found in SANDBOX_BINARY is used.
 
 execdir=$(dirname "$0")
 cd "$execdir/.." || exit 1
@@ -37,7 +41,9 @@ if [ ! -x "$DBDEPLOYER_BINARY" ]; then
     go build -o dbdeployer . || exit 1
     DBDEPLOYER_BINARY="$PWD/dbdeployer"
 fi
-export PATH="$PWD:$PATH"
+# Put the binary under test first, so a dbdeployer installed elsewhere in
+# PATH is never picked up instead of it.
+export PATH="$(cd "$(dirname "$DBDEPLOYER_BINARY")" && pwd):$PWD:$PATH"
 
 source test/common.sh
 
@@ -83,13 +89,19 @@ trap cleanup INT
 
 test_header "deploy-time-budget" "MAX_DEPLOY_SECONDS=$MAX_DEPLOY_SECONDS"
 
-if ! VERSION=$(find_test_version); then
+if [ -n "$DEPLOY_VERSION" ]; then
+    if [ ! -d "$SANDBOX_BINARY/$DEPLOY_VERSION" ]; then
+        echo "FAIL: DEPLOY_VERSION=$DEPLOY_VERSION not found in $SANDBOX_BINARY"
+        exit 1
+    fi
+    VERSION=$DEPLOY_VERSION
+elif ! VERSION=$(find_test_version); then
     echo "# No MySQL version >= 8.4 available. Set SANDBOX_BINARY and unpack a tarball first."
     echo "# SKIPPED: deploy-time-budget (no suitable MySQL binaries)"
     exit 0
 fi
 
-echo "# Testing with MySQL $VERSION"
+echo "# Testing with $VERSION"
 echo "# Deploying replication (1 slave)..."
 
 # Start from a clean fixture so a stale rsandbox_* cannot make this pass.

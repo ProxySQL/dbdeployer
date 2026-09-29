@@ -231,7 +231,10 @@ jobs:
           ./dbdeployer delete all --skip-confirm 2>/dev/null || true
           pkill -9 -u "$USER" mysqld 2>/dev/null || true
 
-  # Test MariaDB: single + replication with data verification
+  # Test MariaDB: single + replication with data verification.
+  # One entry per MariaDB release line dbdeployer is verified against.
+  # ubuntu-22.04 (glibc 2.35) doubles as the glibc check: 12.x and 13.x
+  # binaries need glibc >= 2.28, 11.4 needs >= 2.17.
   mariadb-test:
     name: MariaDB (${{ matrix.mariadb-version }})
     runs-on: ubuntu-22.04
@@ -240,6 +243,9 @@ jobs:
       matrix:
         mariadb-version:
           - '10.11.9'
+          - '11.4.13'  # #141: guards the #82 fix against a real 11.4
+          - '12.3.3'   # #139
+          - '13.0.2'   # #140
     env:
       GO111MODULE: on
       SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
@@ -267,8 +273,7 @@ jobs:
           mkdir -p "$SANDBOX_BINARY"
           curl -L -f -o "/tmp/$TARBALL" "$URL"
           ./dbdeployer unpack "/tmp/$TARBALL" --sandbox-binary="$SANDBOX_BINARY" \
-            --unpack-version="$MARIADB_VERSION" --flavor=mariadb \
-           
+            --unpack-version="$MARIADB_VERSION" --flavor=mariadb
 
       - name: Test single sandbox
         run: |
@@ -285,6 +290,13 @@ jobs:
           echo "Deploying MariaDB ${MARIADB_VERSION} replication..."
           ./dbdeployer deploy replication "$MARIADB_VERSION" --sandbox-binary="$SANDBOX_BINARY"
           SBDIR=$(ls -d ~/sandboxes/rsandbox_*)
+          # MariaDB rejects CHANGE REPLICATION SOURCE TO (issue #82): the
+          # generated script must use the legacy syntax on every major line.
+          grep -q "CHANGE MASTER TO" $SBDIR/initialize_slaves \
+            || { echo "FAIL: initialize_slaves does not use CHANGE MASTER TO"; exit 1; }
+          if grep -q "CHANGE REPLICATION SOURCE" $SBDIR/initialize_slaves; then
+            echo "FAIL: initialize_slaves uses MySQL-only CHANGE REPLICATION SOURCE TO"; exit 1
+          fi
           # Write on master, verify on slave
           $SBDIR/m -e "CREATE DATABASE ci_test; USE ci_test; CREATE TABLE t1(id INT PRIMARY KEY, val VARCHAR(50)); INSERT INTO t1 VALUES (1, 'mariadb_repl_test');"
           # Wait for replication with retries
@@ -298,6 +310,14 @@ jobs:
           echo "$RESULT" | grep -q "mariadb_repl_test" || { echo "FAIL: data not replicated after 20s"; exit 1; }
           echo "OK: MariaDB replication works"
           ./dbdeployer delete all --skip-confirm
+
+      # MariaDB reports wsrep_ready OFF without Galera; issue #142 made every
+      # node wait ~120s for it. With 2 nodes the regression takes ~4 minutes.
+      - name: Deploy time budget
+        env:
+          DEPLOY_VERSION: ${{ matrix.mariadb-version }}
+          MAX_DEPLOY_SECONDS: 90
+        run: ./test/deploy-time-budget.sh
 
       - name: Cleanup
         if: always()

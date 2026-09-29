@@ -70,20 +70,31 @@ function check_output
 # Wait until wsrep_ready is ON for Galera/PXC nodes.
 # This prevents grants and user DML from running before the node
 # has joined the cluster.
-# On non-Galera servers the status variable does not exist and
-# this function returns immediately (no delay) once the server accepts
-# connections.
-# Detection and polling connect as root via socket (no password),
-# because the sandbox user (msandbox) may not exist yet on fresh
-# nodes (load_grants has not run).
-# Connect failures are NOT treated as non-Galera: the pid file can
-# appear before the server accepts connections, so we retry until
-# root can connect, then check whether wsrep_ready exists.
+# Only call this on Galera/PXC nodes: it does not try to detect whether
+# the server is a cluster node (wait_wsrep_after_start is generated with
+# the call only for galera-node and pxc-node sandboxes). On any other
+# server it waits for the full budget and fails.
+# Usage: wait_until_wsrep_ready [max_attempts] [sleep_sec] [root|sandbox]
+# The third argument picks the login, decided when the sandbox is generated:
+#  root    (default) the bootstrap node, before load_grants: root via socket
+#          with no password, because the sandbox user does not exist yet.
+#  sandbox a joining node: it skips load_grants and receives the bootstrap
+#          node's grants by SST, so root already has a password; log in with
+#          the sandbox credentials from my.sandbox.cnf.
+# Connect failures are retried: the pid file can appear before the
+# server accepts connections.
 function wait_until_wsrep_ready
 {
     local max_attempts=${1:-60}
     local sleep_sec=${2:-2}
+    local auth=${3:-root}
     local mysql_cmd=""
+    local -a login
+    if [ "$auth" = "sandbox" ]; then
+        login=(--defaults-file="$SBDIR/my.sandbox.cnf")
+    else
+        login=(--no-defaults -S "$SOCKET_FILE" -u root)
+    fi
     local clients
     if [ "$FLAVOR" = "mariadb" ]; then
         clients="mariadb mysql"
@@ -112,33 +123,23 @@ function wait_until_wsrep_ready
     local connected=0
     local i
     for i in $(seq 1 $connect_attempts); do
-        if $mysql_cmd --no-defaults -S "$SOCKET_FILE" -u root -BN -e "SELECT 1" >/dev/null 2>&1; then
+        if $mysql_cmd "${login[@]}" -BN -e "SELECT 1" >/dev/null 2>&1; then
             connected=1
             break
         fi
         sleep $connect_sleep
     done
     if [ "$connected" -ne 1 ]; then
-        echo "WARNING: cannot connect as root via socket after $((connect_attempts * connect_sleep))s" >&2
+        echo "ERROR: cannot connect ($auth login) after $((connect_attempts * connect_sleep))s" >&2
         return 1
     fi
-    # Connected: a SHOW STATUS that succeeds with no rows means wsrep_ready
-    # does not exist (non-Galera) -> short-circuit. Only the successful-empty
-    # case may bypass the wait: if the probe itself fails, fall through to the
-    # polling loop so a transient error cannot skip the wsrep_ready gate.
-    local wsrep_check
-    if wsrep_check=$($mysql_cmd --no-defaults -S "$SOCKET_FILE" -u root -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null); then
-        if [ -z "$wsrep_check" ]; then
-            return 0
-        fi
-    fi
     for i in $(seq 1 $max_attempts); do
-        if $mysql_cmd --no-defaults -S "$SOCKET_FILE" -u root -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -qiE 'wsrep_ready[[:space:]]+ON'; then
+        if $mysql_cmd "${login[@]}" -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -qiE 'wsrep_ready[[:space:]]+ON'; then
             return 0
         fi
         sleep $sleep_sec
     done
-    echo "WARNING: wsrep_ready not ON after $((max_attempts * sleep_sec))s" >&2
+    echo "ERROR: wsrep_ready not ON after $((max_attempts * sleep_sec))s" >&2
     return 1
 }
 
