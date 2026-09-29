@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 2.4.2	29-Sep-2026
+
 ## BUGS FIXED
 
 * Fix a ~2 minute wait per node when deploying MariaDB without Galera
@@ -23,6 +25,13 @@
   a deploy time budget for each (issues #139, #140, #141).
 * `test/deploy-time-budget.sh` accepts `DEPLOY_VERSION` to test a specific
   version, and always runs the `DBDEPLOYER_BINARY` it was given.
+
+## DOCUMENTATION
+
+* List the MariaDB versions verified in CI (10.11.9, 11.4.13, 12.3.3,
+  13.0.2) with their minimum glibc, and document fetching MariaDB releases
+  that are not in the registry with
+  `dbdeployer downloads get-by-version X --flavor=mariadb --unpack`.
 
 ## 2.4.1	03-Aug-2026
 
