@@ -1062,7 +1062,7 @@ func createSingleSandbox(sandboxDef SandboxDef) (execList []concurrent.Execution
 				}
 			)
 			logger.Printf("Adding after start command to execution list\n")
-			logger.Printf("Adding wait-wsrep command to execution list (no-op on non-Galera)\n")
+			logger.Printf("Adding wait-wsrep command to execution list (waits only on Galera/PXC nodes)\n")
 			logger.Printf("Adding pre grants command to execution list\n")
 			logger.Printf("Adding load grants command to execution list\n")
 			logger.Printf("Adding post grants command to execution list\n")
@@ -1088,8 +1088,12 @@ func createSingleSandbox(sandboxDef SandboxDef) (execList []concurrent.Execution
 			if err != nil {
 				return emptyExecutionList, err
 			}
-			logger.Printf("Running wait-wsrep script (no-op on non-Galera)\n")
-			_, _ = common.RunCmd(path.Join(sandboxDir, globals.ScriptWaitWsrepAfterStart))
+			logger.Printf("Running wait-wsrep script (waits only on Galera/PXC nodes)\n")
+			_, err = common.RunCmd(path.Join(sandboxDir, globals.ScriptWaitWsrepAfterStart))
+			if err != nil {
+				return emptyExecutionList, fmt.Errorf("node %s did not join the cluster (wsrep_ready not ON); see %s: %s",
+					sandboxDir, path.Join(sandboxDir, "data", "msandbox.err"), err)
+			}
 			if sandboxDef.LoadGrants {
 				logger.Printf("Running pre grants script\n")
 				_, err = common.RunCmdWithArgs(path.Join(sandboxDir, globals.ScriptLoadGrants), []string{globals.ScriptPreGrantsSql})

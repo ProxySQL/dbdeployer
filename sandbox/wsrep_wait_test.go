@@ -24,20 +24,19 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ProxySQL/dbdeployer/globals"
 )
 
 // fakeClientScript stands in for the mysql/mariadb client used by
-// wait_until_wsrep_ready. It answers the three queries the function issues
-// according to environment variables, so each test case can play a different
-// kind of server:
+// wait_until_wsrep_ready. Every invocation is counted in $FAKE_STATE_DIR/calls.
+// SHOW STATUS LIKE 'wsrep_ready' is answered according to:
 //
-//	FAKE_WSREP_ON          output row for SHOW VARIABLES LIKE 'wsrep_on'
-//	                       ("" = no row, as on MySQL)
-//	FAKE_WSREP_ON_FAIL     if "1", SHOW VARIABLES exits non-zero
-//	FAKE_WSREP_READY       output row for SHOW STATUS LIKE 'wsrep_ready'
-//	FAKE_READY_AFTER       if > 0, wsrep_ready turns ON from that call onward
-//	FAKE_STATE_DIR         where the call counter is kept
+//	FAKE_WSREP_READY   output row ("" = no row, as on a server without wsrep)
+//	FAKE_READY_AFTER   if > 0, wsrep_ready turns ON from that call onward
 const fakeClientScript = `#!/bin/bash
+calls=$(cat "$FAKE_STATE_DIR/calls" 2>/dev/null || echo 0)
+echo $((calls + 1)) > "$FAKE_STATE_DIR/calls"
 query=""
 while [ $# -gt 0 ]; do
     if [ "$1" = "-e" ]; then query="$2"; shift; fi
@@ -46,9 +45,6 @@ done
 case "$query" in
     "SELECT 1")
         echo 1 ;;
-    *"SHOW VARIABLES LIKE 'wsrep_on'"*)
-        [ "$FAKE_WSREP_ON_FAIL" = "1" ] && exit 1
-        [ -n "$FAKE_WSREP_ON" ] && printf '%b\n' "$FAKE_WSREP_ON" ;;
     *"SHOW STATUS LIKE 'wsrep_ready'"*)
         n=$(cat "$FAKE_STATE_DIR/ready_calls" 2>/dev/null || echo 0)
         n=$((n + 1))
@@ -62,14 +58,15 @@ esac
 exit 0
 `
 
-// TestWaitUntilWsrepReady_Behavior executes the rendered wait_until_wsrep_ready
-// function against a fake client. Unlike the substring checks in
-// templates_flavor_test.go, it proves how long the function actually waits.
-//
-// Regression for #142: MariaDB without Galera reports "wsrep_ready OFF"
-// (the variable exists), so a guard that only short-circuited on an *empty*
-// wsrep_ready result spun for the full 60x2s on every MariaDB node.
-func TestWaitUntilWsrepReady_Behavior(t *testing.T) {
+type bashResult struct {
+	rc      int
+	out     string
+	elapsed time.Duration
+	calls   int // client invocations of any kind
+}
+
+func requireBash(t *testing.T) string {
+	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("shell templates are not used on Windows")
 	}
@@ -77,142 +74,183 @@ func TestWaitUntilWsrepReady_Behavior(t *testing.T) {
 	if err != nil {
 		t.Skip("bash not available")
 	}
+	return bash
+}
 
-	// Polling budget used by every case: 3 attempts x 1s. A case that
-	// short-circuits returns well under 1s; one that polls to exhaustion
-	// takes ~3s.
-	const attempts, sleepSec = 3, 1
+// setupFakeSandbox writes a fake client and the rendered sb_include into a
+// temporary sandbox directory, and returns the directory.
+func setupFakeSandbox(t *testing.T, flavor string) string {
+	t.Helper()
+	dir := t.TempDir()
+	binDir := path.Join(dir, "bin")
+	if err := os.Mkdir(binDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	for _, client := range []string{"mysql", "mariadb"} {
+		// #nosec G306 -- the fake client must be executable
+		if err := os.WriteFile(path.Join(binDir, client), []byte(fakeClientScript), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	data := baseTemplateData(flavor)
+	data["SandboxDir"] = dir
+	data["Basedir"] = dir
+	data["ClientBasedir"] = dir
+	data["SocketFile"] = path.Join(dir, "fake.sock")
+	// #nosec G306 -- test fixture
+	if err := os.WriteFile(path.Join(dir, "sb_include"), []byte(renderTemplate(t, sbIncludeTemplate, data)), 0644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func runBash(t *testing.T, bash, dir, script string, env map[string]string) bashResult {
+	t.Helper()
+	// #nosec G204 -- fixed test script
+	cmd := exec.Command(bash, "-c", script)
+	cmd.Env = append(os.Environ(), "FAKE_STATE_DIR="+dir)
+	for k, v := range env {
+		cmd.Env = append(cmd.Env, k+"="+v)
+	}
+	start := time.Now()
+	out, err := cmd.CombinedOutput()
+	res := bashResult{out: string(out), elapsed: time.Since(start)}
+	if err != nil {
+		exitErr, ok := err.(*exec.ExitError)
+		if !ok {
+			t.Fatalf("running bash: %v\n%s", err, out)
+		}
+		res.rc = exitErr.ExitCode()
+	}
+	if b, err := os.ReadFile(path.Join(dir, "calls")); err == nil {
+		res.calls, _ = strconv.Atoi(strings.TrimSpace(string(b)))
+	}
+	return res
+}
+
+// TestWaitUntilWsrepReady_Behavior executes the rendered wait_until_wsrep_ready
+// function against a fake client with a 3x1s budget. The function only runs on
+// Galera/PXC nodes, so it must wait for wsrep_ready ON and never decide on its
+// own that the server is "not a cluster".
+func TestWaitUntilWsrepReady_Behavior(t *testing.T) {
+	bash := requireBash(t)
 	const fastLimit = 900 * time.Millisecond
 
 	tests := []struct {
-		name       string
-		flavor     string
-		env        map[string]string
-		wantRC     int
-		wantFast   bool // returned without entering the polling loop
-		wantPolled bool // polled wsrep_ready at least once
+		name     string
+		env      map[string]string
+		wantRC   int
+		wantFast bool
 	}{
 		{
-			name:     "mysql has no wsrep variables",
-			flavor:   "mysql",
-			env:      map[string]string{},
+			name:     "node already ready",
+			env:      map[string]string{"FAKE_READY_AFTER": "1"},
 			wantRC:   0,
 			wantFast: true,
 		},
 		{
-			// The #142 case: variables exist but are OFF.
-			name:   "mariadb without galera reports wsrep_on OFF and wsrep_ready OFF",
-			flavor: "mariadb",
+			name: "node joining becomes ready after polling",
 			env: map[string]string{
-				"FAKE_WSREP_ON":    `wsrep_on\tOFF`,
-				"FAKE_WSREP_READY": `wsrep_ready\tOFF`,
-			},
-			wantRC:   0,
-			wantFast: true,
-		},
-		{
-			// A Galera node that is still joining: wsrep_ready is OFF for a
-			// while. The function must keep waiting, not treat OFF as
-			// "not a cluster".
-			name:   "galera node joining becomes ready after polling",
-			flavor: "mariadb",
-			env: map[string]string{
-				"FAKE_WSREP_ON":    `wsrep_on\tON`,
 				"FAKE_WSREP_READY": `wsrep_ready\tOFF`,
 				"FAKE_READY_AFTER": "2",
 			},
-			wantRC:     0,
-			wantPolled: true,
+			wantRC: 0,
 		},
 		{
-			name:   "galera node that never becomes ready times out",
-			flavor: "mariadb",
-			env: map[string]string{
-				"FAKE_WSREP_ON":    `wsrep_on\tON`,
-				"FAKE_WSREP_READY": `wsrep_ready\tOFF`,
-			},
-			wantRC:     1,
-			wantPolled: true,
+			name:   "node that never becomes ready times out",
+			env:    map[string]string{"FAKE_WSREP_READY": `wsrep_ready\tOFF`},
+			wantRC: 1,
 		},
 		{
-			// A failing probe must not be misread as "non-Galera".
-			name:   "failed wsrep_on probe falls through to polling",
-			flavor: "mariadb",
-			env: map[string]string{
-				"FAKE_WSREP_ON_FAIL": "1",
-				"FAKE_WSREP_READY":   `wsrep_ready\tOFF`,
-			},
-			wantRC:     1,
-			wantPolled: true,
+			// A cluster node reporting no wsrep variables is broken (e.g. the
+			// provider failed to load). Treating that as "not Galera" would
+			// hide the failure.
+			name:   "cluster node without wsrep variables fails",
+			env:    map[string]string{},
+			wantRC: 1,
 		},
 	}
-
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			dir := t.TempDir()
-			binDir := path.Join(dir, "bin")
-			if err := os.Mkdir(binDir, 0755); err != nil {
-				t.Fatal(err)
+			dir := setupFakeSandbox(t, "mariadb")
+			res := runBash(t, bash, dir, "source "+path.Join(dir, "sb_include")+"\nwait_until_wsrep_ready 3 1\n", tc.env)
+			if res.rc != tc.wantRC {
+				t.Errorf("exit code = %d, want %d\noutput: %s", res.rc, tc.wantRC, res.out)
 			}
-			client := "mysql"
-			if tc.flavor == "mariadb" {
-				client = "mariadb"
+			if tc.wantFast && res.elapsed > fastLimit {
+				t.Errorf("took %v, want < %v", res.elapsed, fastLimit)
 			}
-			// #nosec G306 -- the fake client must be executable
-			if err := os.WriteFile(path.Join(binDir, client), []byte(fakeClientScript), 0755); err != nil {
-				t.Fatal(err)
-			}
-
-			data := baseTemplateData(tc.flavor)
-			data["SandboxDir"] = dir
-			data["Basedir"] = dir
-			data["ClientBasedir"] = dir
-			data["SocketFile"] = path.Join(dir, "fake.sock")
-			include := path.Join(dir, "sb_include")
-			// #nosec G306 -- test fixture
-			if err := os.WriteFile(include, []byte(renderTemplate(t, sbIncludeTemplate, data)), 0644); err != nil {
-				t.Fatal(err)
-			}
-
-			script := "source " + include + "\nwait_until_wsrep_ready 3 1\n"
-			// #nosec G204 -- fixed test script
-			cmd := exec.Command(bash, "-c", script)
-			cmd.Env = append(os.Environ(), "FAKE_STATE_DIR="+dir)
-			for k, v := range tc.env {
-				cmd.Env = append(cmd.Env, k+"="+v)
-			}
-			start := time.Now()
-			out, err := cmd.CombinedOutput()
-			elapsed := time.Since(start)
-
-			rc := 0
-			if err != nil {
-				exitErr, ok := err.(*exec.ExitError)
-				if !ok {
-					t.Fatalf("running wait_until_wsrep_ready: %v\n%s", err, out)
-				}
-				rc = exitErr.ExitCode()
-			}
-			if rc != tc.wantRC {
-				t.Errorf("exit code = %d, want %d\noutput: %s", rc, tc.wantRC, out)
-			}
-
-			readyCalls := 0
-			if b, err := os.ReadFile(path.Join(dir, "ready_calls")); err == nil {
-				readyCalls, _ = strconv.Atoi(strings.TrimSpace(string(b)))
-			}
-			if tc.wantFast {
-				if elapsed > fastLimit {
-					t.Errorf("took %v, want < %v (budget %dx%ds must not be spent on a non-Galera server)",
-						elapsed, fastLimit, attempts, sleepSec)
-				}
-				if readyCalls != 0 {
-					t.Errorf("polled wsrep_ready %d times, want 0 on a non-Galera server", readyCalls)
-				}
-			}
-			if tc.wantPolled && readyCalls == 0 {
-				t.Errorf("did not poll wsrep_ready; a possible Galera node must be waited on")
+			if tc.wantRC != 0 && !strings.Contains(res.out, "wsrep_ready not ON after 3s") {
+				t.Errorf("timeout must be reported, got: %s", res.out)
 			}
 		})
+	}
+}
+
+// TestWaitWsrepAfterStart_Script executes the generated wait_wsrep_after_start
+// script. On non-cluster sandboxes it must exit 0 without contacting the
+// server at all (#131, #142). On Galera/PXC nodes a failed wait must fail the
+// script, so the deploy stops with a clear message instead of failing later.
+func TestWaitWsrepAfterStart_Script(t *testing.T) {
+	bash := requireBash(t)
+
+	writeScript := func(t *testing.T, dir, sbType string) string {
+		t.Helper()
+		data := baseTemplateData("mariadb")
+		data["SandboxDir"] = dir
+		data["SandboxType"] = sbType
+		script := path.Join(dir, "wait_wsrep_after_start")
+		// #nosec G306 -- test fixture
+		if err := os.WriteFile(script, []byte(renderTemplate(t, waitWsrepAfterStartTemplate, data)), 0755); err != nil {
+			t.Fatal(err)
+		}
+		return script
+	}
+
+	for _, sbType := range []string{globals.SbTypeSingle, "replication-node"} {
+		t.Run(sbType+" never contacts the server", func(t *testing.T) {
+			dir := setupFakeSandbox(t, "mariadb")
+			script := writeScript(t, dir, sbType)
+			// MariaDB without Galera: the variable exists and is OFF.
+			res := runBash(t, bash, dir, script, map[string]string{"FAKE_WSREP_READY": `wsrep_ready\tOFF`})
+			if res.rc != 0 {
+				t.Errorf("exit code = %d, want 0\noutput: %s", res.rc, res.out)
+			}
+			if res.calls != 0 {
+				t.Errorf("client invoked %d times, want 0 on a non-cluster sandbox", res.calls)
+			}
+			if res.elapsed > 900*time.Millisecond {
+				t.Errorf("took %v, want immediate exit", res.elapsed)
+			}
+		})
+	}
+
+	// For cluster nodes, replace wait_until_wsrep_ready with a stub so the
+	// test does not spend the real 60x2s budget.
+	for _, sbType := range []string{globals.SbTypeGaleraNode, globals.SbTypePxcNode} {
+		for _, stubRC := range []int{0, 1} {
+			t.Run(sbType+" wait rc "+strconv.Itoa(stubRC), func(t *testing.T) {
+				dir := t.TempDir()
+				stub := "export SBDIR=" + dir + "\nfunction wait_until_wsrep_ready { return " + strconv.Itoa(stubRC) + "; }\n"
+				// #nosec G306 -- test fixture
+				if err := os.WriteFile(path.Join(dir, "sb_include"), []byte(stub), 0644); err != nil {
+					t.Fatal(err)
+				}
+				script := writeScript(t, dir, sbType)
+				res := runBash(t, bash, dir, script, nil)
+				if stubRC == 0 {
+					if res.rc != 0 {
+						t.Errorf("exit code = %d, want 0\noutput: %s", res.rc, res.out)
+					}
+					return
+				}
+				if res.rc == 0 {
+					t.Errorf("a cluster node that never becomes ready must fail the script")
+				}
+				if !strings.Contains(res.out, dir) || !strings.Contains(res.out, "msandbox.err") {
+					t.Errorf("failure message must name the node and its error log, got: %s", res.out)
+				}
+			})
+		}
 	}
 }

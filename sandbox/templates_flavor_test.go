@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/ProxySQL/dbdeployer/common"
+	"github.com/ProxySQL/dbdeployer/globals"
 )
 
 // maxAllowedWaitSeconds is the maximum total wait time (in seconds) that any
@@ -255,83 +256,80 @@ func TestInitSlavesTemplates_IncludeReplicaReadyWait(t *testing.T) {
 	}
 }
 
-// TestWaitWsrepAfterStart_DoesNotBlockNonGalera verifies that the
-// wait_wsrep_after_start template (which runs for every sandbox node
-// after start, regardless of flavor) exits quickly on non-Galera MySQL.
-// On vanilla MySQL the wsrep status variable does not exist; the function
-// must detect this and return immediately. This is a pure template test.
-func TestWaitWsrepAfterStart_DoesNotBlockNonGalera(t *testing.T) {
-	data := baseTemplateData("mysql")
-	result := renderTemplate(t, waitWsrepAfterStartTemplate, data)
-
-	if !strings.Contains(result, "wait_until_wsrep_ready") {
-		t.Error("wait_wsrep_after_start template must call wait_until_wsrep_ready")
+// TestWaitWsrepAfterStart_OnlyGaleraNodes verifies that whether a node waits
+// for wsrep readiness is decided when the sandbox is generated, not guessed
+// at runtime. Only Galera and PXC cluster nodes get the wait; every other
+// sandbox gets a script that exits immediately without touching the server.
+// Guessing at runtime cost ~2 minutes per node on MySQL (#131) and on
+// MariaDB without Galera (#142).
+func TestWaitWsrepAfterStart_OnlyGaleraNodes(t *testing.T) {
+	waitCall := "wait_until_wsrep_ready 60 2"
+	for _, sbType := range []string{
+		globals.SbTypeSingle,
+		globals.SbTypeSingleImported,
+		globals.SbTypeMultiple,
+		"replication-node",
+		"group-node",
+	} {
+		data := baseTemplateData("mariadb")
+		data["SandboxType"] = sbType
+		result := renderTemplate(t, waitWsrepAfterStartTemplate, data)
+		if strings.Contains(result, "wait_until_wsrep_ready") {
+			t.Errorf("%s: wait_wsrep_after_start must not wait for wsrep on a non-cluster node", sbType)
+		}
 	}
-	// The template appends '|| true' to make the wait best-effort.
-	if !strings.Contains(result, "|| true") {
-		t.Error("wait_wsrep_after_start must use '|| true' for best-effort semantics")
+	for _, sbType := range []string{globals.SbTypeGaleraNode, globals.SbTypePxcNode} {
+		data := baseTemplateData("mysql")
+		data["SandboxType"] = sbType
+		result := renderTemplate(t, waitWsrepAfterStartTemplate, data)
+		if !strings.Contains(result, waitCall) {
+			t.Errorf("%s: wait_wsrep_after_start must call %q", sbType, waitCall)
+		}
+		// A cluster node that never becomes ready must fail the deploy
+		// instead of letting grants fail later with a confusing error.
+		if strings.Contains(result, "|| true") {
+			t.Errorf("%s: wsrep wait must not be best-effort ('|| true')", sbType)
+		}
 	}
 }
 
-// TestSbInclude_WaitUntilWsrepReady_DetectsNonGalera verifies that the
-// wait_until_wsrep_ready function in sb_include.gotxt checks for the
-// existence of the wsrep_ready status variable before polling. Without
-// this guard, every non-Galera node would spin for the full timeout
-// (up to 120s per node), which caused the 5-minute total delay reported
-// on issue #131 after the v2.4.0 release.
-//
-// Rendered for both flavors: MariaDB without Galera reports wsrep_ready OFF
-// rather than no row, so the guard must key on wsrep_on (issue #142).
-// TestWaitUntilWsrepReady_Behavior executes the function for each case.
-func TestSbInclude_WaitUntilWsrepReady_DetectsNonGalera(t *testing.T) {
+// TestSbInclude_WaitUntilWsrepReady checks the wait function used by Galera
+// and PXC nodes. It no longer classifies the server: callers only invoke it
+// on cluster nodes, so it simply waits for wsrep_ready ON.
+func TestSbInclude_WaitUntilWsrepReady(t *testing.T) {
 	for _, flavor := range []string{"mysql", "mariadb"} {
 		t.Run(flavor, func(t *testing.T) {
-			checkWaitUntilWsrepReadyGuard(t, renderTemplate(t, sbIncludeTemplate, baseTemplateData(flavor)))
+			result := renderTemplate(t, sbIncludeTemplate, baseTemplateData(flavor))
+			// Must wait for a successful root connection before polling:
+			// the pid file can appear before the server accepts connections.
+			if !strings.Contains(result, `SELECT 1`) {
+				t.Error("wait_until_wsrep_ready must wait for root socket connect before polling")
+			}
+			if !strings.Contains(result, `if [ "$connected" -ne 1 ]; then`) {
+				t.Error("wait_until_wsrep_ready must fail when root cannot connect")
+			}
+			// No runtime Galera detection (see TestWaitWsrepAfterStart_OnlyGaleraNodes).
+			if strings.Contains(result, `SHOW VARIABLES LIKE 'wsrep_on'`) || strings.Contains(result, `wsrep_check`) {
+				t.Error("wait_until_wsrep_ready must not guess whether the server is a Galera node")
+			}
+			// Root via socket (no password) before load_grants creates msandbox.
+			if !strings.Contains(result, `--no-defaults -S "$SOCKET_FILE" -u root`) {
+				t.Error("wait_until_wsrep_ready must connect as root via socket")
+			}
+			if !strings.Contains(result, `clients="mysql mariadb"`) {
+				t.Error("wait_until_wsrep_ready must prefer mysql client for non-MariaDB flavor")
+			}
+			if !strings.Contains(result, `clients="mariadb mysql"`) {
+				t.Error("wait_until_wsrep_ready must prefer mariadb client when FLAVOR=mariadb")
+			}
+			// Match wsrep_ready ON specifically, not a bare 'ON' substring.
+			if !strings.Contains(result, `wsrep_ready[[:space:]]+ON`) {
+				t.Error("wait_until_wsrep_ready must match wsrep_ready ON specifically")
+			}
+			if !strings.Contains(result, "local max_attempts=${1:-60}") {
+				t.Error("wait_until_wsrep_ready default max_attempts must remain 60")
+			}
 		})
-	}
-}
-
-func checkWaitUntilWsrepReadyGuard(t *testing.T, result string) {
-	t.Helper()
-
-	// Must wait for a successful root connection before deciding Galera vs not.
-	// Empty output while the server is still starting must not short-circuit.
-	if !strings.Contains(result, `SELECT 1`) {
-		t.Error("wait_until_wsrep_ready must wait for root socket connect before Galera detection")
-	}
-	if !strings.Contains(result, `if [ "$connected" -ne 1 ]; then`) {
-		t.Error("wait_until_wsrep_ready must fail (not short-circuit) when root cannot connect")
-	}
-	// After connect succeeds: no wsrep_on row (MySQL) or wsrep_on OFF
-	// (MariaDB without Galera) means non-Galera → return 0.
-	if !strings.Contains(result, `SHOW VARIABLES LIKE 'wsrep_on';`) {
-		t.Error("wait_until_wsrep_ready must detect Galera via wsrep_on, not wsrep_ready (regression: #142 2-min delay on MariaDB)")
-	}
-	if !strings.Contains(result, `if [ -z "$wsrep_check" ] || echo "$wsrep_check" | grep -qiE 'wsrep_on[[:space:]]+OFF'; then`) {
-		t.Error("wait_until_wsrep_ready must short-circuit on missing wsrep_on (#131) and on wsrep_on OFF (#142)")
-	}
-	// The empty-result short-circuit must be gated on the probe's exit status,
-	// so a failed SHOW STATUS cannot be misread as "non-Galera" (CodeRabbit).
-	if !strings.Contains(result, `if wsrep_check=$($mysql_cmd`) {
-		t.Error("wait_until_wsrep_ready must only short-circuit when the wsrep probe succeeds (check exit status)")
-	}
-	// Root via socket (no password) before load_grants creates msandbox.
-	if !strings.Contains(result, `--no-defaults -S "$SOCKET_FILE" -u root`) {
-		t.Error("wait_until_wsrep_ready must connect as root via socket for the guard check")
-	}
-	// Shell-level FLAVOR if: both preference orders must be present.
-	if !strings.Contains(result, `clients="mysql mariadb"`) {
-		t.Error("wait_until_wsrep_ready must prefer mysql client for non-MariaDB flavor")
-	}
-	if !strings.Contains(result, `clients="mariadb mysql"`) {
-		t.Error("wait_until_wsrep_ready must prefer mariadb client when FLAVOR=mariadb")
-	}
-	// Match wsrep_ready ON specifically, not a bare 'ON' substring.
-	if !strings.Contains(result, `wsrep_ready[[:space:]]+ON`) {
-		t.Error("wait_until_wsrep_ready must match wsrep_ready ON specifically")
-	}
-	if !strings.Contains(result, "local max_attempts=${1:-60}") {
-		t.Error("wait_until_wsrep_ready default max_attempts must remain 60 for Galera nodes, but the guard above must short-circuit on non-Galera")
 	}
 }
 

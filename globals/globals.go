@@ -27,6 +27,8 @@ const (
 	SbTypeSingle         = "single"
 	SbTypeMultiple       = "multiple"
 	SbTypeSingleImported = "single-imported"
+	SbTypeGaleraNode     = "galera-node"
+	SbTypePxcNode        = "pxc-node"
 
 	// Instantiated in cmd/root.go
 	ConfigLabel        = "config"

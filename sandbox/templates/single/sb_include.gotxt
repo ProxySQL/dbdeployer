@@ -70,15 +70,15 @@ function check_output
 # Wait until wsrep_ready is ON for Galera/PXC nodes.
 # This prevents grants and user DML from running before the node
 # has joined the cluster.
-# On non-Galera servers (MySQL: no wsrep variables; MariaDB: wsrep_on OFF)
-# this function returns immediately (no delay) once the server accepts
-# connections.
+# Only call this on Galera/PXC nodes: it does not try to detect whether
+# the server is a cluster node (wait_wsrep_after_start is generated with
+# the call only for galera-node and pxc-node sandboxes). On any other
+# server it waits for the full budget and fails.
 # Detection and polling connect as root via socket (no password),
 # because the sandbox user (msandbox) may not exist yet on fresh
 # nodes (load_grants has not run).
-# Connect failures are NOT treated as non-Galera: the pid file can
-# appear before the server accepts connections, so we retry until
-# root can connect, then check wsrep_on.
+# Connect failures are retried: the pid file can appear before the
+# server accepts connections.
 function wait_until_wsrep_ready
 {
     local max_attempts=${1:-60}
@@ -119,21 +119,8 @@ function wait_until_wsrep_ready
         sleep $connect_sleep
     done
     if [ "$connected" -ne 1 ]; then
-        echo "WARNING: cannot connect as root via socket after $((connect_attempts * connect_sleep))s" >&2
+        echo "ERROR: cannot connect as root via socket after $((connect_attempts * connect_sleep))s" >&2
         return 1
-    fi
-    # Connected: decide Galera vs not from the wsrep_on variable.
-    #  - no row (MySQL has no wsrep variables)          -> non-Galera
-    #  - wsrep_on OFF (MariaDB built without/not using Galera) -> non-Galera
-    # wsrep_ready cannot be used for this: MariaDB always reports it, as OFF
-    # without Galera, and a joining Galera node is also OFF (issue #142).
-    # Only a successful probe may bypass the wait: if it fails, fall through
-    # to the polling loop so a transient error cannot skip the gate.
-    local wsrep_check
-    if wsrep_check=$($mysql_cmd --no-defaults -S "$SOCKET_FILE" -u root -BN -e "SHOW VARIABLES LIKE 'wsrep_on';" 2>/dev/null); then
-        if [ -z "$wsrep_check" ] || echo "$wsrep_check" | grep -qiE 'wsrep_on[[:space:]]+OFF'; then
-            return 0
-        fi
     fi
     for i in $(seq 1 $max_attempts); do
         if $mysql_cmd --no-defaults -S "$SOCKET_FILE" -u root -BN -e "SHOW STATUS LIKE 'wsrep_ready';" 2>/dev/null | grep -qiE 'wsrep_ready[[:space:]]+ON'; then
@@ -141,7 +128,7 @@ function wait_until_wsrep_ready
         fi
         sleep $sleep_sec
     done
-    echo "WARNING: wsrep_ready not ON after $((max_attempts * sleep_sec))s" >&2
+    echo "ERROR: wsrep_ready not ON after $((max_attempts * sleep_sec))s" >&2
     return 1
 }
 

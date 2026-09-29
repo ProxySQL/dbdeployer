@@ -364,7 +364,7 @@ func CreatePxcReplication(sandboxDef SandboxDef, origin string, nodes int, maste
 			sandboxDef.LoadGrants = false
 		}
 		sandboxDef.Prompt = fmt.Sprintf("%s%d", nodeLabel, i)
-		sandboxDef.SBType = "pxc-node"
+		sandboxDef.SBType = globals.SbTypePxcNode
 		sandboxDef.NodeNum = i
 		// common.CondPrintf("%#v\n",sdef)
 		logger.Printf("Create single sandbox for node %d\n", i)

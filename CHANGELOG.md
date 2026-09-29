@@ -3,10 +3,13 @@
 ## BUGS FIXED
 
 * Fix a ~2 minute wait per node when deploying MariaDB without Galera
-  (issue #142). MariaDB reports `wsrep_ready OFF` even without Galera, so the
-  wsrep readiness check introduced for #131 never short-circuited on it; a
-  3-node MariaDB replication deploy took about 8 minutes. The check now
-  detects Galera through `wsrep_on`.
+  (issue #142): a 3-node MariaDB replication deploy took about 8 minutes.
+  The wsrep readiness wait is now generated only for Galera and PXC nodes,
+  instead of guessing at runtime whether the server is a cluster node;
+  other sandboxes no longer query the server for it at all.
+* A Galera or PXC node that does not become ready (`wsrep_ready` ON) within
+  120 seconds now fails the deploy with an error naming the node and its
+  log, instead of continuing and failing later at grants.
 
 ## CI
 
