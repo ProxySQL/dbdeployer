@@ -10,6 +10,11 @@
 * A Galera or PXC node that does not become ready (`wsrep_ready` ON) within
   120 seconds now fails the deploy with an error naming the node and its
   log, instead of continuing and failing later at grants.
+* Joining Galera and PXC nodes are now actually waited on. They receive the
+  first node's grants by SST, so the wait's passwordless root login was
+  rejected; after 30 seconds the wait gave up silently and the deploy went
+  on without checking `wsrep_ready`. Joining nodes now log in with the
+  sandbox credentials.
 
 ## CI
 

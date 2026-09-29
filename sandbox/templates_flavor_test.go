@@ -279,16 +279,24 @@ func TestWaitWsrepAfterStart_OnlyGaleraNodes(t *testing.T) {
 		}
 	}
 	for _, sbType := range []string{globals.SbTypeGaleraNode, globals.SbTypePxcNode} {
-		data := baseTemplateData("mysql")
-		data["SandboxType"] = sbType
-		result := renderTemplate(t, waitWsrepAfterStartTemplate, data)
-		if !strings.Contains(result, waitCall) {
-			t.Errorf("%s: wait_wsrep_after_start must call %q", sbType, waitCall)
-		}
-		// A cluster node that never becomes ready must fail the deploy
-		// instead of letting grants fail later with a confusing error.
-		if strings.Contains(result, "|| true") {
-			t.Errorf("%s: wsrep wait must not be best-effort ('|| true')", sbType)
+		// The bootstrap node (loads grants) has a passwordless root when the
+		// wait runs. Joining nodes skip load_grants and receive node 1's
+		// grants by SST, so root already has a password: they must log in
+		// with the sandbox credentials (my.sandbox.cnf) instead.
+		for loadGrants, auth := range map[bool]string{true: "root", false: "sandbox"} {
+			data := baseTemplateData("mysql")
+			data["SandboxType"] = sbType
+			data["LoadGrants"] = loadGrants
+			result := renderTemplate(t, waitWsrepAfterStartTemplate, data)
+			want := waitCall + " " + auth
+			if !strings.Contains(result, want) {
+				t.Errorf("%s (LoadGrants=%v): wait_wsrep_after_start must call %q", sbType, loadGrants, want)
+			}
+			// A cluster node that never becomes ready must fail the deploy
+			// instead of letting grants fail later with a confusing error.
+			if strings.Contains(result, "|| true") {
+				t.Errorf("%s: wsrep wait must not be best-effort ('|| true')", sbType)
+			}
 		}
 	}
 }
@@ -312,9 +320,13 @@ func TestSbInclude_WaitUntilWsrepReady(t *testing.T) {
 			if strings.Contains(result, `SHOW VARIABLES LIKE 'wsrep_on'`) || strings.Contains(result, `wsrep_check`) {
 				t.Error("wait_until_wsrep_ready must not guess whether the server is a Galera node")
 			}
-			// Root via socket (no password) before load_grants creates msandbox.
+			// Bootstrap node: root via socket (no password), before load_grants.
 			if !strings.Contains(result, `--no-defaults -S "$SOCKET_FILE" -u root`) {
-				t.Error("wait_until_wsrep_ready must connect as root via socket")
+				t.Error("wait_until_wsrep_ready must connect as root via socket on the bootstrap node")
+			}
+			// Joining node: grants arrived by SST, use the sandbox credentials.
+			if !strings.Contains(result, `--defaults-file="$SBDIR/my.sandbox.cnf"`) {
+				t.Error("wait_until_wsrep_ready must use my.sandbox.cnf credentials on joining nodes")
 			}
 			if !strings.Contains(result, `clients="mysql mariadb"`) {
 				t.Error("wait_until_wsrep_ready must prefer mysql client for non-MariaDB flavor")

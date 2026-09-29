@@ -29,14 +29,22 @@ import (
 )
 
 // fakeClientScript stands in for the mysql/mariadb client used by
-// wait_until_wsrep_ready. Every invocation is counted in $FAKE_STATE_DIR/calls.
+// wait_until_wsrep_ready. Every invocation is counted in $FAKE_STATE_DIR/calls
+// and its arguments appended to $FAKE_STATE_DIR/args.
 // SHOW STATUS LIKE 'wsrep_ready' is answered according to:
 //
 //	FAKE_WSREP_READY   output row ("" = no row, as on a server without wsrep)
 //	FAKE_READY_AFTER   if > 0, wsrep_ready turns ON from that call onward
+//	FAKE_ROOT_DENIED   if "1", logins with "-u root" fail, as on a joining
+//	                   Galera node whose root password arrived by SST
 const fakeClientScript = `#!/bin/bash
 calls=$(cat "$FAKE_STATE_DIR/calls" 2>/dev/null || echo 0)
 echo $((calls + 1)) > "$FAKE_STATE_DIR/calls"
+echo "$*" >> "$FAKE_STATE_DIR/args"
+if [ "$FAKE_ROOT_DENIED" = "1" ] && [[ " $* " == *" -u root "* ]]; then
+    echo "ERROR 1045 (28000): Access denied for user 'root'@'localhost'" >&2
+    exit 1
+fi
 query=""
 while [ $# -gt 0 ]; do
     if [ "$1" = "-e" ]; then query="$2"; shift; fi
@@ -138,6 +146,7 @@ func TestWaitUntilWsrepReady_Behavior(t *testing.T) {
 
 	tests := []struct {
 		name     string
+		auth     string // third argument: root (bootstrap node) or sandbox (joiner)
 		env      map[string]string
 		wantRC   int
 		wantFast bool
@@ -147,6 +156,18 @@ func TestWaitUntilWsrepReady_Behavior(t *testing.T) {
 			env:      map[string]string{"FAKE_READY_AFTER": "1"},
 			wantRC:   0,
 			wantFast: true,
+		},
+		{
+			// The CI failure this guards: a joining node rejects the
+			// passwordless root login, so it must use my.sandbox.cnf.
+			name: "joining node logs in with sandbox credentials",
+			auth: "sandbox",
+			env: map[string]string{
+				"FAKE_ROOT_DENIED": "1",
+				"FAKE_WSREP_READY": `wsrep_ready\tOFF`,
+				"FAKE_READY_AFTER": "2",
+			},
+			wantRC: 0,
 		},
 		{
 			name: "node joining becomes ready after polling",
@@ -173,9 +194,18 @@ func TestWaitUntilWsrepReady_Behavior(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := setupFakeSandbox(t, "mariadb")
-			res := runBash(t, bash, dir, "source "+path.Join(dir, "sb_include")+"\nwait_until_wsrep_ready 3 1\n", tc.env)
+			res := runBash(t, bash, dir, "source "+path.Join(dir, "sb_include")+"\nwait_until_wsrep_ready 3 1 "+tc.auth+"\n", tc.env)
 			if res.rc != tc.wantRC {
 				t.Errorf("exit code = %d, want %d\noutput: %s", res.rc, tc.wantRC, res.out)
+			}
+			args, _ := os.ReadFile(path.Join(dir, "args"))
+			if tc.auth == "sandbox" {
+				if !strings.Contains(string(args), "--defaults-file="+path.Join(dir, "my.sandbox.cnf")) {
+					t.Errorf("sandbox auth must use my.sandbox.cnf, client args:\n%s", args)
+				}
+				if strings.Contains(string(args), "-u root") {
+					t.Errorf("sandbox auth must not log in as root, client args:\n%s", args)
+				}
 			}
 			if tc.wantFast && res.elapsed > fastLimit {
 				t.Errorf("took %v, want < %v", res.elapsed, fastLimit)

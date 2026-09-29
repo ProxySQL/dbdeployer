@@ -681,6 +681,7 @@ func createSingleSandbox(sandboxDef SandboxDef) (execList []concurrent.Execution
 		"Version":              sandboxDef.Version,
 		"Flavor":               sandboxDef.Flavor,
 		"SandboxType":          sandboxDef.SBType,
+		"LoadGrants":           sandboxDef.LoadGrants,
 		"VersionMajor":         verList[0],
 		"VersionMinor":         verList[1],
 		"VersionRev":           verList[2],

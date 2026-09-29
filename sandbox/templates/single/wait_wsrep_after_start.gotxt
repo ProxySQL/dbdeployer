@@ -7,7 +7,8 @@ source {{.SandboxDir}}/sb_include
 # Wait for this cluster node to be ready before grants/DML run on it.
 # A node that never becomes ready fails the deploy here, rather than
 # letting the grants fail later with a less obvious error.
-if ! wait_until_wsrep_ready 60 2
+# {{if .LoadGrants}}Bootstrap node: grants not loaded yet, log in as root.{{else}}Joining node: grants arrive by SST, log in with my.sandbox.cnf.{{end}}
+if ! wait_until_wsrep_ready 60 2 {{if .LoadGrants}}root{{else}}sandbox{{end}}
 then
     echo "ERROR: $SBDIR: wsrep_ready did not become ON; the node did not join the cluster." >&2
     echo "       See $SBDIR/data/msandbox.err" >&2
