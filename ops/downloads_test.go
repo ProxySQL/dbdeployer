@@ -59,7 +59,9 @@ func TestGetTarball(t *testing.T) {
 			if ok {
 				latestVersionList, err := common.VersionToList(latestTb.Version)
 				require.NoError(t, err)
-				isGreater, err := common.GreaterOrEqualVersion(tb.Version, latestVersionList)
+				versionList, err := common.VersionToList(tb.Version)
+				require.NoError(t, err)
+				isGreater, err := common.GreaterOrEqualVersionList(versionList, latestVersionList)
 				require.NoError(t, err)
 				if isGreater {
 					newestList[tb.ShortVersion] = tb
