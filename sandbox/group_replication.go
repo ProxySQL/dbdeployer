@@ -376,6 +376,10 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 		if useMySQL84GroupOptions {
 			// relay-log-recovery is still valid; use the 8.4-specific template
 			sandboxDef.ReplOptions += fmt.Sprintf("\n%s\n", SingleTemplates[globals.TmplReplCrashSafeOptions84].Contents)
+			// Each node gets a dedicated group communication port (local address),
+			// which requires the XCom stack. MySQL 26.x defaults to the MYSQL stack,
+			// which expects the local address to be the server port.
+			sandboxDef.ReplOptions += "\nloose-group_replication_communication_stack=XCOM\n"
 		} else {
 			sandboxDef.ReplOptions += fmt.Sprintf("\n%s\n", SingleTemplates[globals.TmplReplCrashSafeOptions].Contents)
 		}
