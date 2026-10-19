@@ -371,6 +371,10 @@ const (
 
 type NumericVersion []int
 
+// MySQL uses calendar versions from 26.x (26.7 is the release of 2026).
+// Lower majors from 10 are MariaDB, for flavor-blind version checks.
+const MinimumMySQLCalendarMajor int = 26
+
 const MaxAllowedPort int = 65535
 const MinAllowedPort int = 1100
 const ReductionOnPortNumberOverflow = 60000
