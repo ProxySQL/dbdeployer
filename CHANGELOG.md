@@ -1,5 +1,19 @@
 ## Unreleased
 
+## BUGS FIXED
+
+* `dbdeployer downloads add-remote` no longer limits MySQL, MySQL Cluster and
+  MySQL Shell to a fixed list of release series (issue #149): any series in
+  the form `major.minor` is accepted (e.g. `9.7`, `26.7`), and the download
+  site decides whether it exists. New releases no longer need a dbdeployer
+  update.
+* `add-remote` for a series that the download site does not list (for
+  example a retired innovation release such as 9.2) used to register the
+  tarballs of the current default release instead, because the site answers
+  such requests with the default page. Only tarballs that belong to the
+  requested series are now registered; otherwise the command fails and names
+  the series the site offered.
+
 ## 2.4.2	29-Sep-2026
 
 ## BUGS FIXED
