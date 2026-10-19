@@ -104,8 +104,11 @@ func (p *ProxySQLProvider) CreateSandbox(config providers.SandboxConfig) (*provi
 	// We use ProxySQL's own PID file (written to datadir/proxysql.pid) to track the process.
 	pidFile := filepath.Join(dataDir, "proxysql.pid")
 	scripts := map[string]string{
-		"start": fmt.Sprintf("#!/bin/bash\ncd %s\n%s --initial -c %s -D %s 2>&1 | grep -v '^profiling:' || true\n# ProxySQL daemonizes — wait for PID file\nfor i in $(seq 1 10); do\n  if [ -f %s ]; then\n    PID=$(cat %s)\n    if kill -0 $PID 2>/dev/null; then\n      sleep 2\n      echo \"ProxySQL started (pid $PID)\"\n      exit 0\n    fi\n  fi\n  sleep 1\ndone\necho 'ProxySQL failed to start'\nexit 1\n",
-			config.Dir, binaryPath, cfgPath, dataDir, pidFile, pidFile),
+		// The PID file is written before the admin interface is listening:
+		// wait for the admin port too, so that the sandbox is usable as soon
+		// as "start" returns.
+		"start": fmt.Sprintf("#!/bin/bash\ncd %s\n%s --initial -c %s -D %s 2>&1 | grep -v '^profiling:' || true\n# ProxySQL daemonizes — wait for PID file\nfor i in $(seq 1 10); do\n  if [ -f %s ]; then\n    PID=$(cat %s)\n    if kill -0 $PID 2>/dev/null; then\n      # wait for the admin interface\n      for j in $(seq 1 60); do\n        if (exec 3<>/dev/tcp/%s/%d) 2>/dev/null; then\n          echo \"ProxySQL started (pid $PID)\"\n          exit 0\n        fi\n        kill -0 $PID 2>/dev/null || break\n        sleep 0.5\n      done\n      echo 'ProxySQL started, but the admin interface on %s:%d is not accepting connections'\n      exit 1\n    fi\n  fi\n  sleep 1\ndone\necho 'ProxySQL failed to start'\nexit 1\n",
+			config.Dir, binaryPath, cfgPath, dataDir, pidFile, pidFile, host, adminPort, host, adminPort),
 		"stop": fmt.Sprintf("#!/bin/bash\nPIDFILE=%s\nCONFIG=%s\nif [ -f $PIDFILE ]; then\n  PID=$(cat $PIDFILE)\n  # Kill main process and any children matching our config\n  kill $PID 2>/dev/null\n  pkill -f \"proxysql.*$CONFIG\" 2>/dev/null\n  for i in $(seq 1 5); do\n    kill -0 $PID 2>/dev/null || break\n    sleep 1\n  done\n  kill -0 $PID 2>/dev/null && kill -9 $PID 2>/dev/null\n  pkill -9 -f \"proxysql.*$CONFIG\" 2>/dev/null\n  rm -f $PIDFILE\n  echo 'ProxySQL stopped'\nelse\n  # Try to find and kill by config file pattern\n  pkill -f \"proxysql.*$CONFIG\" 2>/dev/null\n  echo 'ProxySQL stopped (no pid file)'\nfi\n",
 			pidFile, cfgPath),
 		"status": fmt.Sprintf("#!/bin/bash\nPIDFILE=%s\nif [ -f $PIDFILE ] && kill -0 $(cat $PIDFILE) 2>/dev/null; then\n  echo \"ProxySQL running (pid $(cat $PIDFILE))\"\nelse\n  echo 'ProxySQL not running'\n  exit 1\nfi\n",
