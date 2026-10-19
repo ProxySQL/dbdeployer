@@ -13,6 +13,25 @@
   such requests with the default page. Only tarballs that belong to the
   requested series are now registered; otherwise the command fails and names
   the series the site offered.
+* MySQL 26.x (calendar versions, starting with 26.7) is now treated as MySQL.
+  Flavor-blind version checks treated every major from 10 as MariaDB, so
+  26.x got pre-8.0 behaviour: `downloads get-by-version 26.7` failed, and the
+  generated `test_replication` checked the old replication status columns.
+  Majors from 10 to 25 are still treated as MariaDB.
+* Group replication sandboxes set `group_replication_communication_stack=XCOM`
+  (8.4+). Each node uses a dedicated group communication port, which the
+  MYSQL stack, the default from MySQL 26.x, does not support: nodes stayed
+  OFFLINE.
+* `add-remote` registers ARM and MySQL Shell tarballs with the architecture
+  names used by the registry (`arm64`, `amd64`), so they are found by
+  `get-by-version` on those platforms (they were `aarch64`, `x86-64`, `arm-64`).
+
+## NEW FEATURES
+
+* Tarball registry: MySQL 9.7.2 and 26.7.0 (Linux x86_64 and aarch64, macOS).
+* CI deploys MySQL 9.7.2 and 26.7.0 (single, replication, group replication,
+  fan-in, all-masters, get-by-version), and 26.7.0 with InnoDB Cluster and
+  ProxySQL.
 
 ## 2.4.2	29-Sep-2026
 
