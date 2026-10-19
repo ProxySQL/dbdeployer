@@ -267,9 +267,14 @@ func parseRemoteTarballPage(tarballType TarballType, version, OS, text, userAgen
 	return result, nil
 }
 
+// archNormalize converts the architecture found in a tarball name into the
+// form used by the registry, which is matched against runtime.GOARCH.
 func archNormalize(s string) string {
-	if s == "x86_64" {
+	switch s {
+	case "x86_64", "x86-64":
 		return "amd64"
+	case "aarch64", "arm-64":
+		return "arm64"
 	}
 	return s
 }

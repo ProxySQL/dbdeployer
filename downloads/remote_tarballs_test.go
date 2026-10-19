@@ -79,7 +79,7 @@ func TestParseRemoteTarballPage(t *testing.T) {
 	if minimal != 2 {
 		t.Errorf("expected 2 minimal tarballs, got %d", minimal)
 	}
-	if list[0].Arch != "amd64" || list[2].Arch != "aarch64" {
+	if list[0].Arch != "amd64" || list[2].Arch != "arm64" {
 		t.Errorf("unexpected arch normalization: %s, %s", list[0].Arch, list[2].Arch)
 	}
 }
@@ -95,6 +95,21 @@ func TestParseRemoteTarballPageOtherSeries(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "[9.7]") {
 			t.Errorf("series %s: error should name the series found on the page: %v", version, err)
+		}
+	}
+}
+
+func TestArchNormalize(t *testing.T) {
+	for in, want := range map[string]string{
+		"x86_64":  "amd64",
+		"x86-64":  "amd64",
+		"aarch64": "arm64",
+		"arm-64":  "arm64",
+		"arm64":   "arm64",
+		"amd64":   "amd64",
+	} {
+		if got := archNormalize(in); got != want {
+			t.Errorf("archNormalize(%q) = %q, want %q", in, got, want)
 		}
 	}
 }
