@@ -142,10 +142,37 @@ func TestFindOrGuessTarballByVersionFlavorOS(t *testing.T) {
 }
 
 func TestNewMySQLVersionsRecognized(t *testing.T) {
-	versions := []string{"8.4", "9.0", "9.1", "9.2", "9.3", "9.4", "9.5"}
+	versions := []string{"8.4", "9.0", "9.1", "9.2", "9.3", "9.4", "9.5", "9.7", "26.7"}
 	for _, v := range versions {
 		result := isAllowedForGuessing(v)
 		compare.OkEqualBool(fmt.Sprintf("version %s allowed for guessing", v), result, true, t)
+	}
+}
+
+// The embedded registry must resolve the newest MySQL series, including the
+// calendar-versioned ones (26.x), which flavor-blind version checks once
+// mistook for MariaDB.
+func TestRegistryNewestMySQLSeries(t *testing.T) {
+	for _, tc := range []struct {
+		shortVersion, OS, arch string
+		minimal                bool
+		expected               string
+	}{
+		{"9.7", "linux", "amd64", true, "mysql-9.7.2-linux-glibc2.28-x86_64-minimal.tar.xz"},
+		{"9.7", "linux", "arm64", false, "mysql-9.7.2-linux-glibc2.28-aarch64.tar.xz"},
+		{"9.7", "darwin", "arm64", false, "mysql-9.7.2-macos15-arm64.tar.gz"},
+		{"26.7", "linux", "amd64", true, "mysql-26.7.0-linux-glibc2.28-x86_64-minimal.tar.xz"},
+		{"26.7", "linux", "arm64", false, "mysql-26.7.0-linux-glibc2.28-aarch64.tar.xz"},
+		{"26.7", "darwin", "arm64", false, "mysql-26.7.0-macos15-arm64.tar.gz"},
+	} {
+		tb, err := FindOrGuessTarballByVersionFlavorOS(tc.shortVersion, "mysql", tc.OS, tc.arch, tc.minimal, true, false)
+		if err != nil {
+			t.Errorf("%s %s/%s: %v", tc.shortVersion, tc.OS, tc.arch, err)
+			continue
+		}
+		if tb.Name != tc.expected {
+			t.Errorf("%s %s/%s: expected %s, got %s", tc.shortVersion, tc.OS, tc.arch, tc.expected, tb.Name)
+		}
 	}
 }
 
