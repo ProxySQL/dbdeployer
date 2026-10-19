@@ -29,6 +29,10 @@ set -u
 set -o pipefail
 
 # File containing latest version of dbdeployer
+# github.com redirects this URL to the latest release tag. It is not subject
+# to the API rate limit (60 unauthenticated requests per hour and IP), which
+# shared CI runners and NAT'd networks exhaust.
+latest_url=https://github.com/ProxySQL/dbdeployer/releases/latest
 version_url=https://api.github.com/repos/ProxySQL/dbdeployer/releases/latest
 
 # check_exit_code checks the return code of the previous command
@@ -124,11 +128,22 @@ then
 fi
 
 # (STEP 3) collects the latest version from GitHub
-dbdeployer_version=$(curl -s $version_url | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/')
-check_exit_code "curl -s $version_url"
+# A failed lookup must not stop the script silently (set -e, pipefail),
+# hence the '|| true': an empty version is reported below.
+dbdeployer_version=$(curl -sSfL -o /dev/null -w '%{url_effective}' "$latest_url" | sed -nE 's#.*/tag/v([0-9][^/]*)$#\1#p') || true
 if [ -z "${dbdeployer_version}" ]
 then
-    echo "error collecting version from ${version_file}"
+    # Fall back to the API, authenticated when GITHUB_TOKEN is set
+    auth_header=()
+    if [ -n "${GITHUB_TOKEN:-}" ]
+    then
+        auth_header=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+    fi
+    dbdeployer_version=$(curl -sSfL ${auth_header[@]+"${auth_header[@]}"} "$version_url" | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/') || true
+fi
+if [ -z "${dbdeployer_version}" ]
+then
+    echo "error collecting the latest dbdeployer version from $latest_url and $version_url"
     exit 1
 fi
 
