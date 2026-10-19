@@ -68,7 +68,7 @@ var downloadsSettings = map[TarballType]TarballDef{
 		NameInFile:  "mysql",
 		NameInUrl:   "mysql",
 		DownloadDir: "MySQL-VERSION",
-		Versions:    []string{"5.7", "8.0", "8.4", "9.0", "9.1", "9.2"},
+		Versions:    []string{"5.7", "8.0", "8.4", "9.0", "9.1", "9.2", "9.3", "9.4", "9.5", "9.6", "9.7", "26.7"},
 	},
 	TtShell: {
 		Flavor:      "shell",
