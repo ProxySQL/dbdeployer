@@ -113,7 +113,7 @@ func CreateAllMastersReplication(sandboxDef SandboxDef, origin string, nodes int
 	}
 
 	sandboxDef.GtidOptions = SingleTemplates[globals.TmplGtidOptions57].Contents
-	isMySQL84allMasters, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
+	isMySQL84allMasters := hasFeature(sandboxDef.Flavor, sandboxDef.Version, common.ResetBinaryLogs)
 	if isMySQL84allMasters {
 		// relay-log-recovery is still valid; use 8.4-specific template (no deprecated master-info-repository)
 		sandboxDef.ReplCrashSafeOptions = SingleTemplates[globals.TmplReplCrashSafeOptions84].Contents
@@ -188,7 +188,7 @@ func CreateAllMastersReplication(sandboxDef SandboxDef, origin string, nodes int
 	data["RplPassword"] = sandboxDef.RplPassword
 	data["NodeLabel"] = defaults.Defaults().NodePrefix
 	data["ChangeMasterExtra"] = setChangeMasterProperties("", sandboxDef.ChangeMasterOptions, logger)
-	replCmds := replicationCommands(sandboxDef.Version)
+	replCmds := replicationCommands(sandboxDef.Flavor, sandboxDef.Version)
 	for k, v := range replCmds {
 		data[k] = v
 	}
@@ -328,7 +328,7 @@ func CreateFanInReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 		slaveList = globals.SlaveListValue
 	}
 	sandboxDef.GtidOptions = SingleTemplates[globals.TmplGtidOptions57].Contents
-	isMySQL84fanIn, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
+	isMySQL84fanIn := hasFeature(sandboxDef.Flavor, sandboxDef.Version, common.ResetBinaryLogs)
 	if isMySQL84fanIn {
 		// relay-log-recovery is still valid; use 8.4-specific template (no deprecated master-info-repository)
 		sandboxDef.ReplCrashSafeOptions = SingleTemplates[globals.TmplReplCrashSafeOptions84].Contents
@@ -423,7 +423,7 @@ func CreateFanInReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 	data["NodeLabel"] = defaults.Defaults().NodePrefix
 	data["ChangeMasterExtra"] = setChangeMasterProperties("", sandboxDef.ChangeMasterOptions, logger)
 	data["MasterIp"] = masterIp
-	replCmds := replicationCommands(sandboxDef.Version)
+	replCmds := replicationCommands(sandboxDef.Flavor, sandboxDef.Version)
 	for k, v := range replCmds {
 		data[k] = v
 	}

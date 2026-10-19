@@ -716,7 +716,7 @@ func createSingleSandbox(sandboxDef SandboxDef) (execList []concurrent.Execution
 	}
 
 	// Use version-appropriate replication syntax for connection info
-	replCmds := replicationCommands(sandboxDef.Version)
+	replCmds := replicationCommands(sandboxDef.Flavor, sandboxDef.Version)
 	data["ChangeMasterTo"] = replCmds["ChangeMasterTo"]
 	data["MasterHostParam"] = replCmds["MasterHostParam"]
 	data["MasterPortParam"] = replCmds["MasterPortParam"]

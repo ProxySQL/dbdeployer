@@ -238,7 +238,7 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 		"StopNodeList":      stopNodeList,
 		"Nodes":             []common.StringMap{},
 	}
-	replCmds := replicationCommands(sandboxDef.Version)
+	replCmds := replicationCommands(sandboxDef.Flavor, sandboxDef.Version)
 	data["ChangeMasterTo"] = replCmds["ChangeMasterTo"]
 	data["MasterUserParam"] = replCmds["MasterUserParam"]
 	data["MasterPasswordParam"] = replCmds["MasterPasswordParam"]
@@ -290,7 +290,7 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 
 	// Select version-appropriate templates for group replication init
 	initNodesTmpl := globals.TmplInitNodes
-	isMySQL84, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
+	isMySQL84 := hasFeature(sandboxDef.Flavor, sandboxDef.Version, common.ResetBinaryLogs)
 	if isMySQL84 {
 		initNodesTmpl = globals.TmplInitNodes84
 	}
@@ -343,10 +343,10 @@ func CreateGroupReplication(sandboxDef SandboxDef, origin string, nodes int, mas
 		basePortText := fmt.Sprintf("%08d", basePort)
 
 		// Version-aware options for group replication
-		useReplicaUpdates, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumShowReplicaStatusVersion)
-		useNoWriteSetExtraction, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumNoWriteSetExtractionVersion)
+		useReplicaUpdates := hasFeature(sandboxDef.Flavor, sandboxDef.Version, common.ShowReplicaStatus)
+		useNoWriteSetExtraction := hasFeature(sandboxDef.Flavor, sandboxDef.Version, common.NoWriteSetExtraction)
 		// Use 8.4+ group replication options template when applicable
-		useMySQL84GroupOptions, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
+		useMySQL84GroupOptions := hasFeature(sandboxDef.Flavor, sandboxDef.Version, common.ResetBinaryLogs)
 
 		replicationData := common.StringMap{
 			"BasePort":               basePortText,

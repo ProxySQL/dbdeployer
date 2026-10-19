@@ -288,7 +288,7 @@ func replicationSandbox(cmd *cobra.Command, args []string) {
 		if isMinimumSync {
 			// MySQL 9.2+ removed semisync_master.so/semisync_slave.so;
 			// use semisync_source.so/semisync_replica.so instead.
-			useSourcePlugin, _ := common.GreaterOrEqualVersion(sd.Version, globals.MinimumSemisyncSourcePluginVersion)
+			useSourcePlugin, _ := common.HasCapability(sd.Flavor, common.SemisyncSourcePlugin, sd.Version)
 			if useSourcePlugin {
 				sd.SemiSyncOptions = sandbox.SingleTemplates[globals.TmplSemisyncSourceOptions].Contents
 			} else {

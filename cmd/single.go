@@ -402,7 +402,7 @@ func fillSandboxDefinition(cmd *cobra.Command, args []string, usingImport bool) 
 			sd.GtidOptions = sandbox.SingleTemplates[templateName].Contents
 			// Use 8.4+ crash-safe options template (no deprecated master-info-repository)
 			crashSafeTmpl := globals.TmplReplCrashSafeOptions
-			isMySQL84, _ := common.GreaterOrEqualVersion(sd.Version, globals.MinimumResetBinaryLogsVersion)
+			isMySQL84, _ := common.HasCapability(sd.Flavor, common.ResetBinaryLogs, sd.Version)
 			if isMySQL84 {
 				crashSafeTmpl = globals.TmplReplCrashSafeOptions84
 			}
@@ -426,7 +426,7 @@ func fillSandboxDefinition(cmd *cobra.Command, args []string, usingImport bool) 
 		if isMinimumCrashSafe {
 			// Use 8.4+ crash-safe options template (no deprecated master-info-repository)
 			crashSafeTmpl := globals.TmplReplCrashSafeOptions
-			isMySQL84, _ := common.GreaterOrEqualVersion(sd.Version, globals.MinimumResetBinaryLogsVersion)
+			isMySQL84, _ := common.HasCapability(sd.Flavor, common.ResetBinaryLogs, sd.Version)
 			if isMySQL84 {
 				crashSafeTmpl = globals.TmplReplCrashSafeOptions84
 			}

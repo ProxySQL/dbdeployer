@@ -172,7 +172,11 @@ func GetCompatibleClientVersion(basedir, serverVersion string) (string, error) {
 		if v == serverVersion {
 			return v, nil
 		}
-		isCompatible, err := GreaterOrEqualVersion(v, serverVersionList)
+		clientVersionList, err := VersionToList(v)
+		if err != nil {
+			return globals.EmptyString, err
+		}
+		isCompatible, err := GreaterOrEqualVersionList(clientVersionList, serverVersionList)
 		if err != nil {
 			return globals.EmptyString, err
 		}
@@ -653,8 +657,9 @@ func VersionToPort(version string) (int, error) {
 // So far (2018-02-19) this comparison holds, because MariaDB behaves like 5.5+ for
 // the purposes of sandbox deployment
 //
-// DEPRECATED as of 1.18.0
-// Use GreaterOrEqualVersionList and flavors instead
+// Deprecated: since 1.18.0. dbdeployer no longer uses it: use
+// HasCapability(flavor, feature, version) for features, and
+// GreaterOrEqualVersionList for plain version comparisons.
 func GreaterOrEqualVersion(version string, comparedTo []int) (bool, error) {
 	if len(comparedTo) != 3 {
 		return false, errors.Wrapf(fmt.Errorf("invalid slice size: %v", comparedTo), "GreaterOrEqualVersion:")

@@ -17,7 +17,12 @@
   Flavor-blind version checks treated every major from 10 as MariaDB, so
   26.x got pre-8.0 behaviour: `downloads get-by-version 26.7` failed, and the
   generated `test_replication` checked the old replication status columns.
-  Majors from 10 to 25 are still treated as MariaDB.
+  The replication syntax (SHOW REPLICA STATUS, CHANGE REPLICATION SOURCE,
+  SHOW BINARY LOG STATUS, RESET BINARY LOGS AND GTIDS, semisync source
+  plugins, 8.4 group replication options) is now decided by flavor
+  capabilities: the MySQL family (MySQL, Percona Server, PXC, NDB,
+  VillageSQL) gets it from the respective version, MariaDB never does.
+  `common.GreaterOrEqualVersion` is no longer used by dbdeployer.
 * Group replication sandboxes set `group_replication_communication_stack=XCOM`
   (8.4+). Each node uses a dedicated group communication port, which the
   MYSQL stack, the default from MySQL 26.x, does not support: nodes stayed

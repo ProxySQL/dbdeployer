@@ -86,6 +86,12 @@ const (
 	EmbedMySQLShell             = "embed-mysql-shell"
 	CloneServer                 = "clone-server"
 	CircularReplication         = "circular-replication"
+	ShowReplicaStatus           = "show-replica-status"
+	ChangeReplicationSource     = "change-replication-source"
+	ShowBinaryLogStatus         = "show-binary-log-status"
+	NoWriteSetExtraction        = "no-write-set-extraction"
+	ResetBinaryLogs             = "reset-binary-logs"
+	SemisyncSourcePlugin        = "semisync-source-plugin"
 )
 
 var MySQLCapabilities = Capabilities{
@@ -181,6 +187,33 @@ var MySQLCapabilities = Capabilities{
 		CircularReplication: {
 			Description: "Allow circular replication",
 			Since:       globals.MinimumMySQLAutoIncrementIncrement,
+		},
+		// The replication syntax features below exist only in the MySQL family
+		// (MySQL, Percona Server, PXC, NDB, VillageSQL). MariaDB keeps the
+		// historical syntax (CHANGE MASTER TO, SHOW SLAVE STATUS, ...).
+		ShowReplicaStatus: {
+			Description: "SHOW REPLICA STATUS, START/STOP/RESET REPLICA",
+			Since:       globals.MinimumShowReplicaStatusVersion,
+		},
+		ChangeReplicationSource: {
+			Description: "CHANGE REPLICATION SOURCE TO",
+			Since:       globals.MinimumChangeReplicationSourceVersion,
+		},
+		ShowBinaryLogStatus: {
+			Description: "SHOW BINARY LOG STATUS",
+			Since:       globals.MinimumShowBinaryLogStatusVersion,
+		},
+		NoWriteSetExtraction: {
+			Description: "transaction_write_set_extraction removed",
+			Since:       globals.MinimumNoWriteSetExtractionVersion,
+		},
+		ResetBinaryLogs: {
+			Description: "RESET BINARY LOGS AND GTIDS, 8.4 replication options",
+			Since:       globals.MinimumResetBinaryLogsVersion,
+		},
+		SemisyncSourcePlugin: {
+			Description: "semisync_source / semisync_replica plugins",
+			Since:       globals.MinimumSemisyncSourcePluginVersion,
 		},
 	},
 }
@@ -332,6 +365,12 @@ var NdbCapabilities = Capabilities{
 			Description: "MySQL NDB Cluster",
 			Since:       globals.MinimumNdbClusterVersion,
 		},
+		ShowReplicaStatus:       MySQLCapabilities.Features[ShowReplicaStatus],
+		ChangeReplicationSource: MySQLCapabilities.Features[ChangeReplicationSource],
+		ShowBinaryLogStatus:     MySQLCapabilities.Features[ShowBinaryLogStatus],
+		NoWriteSetExtraction:    MySQLCapabilities.Features[NoWriteSetExtraction],
+		ResetBinaryLogs:         MySQLCapabilities.Features[ResetBinaryLogs],
+		SemisyncSourcePlugin:    MySQLCapabilities.Features[SemisyncSourcePlugin],
 	},
 }
 
