@@ -238,7 +238,13 @@ func FindOrGuessTarballByVersionFlavorOS(version, flavor, OS, arch string, minim
 	}
 	var tbd []TarballDescription
 	newestVersionList := []int{0, 0, 0}
+	// MariaDB tarballs are resolved through the MariaDB Foundation API
+	// (below), which knows the newest releases: registry entries are not
+	// used for them.
 	for _, tb := range DefaultTarballRegistry.Tarballs {
+		if flavor == common.MariaDbFlavor {
+			break
+		}
 		archMatch := true
 		if tb.Arch != "" {
 			archMatch = strings.ToLower(tb.Arch) == arch
@@ -255,10 +261,10 @@ func FindOrGuessTarballByVersionFlavorOS(version, flavor, OS, arch string, minim
 				}
 			}
 			tbd = append(tbd, tb)
-			greatest, err := common.GreaterOrEqualVersion(tb.Version, newestVersionList)
-			if err == nil && greatest {
-				versionList, err := common.VersionToList(tb.Version)
-				if err == nil {
+			versionList, err := common.VersionToList(tb.Version)
+			if err == nil {
+				greatest, err := common.GreaterOrEqualVersionList(versionList, newestVersionList)
+				if err == nil && greatest {
 					newestVersionList = versionList
 				}
 			}
@@ -293,7 +299,8 @@ func FindOrGuessTarballByVersionFlavorOS(version, flavor, OS, arch string, minim
 		newest = true
 		newestEntry := tbd[0]
 		for _, tb := range tbd {
-			isGreater, _ := common.GreaterOrEqualVersion(tb.Version, newestVersionList)
+			versionList, _ := common.VersionToList(tb.Version)
+			isGreater, _ := common.GreaterOrEqualVersionList(versionList, newestVersionList)
 			if isGreater || tb.Version == fmt.Sprintf("%d.%d.%d", newestVersionList[0], newestVersionList[1], newestVersionList[2]) {
 				newestEntry = tb
 			}

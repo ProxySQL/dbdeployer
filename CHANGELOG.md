@@ -2,11 +2,46 @@
 
 ## BUGS FIXED
 
+* `dbdeployer downloads add-remote` no longer limits MySQL, MySQL Cluster and
+  MySQL Shell to a fixed list of release series (issue #149): any series in
+  the form `major.minor` is accepted (e.g. `9.7`, `26.7`), and the download
+  site decides whether it exists. New releases no longer need a dbdeployer
+  update.
+* `add-remote` for a series that the download site does not list (for
+  example a retired innovation release such as 9.2) used to register the
+  tarballs of the current default release instead, because the site answers
+  such requests with the default page. Only tarballs that belong to the
+  requested series are now registered; otherwise the command fails and names
+  the series the site offered.
+* MySQL 26.x (calendar versions, starting with 26.7) is now treated as MySQL.
+  Flavor-blind version checks treated every major from 10 as MariaDB, so
+  26.x got pre-8.0 behaviour: `downloads get-by-version 26.7` failed, and the
+  generated `test_replication` checked the old replication status columns.
+  The replication syntax (SHOW REPLICA STATUS, CHANGE REPLICATION SOURCE,
+  SHOW BINARY LOG STATUS, RESET BINARY LOGS AND GTIDS, semisync source
+  plugins, 8.4 group replication options) is now decided by flavor
+  capabilities: the MySQL family (MySQL, Percona Server, PXC, NDB,
+  VillageSQL) gets it from the respective version, MariaDB never does.
+  `common.GreaterOrEqualVersion` is no longer used by dbdeployer.
+* Group replication sandboxes set `group_replication_communication_stack=XCOM`
+  (8.4+). Each node uses a dedicated group communication port, which the
+  MYSQL stack, the default from MySQL 26.x, does not support: nodes stayed
+  OFFLINE.
+* `add-remote` registers ARM and MySQL Shell tarballs with the architecture
+  names used by the registry (`arm64`, `amd64`), so they are found by
+  `get-by-version` on those platforms (they were `aarch64`, `x86-64`, `arm-64`).
 * The `start` script of a ProxySQL sandbox now waits until the admin
   interface accepts connections (up to 30 seconds), instead of returning
   2 seconds after the PID file appears. On a slow host the admin port could
   still be closed when `deploy proxysql` returned, so the first `use`
   failed with `ERROR 2003 ... (111)`.
+
+## NEW FEATURES
+
+* Tarball registry: MySQL 9.7.2 and 26.7.0 (Linux x86_64 and aarch64, macOS).
+* CI deploys MySQL 9.7.2 and 26.7.0 (single, replication, group replication,
+  fan-in, all-masters, get-by-version), and 26.7.0 with InnoDB Cluster and
+  ProxySQL.
 
 ## 2.4.2	29-Sep-2026
 

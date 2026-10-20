@@ -29,7 +29,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-func replicationCommands(version string) map[string]string {
+// hasFeature tells whether a flavor and version support a feature.
+// An empty flavor is MySQL, as in CreateChildSandbox.
+func hasFeature(flavor, version, feature string) bool {
+	if flavor == "" {
+		flavor = common.MySQLFlavor
+	}
+	result, _ := common.HasCapability(flavor, feature, version)
+	return result
+}
+
+func replicationCommands(flavor, version string) map[string]string {
 	cmds := map[string]string{
 		"ShowMasterStatus":    "show master status",
 		"ShowSlaveStatus":     "show slave status",
@@ -45,7 +55,7 @@ func replicationCommands(version string) map[string]string {
 		"MasterPasswordParam": "master_password",
 	}
 
-	useReplicaStatus, _ := common.GreaterOrEqualVersion(version, globals.MinimumShowReplicaStatusVersion)
+	useReplicaStatus := hasFeature(flavor, version, common.ShowReplicaStatus)
 	if useReplicaStatus {
 		cmds["ShowSlaveStatus"] = "show replica status"
 		cmds["StartReplica"] = "START REPLICA"
@@ -54,7 +64,7 @@ func replicationCommands(version string) map[string]string {
 		cmds["MasterPosWaitFunc"] = "source_pos_wait"
 	}
 
-	useChangeSource, _ := common.GreaterOrEqualVersion(version, globals.MinimumChangeReplicationSourceVersion)
+	useChangeSource := hasFeature(flavor, version, common.ChangeReplicationSource)
 	if useChangeSource {
 		cmds["ChangeMasterTo"] = "CHANGE REPLICATION SOURCE TO"
 		cmds["MasterHostParam"] = "source_host"
@@ -63,12 +73,12 @@ func replicationCommands(version string) map[string]string {
 		cmds["MasterPasswordParam"] = "source_password"
 	}
 
-	useBinaryLogStatus, _ := common.GreaterOrEqualVersion(version, globals.MinimumShowBinaryLogStatusVersion)
+	useBinaryLogStatus := hasFeature(flavor, version, common.ShowBinaryLogStatus)
 	if useBinaryLogStatus {
 		cmds["ShowMasterStatus"] = "show binary log status"
 	}
 
-	useResetBinaryLogs, _ := common.GreaterOrEqualVersion(version, globals.MinimumResetBinaryLogsVersion)
+	useResetBinaryLogs := hasFeature(flavor, version, common.ResetBinaryLogs)
 	if useResetBinaryLogs {
 		cmds["ResetMasterCmd"] = "RESET BINARY LOGS AND GTIDS"
 	}
@@ -225,7 +235,7 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 	changeMasterExtra := ""
 	masterAutoPosition := ""
 	if sandboxDef.GtidOptions != "" {
-		useSourceAutoPosition, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumChangeReplicationSourceVersion)
+		useSourceAutoPosition := hasFeature(sandboxDef.Flavor, sandboxDef.Version, common.ChangeReplicationSource)
 		if useSourceAutoPosition {
 			masterAutoPosition = ", SOURCE_AUTO_POSITION=1"
 			logger.Printf("Adding SOURCE_AUTO_POSITION to slaves setup\n")
@@ -242,7 +252,7 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 	}
 	if isMinimumNativeAuthPlugin {
 		if !sandboxDef.NativeAuthPlugin {
-			useNewSourceSyntax, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumChangeReplicationSourceVersion)
+			useNewSourceSyntax := hasFeature(sandboxDef.Flavor, sandboxDef.Version, common.ChangeReplicationSource)
 			if useNewSourceSyntax {
 				sandboxDef.ChangeMasterOptions = append(sandboxDef.ChangeMasterOptions, "GET_SOURCE_PUBLIC_KEY=1")
 			} else {
@@ -258,7 +268,7 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 	timestamp := time.Now()
 
 	changeMasterExtra = setChangeMasterProperties(changeMasterExtra, sandboxDef.ChangeMasterOptions, logger)
-	replCmds := replicationCommands(sandboxDef.Version)
+	replCmds := replicationCommands(sandboxDef.Flavor, sandboxDef.Version)
 	var data = common.StringMap{
 		"ShellPath":          sandboxDef.ShellPath,
 		"Copyright":          globals.ShellScriptCopyright,
@@ -431,7 +441,7 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 		}
 		if sandboxDef.SemiSyncOptions != "" {
 			// Use replica plugin for MySQL 9.2+ (old slave plugin removed)
-			useSourcePlugin, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumSemisyncSourcePluginVersion)
+			useSourcePlugin := hasFeature(sandboxDef.Flavor, sandboxDef.Version, common.SemisyncSourcePlugin)
 			if useSourcePlugin {
 				sandboxDef.SemiSyncOptions = SingleTemplates[globals.TmplSemisyncReplicaOptions].Contents
 			} else {
@@ -512,7 +522,7 @@ func CreateMasterSlaveReplication(sandboxDef SandboxDef, origin string, nodes in
 
 	// Select the appropriate init_slaves template based on MySQL version
 	initSlavesTemplate := globals.TmplInitSlaves
-	useNewSourceSyntax, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumChangeReplicationSourceVersion)
+	useNewSourceSyntax := hasFeature(sandboxDef.Flavor, sandboxDef.Version, common.ChangeReplicationSource)
 	if useNewSourceSyntax {
 		initSlavesTemplate = globals.TmplInitSlaves84
 	}

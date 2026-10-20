@@ -92,7 +92,9 @@ func updateDbDeployer(cmd *cobra.Command, args []string) {
 			"Download canceled",
 		)
 	}
-	foundOldVersion, err := common.GreaterOrEqualVersion(common.VersionDef, tagList)
+	currentList, err := common.VersionToList(common.VersionDef)
+	common.ErrCheckExitf(err, 1, "error comparing remote tag %s to dbdeployer version %s", tag, common.VersionDef)
+	foundOldVersion, err := common.GreaterOrEqualVersionList(currentList, tagList)
 	common.ErrCheckExitf(err, 1, "error comparing remote tag %s to dbdeployer version %s", tag, common.VersionDef)
 	if foundOldVersion && !forceOldVersion {
 		common.Exit(0,

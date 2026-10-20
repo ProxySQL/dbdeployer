@@ -172,7 +172,11 @@ func GetCompatibleClientVersion(basedir, serverVersion string) (string, error) {
 		if v == serverVersion {
 			return v, nil
 		}
-		isCompatible, err := GreaterOrEqualVersion(v, serverVersionList)
+		clientVersionList, err := VersionToList(v)
+		if err != nil {
+			return globals.EmptyString, err
+		}
+		isCompatible, err := GreaterOrEqualVersionList(clientVersionList, serverVersionList)
 		if err != nil {
 			return globals.EmptyString, err
 		}
@@ -647,12 +651,15 @@ func VersionToPort(version string) (int, error) {
 // "5.6.33" >= []int{5,7,0}  = false
 // "5.7.21" >= []int{5,7,0}  = true
 // "10.1.21" >= []int{5,7,0}  = false (!)
-// Note: MariaDB versions are skipped. The function returns false for MariaDB 10+.
+// "26.7.0" >= []int{8,0,23}  = true
+// Note: MariaDB versions are skipped. The function returns false for majors
+// from 10 to 25 (MariaDB 10+). Majors from 26 are MySQL calendar versions.
 // So far (2018-02-19) this comparison holds, because MariaDB behaves like 5.5+ for
 // the purposes of sandbox deployment
 //
-// DEPRECATED as of 1.18.0
-// Use GreaterOrEqualVersionList and flavors instead
+// Deprecated: since 1.18.0. dbdeployer no longer uses it: use
+// HasCapability(flavor, feature, version) for features, and
+// GreaterOrEqualVersionList for plain version comparisons.
 func GreaterOrEqualVersion(version string, comparedTo []int) (bool, error) {
 	if len(comparedTo) != 3 {
 		return false, errors.Wrapf(fmt.Errorf("invalid slice size: %v", comparedTo), "GreaterOrEqualVersion:")
@@ -671,13 +678,15 @@ func GreaterOrEqualVersion(version string, comparedTo []int) (bool, error) {
 
 	// MariaDB 10.x and 11.x retain the historical replication syntax
 	// (CHANGE MASTER TO, show slave status, master_pos_wait, etc.) and do
-	// not adopt the MySQL 8.0.23+ SOURCE-named replacements. MySQL itself
-	// has not shipped a 10.x or 11.x major line, so treating any version
-	// with major >= 10 as MariaDB is safe in practice. Without this guard,
-	// MariaDB 11+ was being treated as "newer than MySQL 8.0.23" and the
-	// generated init_slaves script emitted CHANGE REPLICATION SOURCE TO,
-	// which MariaDB rejects with a syntax error (issue #82).
-	if major >= 10 {
+	// not adopt the MySQL 8.0.23+ SOURCE-named replacements. MySQL never
+	// shipped a major between 10 and 25, so treating those majors as
+	// MariaDB is safe in practice. Without this guard, MariaDB 11+ was
+	// being treated as "newer than MySQL 8.0.23" and the generated
+	// init_slaves script emitted CHANGE REPLICATION SOURCE TO, which
+	// MariaDB rejects with a syntax error (issue #82).
+	// From 26.x, MySQL uses calendar versions (26.7 is the release of
+	// 2026), which must be compared as MySQL versions.
+	if major >= 10 && major < globals.MinimumMySQLCalendarMajor {
 		return false, nil
 	}
 	versionText := fmt.Sprintf("%02d%02d%02d", major, minor, rev)

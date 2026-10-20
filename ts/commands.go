@@ -311,7 +311,9 @@ var manifestByVersion = map[string][]conditionalFile{
 func checkConditionalFiles(sbType, version, dir string) error {
 	for condVersion, condFile := range manifestByVersion {
 		condVersionList, _ := common.VersionToList(condVersion)
-		isAfter, _ := common.GreaterOrEqualVersion(version, condVersionList)
+		// The ts suites deploy MySQL only
+		versionList, _ := common.VersionToList(version)
+		isAfter, _ := common.GreaterOrEqualVersionList(versionList, condVersionList)
 		for _, f := range condFile {
 			if sbType != f.sandboxType {
 				continue

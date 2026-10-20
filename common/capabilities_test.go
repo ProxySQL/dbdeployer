@@ -130,3 +130,60 @@ func TestCopyCapabilities(t *testing.T) {
 	}
 	testHasCapability(capabilitiesList, t)
 }
+
+// The replication syntax is decided by flavor, not by version number: MySQL
+// 26.x (calendar versions) uses the new syntax, while MariaDB keeps the
+// historical one at any version.
+func TestReplicationSyntaxCapabilities(t *testing.T) {
+	features := []string{
+		ShowReplicaStatus,
+		ChangeReplicationSource,
+		ShowBinaryLogStatus,
+		NoWriteSetExtraction,
+		ResetBinaryLogs,
+		SemisyncSourcePlugin,
+	}
+	mysqlFamily := []string{MySQLFlavor, PerconaServerFlavor, PxcFlavor, NdbFlavor, VillageSQLFlavor}
+	for _, flavor := range mysqlFamily {
+		for _, feature := range features {
+			for _, version := range []string{"9.7.2", "26.7.0", "27.1.0"} {
+				has, err := HasCapability(flavor, feature, version)
+				if err != nil || !has {
+					t.Errorf("%s %s should have %s (err: %v)", flavor, version, feature, err)
+				}
+			}
+			has, _ := HasCapability(flavor, feature, "5.7.44")
+			if has {
+				t.Errorf("%s 5.7.44 should not have %s", flavor, feature)
+			}
+		}
+	}
+	for _, feature := range features {
+		for _, version := range []string{"10.11.9", "11.4.13", "12.3.3", "13.0.2", "26.7.0"} {
+			has, _ := HasCapability(MariaDbFlavor, feature, version)
+			if has {
+				t.Errorf("mariadb %s should not have %s", version, feature)
+			}
+		}
+	}
+
+	thresholds := []struct {
+		feature string
+		below   string
+		since   string
+	}{
+		{ShowReplicaStatus, "8.0.21", "8.0.22"},
+		{ChangeReplicationSource, "8.0.22", "8.0.23"},
+		{ShowBinaryLogStatus, "8.1.0", "8.2.0"},
+		{NoWriteSetExtraction, "8.2.0", "8.3.0"},
+		{ResetBinaryLogs, "8.3.0", "8.4.0"},
+		{SemisyncSourcePlugin, "9.1.0", "9.2.0"},
+	}
+	for _, th := range thresholds {
+		before, _ := HasCapability(MySQLFlavor, th.feature, th.below)
+		after, _ := HasCapability(MySQLFlavor, th.feature, th.since)
+		if before || !after {
+			t.Errorf("%s: expected false at %s and true at %s, got %v and %v", th.feature, th.below, th.since, before, after)
+		}
+	}
+}

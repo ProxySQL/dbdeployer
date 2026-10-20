@@ -23,6 +23,8 @@ jobs:
           - '8.4.4'
           - '9.1.0'
           - '9.5.0'
+          - '9.7.2'
+          - '26.7.0'
     env:
       GO111MODULE: on
       SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
@@ -52,11 +54,12 @@ jobs:
         run: |
           SHORT_VER=$(echo "$MYSQL_VERSION" | grep -oP '^\d+\.\d+')
           # MySQL 5.6 ships as .tar.gz built against glibc2.12; 5.7+ ships
-          # as .tar.xz built against glibc2.17.
+          # as .tar.xz built against glibc2.17; 9.6+ only against glibc2.28.
           if [ "$SHORT_VER" = "5.6" ]; then
             TARBALL="mysql-${MYSQL_VERSION}-linux-glibc2.12-x86_64.tar.gz"
           else
-            TARBALL="mysql-${MYSQL_VERSION}-linux-glibc2.17-x86_64.tar.xz"
+            case "$SHORT_VER" in 5.*|8.*|9.[0-5]) GLIBC=2.17 ;; *) GLIBC=2.28 ;; esac
+            TARBALL="mysql-${MYSQL_VERSION}-linux-glibc${GLIBC}-x86_64.tar.xz"
           fi
           echo "SHORT_VER=$SHORT_VER" >> "$GITHUB_ENV"
           echo "TARBALL=$TARBALL" >> "$GITHUB_ENV"
@@ -575,9 +578,11 @@ jobs:
       - name: Download MySQL versions
         run: |
           mkdir -p "$SANDBOX_BINARY"
-          for VER in 8.0.42 8.4.8 9.5.0; do
+          for VER in 8.0.42 8.4.8 9.5.0 9.7.2 26.7.0; do
             SHORT="${VER%.*}"
-            TARBALL="mysql-${VER}-linux-glibc2.17-x86_64-minimal.tar.xz"
+            # MySQL 9.6+ ships Linux tarballs built against glibc2.28 only
+            case "$SHORT" in 5.*|8.*|9.[0-5]) GLIBC=2.17 ;; *) GLIBC=2.28 ;; esac
+            TARBALL="mysql-${VER}-linux-glibc${GLIBC}-x86_64-minimal.tar.xz"
             echo "Downloading $VER..."
             curl -L -f -s -o "/tmp/$TARBALL" \
               "https://dev.mysql.com/get/Downloads/MySQL-${SHORT}/$TARBALL" \
@@ -591,7 +596,7 @@ jobs:
 
       - name: Run ts replication tests (MySQL)
         env:
-          TEST_SHORT_VERSIONS: "8.0,8.4,9.5"
+          TEST_SHORT_VERSIONS: "8.0,8.4,9.5,9.7,26.7"
         run: |
           export HOME="$GITHUB_WORKSPACE/home"
           mkdir -p "$HOME/sandboxes" "$HOME/.dbdeployer"
@@ -600,7 +605,7 @@ jobs:
           mkdir -p "$HOME/opt"
           ln -sf "$SANDBOX_BINARY" "$HOME/opt/mysql"
           export PATH="$GITHUB_WORKSPACE:$PATH"
-          go test ./ts/ -v -count=1 -run TestReplication -timeout 30m
+          go test ./ts/ -v -count=1 -run TestReplication -timeout 45m
 
       - name: Cleanup MySQL
         if: always()
@@ -954,6 +959,8 @@ jobs:
         mysql-version:
           - '8.4.8'
           - '9.5.0'
+          # Shell and Router 9.7.2 were not released (9.7.1 is the latest)
+          - '26.7.0'
     env:
       GO111MODULE: on
       SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
@@ -984,7 +991,9 @@ jobs:
           SHORT_VER_ENV: ${{ matrix.mysql-version }}
         run: |
           SHORT_VER="${SHORT_VER_ENV%.*}"
-          TARBALL="mysql-${MYSQL_VERSION}-linux-glibc2.17-x86_64.tar.xz"
+          # MySQL 9.6+ ships Linux tarballs built against glibc2.28 only
+          case "$SHORT_VER" in 5.*|8.*|9.[0-5]) GLIBC=2.17 ;; *) GLIBC=2.28 ;; esac
+          TARBALL="mysql-${MYSQL_VERSION}-linux-glibc${GLIBC}-x86_64.tar.xz"
           mkdir -p /tmp/mysql-tarball
           if [ ! -f "/tmp/mysql-tarball/$TARBALL" ]; then
             curl -L -f -o "/tmp/mysql-tarball/$TARBALL" \
@@ -998,7 +1007,8 @@ jobs:
           SHORT_VER_ENV: ${{ matrix.mysql-version }}
         run: |
           SHORT_VER="${SHORT_VER_ENV%.*}"
-          SHELL_TARBALL="mysql-shell-${MYSQL_VERSION}-linux-glibc2.17-x86-64bit.tar.gz"
+          case "$SHORT_VER" in 5.*|8.*|9.[0-5]) GLIBC=2.17 ;; *) GLIBC=2.28 ;; esac
+          SHELL_TARBALL="mysql-shell-${MYSQL_VERSION}-linux-glibc${GLIBC}-x86-64bit.tar.gz"
           echo "Downloading MySQL Shell ${MYSQL_VERSION}..."
           curl -L -f -o "/tmp/$SHELL_TARBALL" \
             "https://dev.mysql.com/get/Downloads/MySQL-Shell-${SHORT_VER}/$SHELL_TARBALL"
@@ -1018,7 +1028,8 @@ jobs:
           SHORT_VER_ENV: ${{ matrix.mysql-version }}
         run: |
           SHORT_VER="${SHORT_VER_ENV%.*}"
-          ROUTER_TARBALL="mysql-router-${MYSQL_VERSION}-linux-glibc2.17-x86_64.tar.xz"
+          case "$SHORT_VER" in 5.*|8.*|9.[0-5]) GLIBC=2.17 ;; *) GLIBC=2.28 ;; esac
+          ROUTER_TARBALL="mysql-router-${MYSQL_VERSION}-linux-glibc${GLIBC}-x86_64.tar.xz"
           echo "Downloading MySQL Router ${MYSQL_VERSION}..."
           curl -L -f -o "/tmp/$ROUTER_TARBALL" \
             "https://dev.mysql.com/get/Downloads/MySQL-Router-${SHORT_VER}/$ROUTER_TARBALL"
@@ -1195,6 +1206,8 @@ jobs:
         short-version:
           - '8.4'
           - '9.5'
+          - '9.7'
+          - '26.7'
     env:
       GO111MODULE: on
       SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
@@ -1253,6 +1266,8 @@ jobs:
       matrix:
         mysql-version:
           - '8.4.8'
+          - '9.7.2'
+          - '26.7.0'
     env:
       GO111MODULE: on
       SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
@@ -1283,7 +1298,9 @@ jobs:
           SHORT_VER_ENV: ${{ matrix.mysql-version }}
         run: |
           SHORT_VER="${SHORT_VER_ENV%.*}"
-          TARBALL="mysql-${MYSQL_VERSION}-linux-glibc2.17-x86_64.tar.xz"
+          # MySQL 9.6+ ships Linux tarballs built against glibc2.28 only
+          case "$SHORT_VER" in 5.*|8.*|9.[0-5]) GLIBC=2.17 ;; *) GLIBC=2.28 ;; esac
+          TARBALL="mysql-${MYSQL_VERSION}-linux-glibc${GLIBC}-x86_64.tar.xz"
           mkdir -p /tmp/mysql-tarball
           if [ ! -f "/tmp/mysql-tarball/$TARBALL" ]; then
             curl -L -f -o "/tmp/mysql-tarball/$TARBALL" \
@@ -1399,6 +1416,8 @@ jobs:
       matrix:
         mysql-version:
           - '8.4.8'
+          - '9.7.2'
+          - '26.7.0'
     env:
       GO111MODULE: on
       SANDBOX_BINARY: ${{ github.workspace }}/opt/mysql
@@ -1429,7 +1448,9 @@ jobs:
           SHORT_VER_ENV: ${{ matrix.mysql-version }}
         run: |
           SHORT_VER="${SHORT_VER_ENV%.*}"
-          TARBALL="mysql-${MYSQL_VERSION}-linux-glibc2.17-x86_64.tar.xz"
+          # MySQL 9.6+ ships Linux tarballs built against glibc2.28 only
+          case "$SHORT_VER" in 5.*|8.*|9.[0-5]) GLIBC=2.17 ;; *) GLIBC=2.28 ;; esac
+          TARBALL="mysql-${MYSQL_VERSION}-linux-glibc${GLIBC}-x86_64.tar.xz"
           mkdir -p /tmp/mysql-tarball
           if [ ! -f "/tmp/mysql-tarball/$TARBALL" ]; then
             curl -L -f -o "/tmp/mysql-tarball/$TARBALL" \

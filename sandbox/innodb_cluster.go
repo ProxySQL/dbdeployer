@@ -277,7 +277,7 @@ func CreateInnoDBCluster(sandboxDef SandboxDef, origin string, nodes int, master
 		stopNodeList += fmt.Sprintf(" %d", i)
 	}
 
-	replCmds := replicationCommands(sandboxDef.Version)
+	replCmds := replicationCommands(sandboxDef.Flavor, sandboxDef.Version)
 
 	// Build the connection string for GR seeds
 	connectionString := ""
@@ -357,7 +357,7 @@ func CreateInnoDBCluster(sandboxDef SandboxDef, origin string, nodes int, master
 
 	// Version-aware group replication init template
 	initNodesTmpl := globals.TmplInitNodes
-	isMySQL84, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
+	isMySQL84 := hasFeature(sandboxDef.Flavor, sandboxDef.Version, common.ResetBinaryLogs)
 	if isMySQL84 {
 		initNodesTmpl = globals.TmplInitNodes84
 	}
@@ -417,9 +417,9 @@ func CreateInnoDBCluster(sandboxDef SandboxDef, origin string, nodes int, master
 		basePortText := fmt.Sprintf("%08d", basePort)
 
 		// Version-aware options for group replication
-		useReplicaUpdates, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumShowReplicaStatusVersion)
-		useNoWriteSetExtraction, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumNoWriteSetExtractionVersion)
-		useMySQL84GroupOptions, _ := common.GreaterOrEqualVersion(sandboxDef.Version, globals.MinimumResetBinaryLogsVersion)
+		useReplicaUpdates := hasFeature(sandboxDef.Flavor, sandboxDef.Version, common.ShowReplicaStatus)
+		useNoWriteSetExtraction := hasFeature(sandboxDef.Flavor, sandboxDef.Version, common.NoWriteSetExtraction)
+		useMySQL84GroupOptions := hasFeature(sandboxDef.Flavor, sandboxDef.Version, common.ResetBinaryLogs)
 
 		replicationData := common.StringMap{
 			"BasePort":               basePortText,

@@ -19,6 +19,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -31,7 +32,6 @@ type TarballDef struct {
 	NameInFile  string
 	NameInUrl   string
 	DownloadDir string
-	Versions    []string
 }
 type TarballType string
 
@@ -61,23 +61,22 @@ var downloadsSettings = map[TarballType]TarballDef{
 		NameInFile:  "mysql-cluster",
 		NameInUrl:   "cluster",
 		DownloadDir: "MySQL-Cluster-VERSION",
-		Versions:    []string{"7.6", "8.0", "8.4", "9.0"},
 	},
 	TtMysql: {
 		Flavor:      "mysql",
 		NameInFile:  "mysql",
 		NameInUrl:   "mysql",
 		DownloadDir: "MySQL-VERSION",
-		Versions:    []string{"5.7", "8.0", "8.4", "9.0", "9.1", "9.2"},
 	},
 	TtShell: {
 		Flavor:      "shell",
 		NameInFile:  "mysql-shell",
 		NameInUrl:   "shell",
 		DownloadDir: "MySQL-Shell-VERSION",
-		Versions:    []string{"8.0", "8.4", "9.0"},
 	},
 }
+
+var reReleaseSeries = regexp.MustCompile(`^\d+\.\d+$`)
 
 var (
 	userAgentLinux = strings.Replace(preferredUserAgentLinux, "XXXX", common.VersionDef, -1)
@@ -128,14 +127,11 @@ func validateTarballRequest(tarballType TarballType, version string, OS string) 
 	if !foundSettings {
 		return "", fmt.Errorf("unrecognized tarball type %s: it must be one of [%s, %s, %s] ", OS, TtMysql, TtCluster, TtShell)
 	}
-	acceptedVersion := false
-	for _, v := range settings.Versions {
-		if v == version {
-			acceptedVersion = true
-		}
-	}
-	if !acceptedVersion {
-		return "", fmt.Errorf("version '%s' is not accepted for tarball type %s: it must be one of [%v] ", version, tarballType, settings.Versions)
+	// Any release series is accepted, as long as it has the form "major.minor".
+	// Whether the series is actually available is decided by the download
+	// site, and verified in parseRemoteTarballPage.
+	if !reReleaseSeries.MatchString(version) {
+		return "", fmt.Errorf("version '%s' is not accepted for tarball type %s: it must be a release series in the form 'major.minor' (e.g. 8.4)", version, settings.Flavor)
 	}
 	return OS, nil
 }
@@ -164,25 +160,6 @@ func GetRemoteTarballList(tarballType TarballType, version, OS string, withSize,
 
 	client := &http.Client{}
 
-	var matches [][]string
-	var result []TarballDescription
-	reVersions := regexp.MustCompile(`((\d+\.\d+)\.\d+)`)
-	/*
-		reLine := regexp.MustCompile(fmt.Sprintf(
-			`\(` +                                   // An open parenthesis
-				`(` +                                // start capture
-				downloads[tarballType].NameInFile +  // the tarball type (mysql | cluster | shell)
-				`-\d+\.\d+\.\d+` +                   // A version
-				`[^\)]+` +                           // more characters except a closed parenthesis
-				`\S+64`                             // x86-64 or x86_64 or amd64
-				`[^\)]+` +                           // more characters except a closed parenthesis
-				`z)` +                               // a "z" (as in .gz or .xz) followed by a end capture
-				`\)` +                               // a closed parenthesis
-				`.*?MD5:` +                          // any character up to "MD5:"
-				`\s*` +                              // optional spaces
-				`(\w+)`))                            // Capture a string of alphanumeric characters (the checksum)
-	*/
-	reLine := regexp.MustCompile(fmt.Sprintf(`\((%s-\d+\.\d+\.\d+[^\)]+-(\S+64)[^\)]+z)\).*?MD5:\s*(\w+)`, downloadsSettings[tarballType].NameInFile))
 	req, _ := http.NewRequest(http.MethodGet, pageUrl, nil)
 	req.Header.Add("User-Agent", userAgent)
 
@@ -209,7 +186,37 @@ func GetRemoteTarballList(tarballType TarballType, version, OS string, withSize,
 		return nil, err
 	}
 
-	matches = reLine.FindAllStringSubmatch(text, -1)
+	return parseRemoteTarballPage(tarballType, version, OS, text, userAgent, withSize)
+}
+
+// parseRemoteTarballPage extracts the tarballs of the requested release series
+// from the text of a downloads page.
+// The download site does not reject a release series it no longer lists (or
+// never had): it serves the page of the current default release instead.
+// Only tarballs whose version belongs to the requested series are returned, so
+// that a request for an unavailable series fails instead of silently
+// registering tarballs of a different series.
+func parseRemoteTarballPage(tarballType TarballType, version, OS, text, userAgent string, withSize bool) ([]TarballDescription, error) {
+	var result []TarballDescription
+	reVersions := regexp.MustCompile(`((\d+\.\d+)\.\d+)`)
+	/*
+		reLine := regexp.MustCompile(fmt.Sprintf(
+			`\(` +                                   // An open parenthesis
+				`(` +                                // start capture
+				downloads[tarballType].NameInFile +  // the tarball type (mysql | cluster | shell)
+				`-\d+\.\d+\.\d+` +                   // A version
+				`[^\)]+` +                           // more characters except a closed parenthesis
+				`\S+64`                             // x86-64 or x86_64 or amd64
+				`[^\)]+` +                           // more characters except a closed parenthesis
+				`z)` +                               // a "z" (as in .gz or .xz) followed by a end capture
+				`\)` +                               // a closed parenthesis
+				`.*?MD5:` +                          // any character up to "MD5:"
+				`\s*` +                              // optional spaces
+				`(\w+)`))                            // Capture a string of alphanumeric characters (the checksum)
+	*/
+	reLine := regexp.MustCompile(fmt.Sprintf(`\((%s-\d+\.\d+\.\d+[^\)]+-(\S+64)[^\)]+z)\).*?MD5:\s*(\w+)`, downloadsSettings[tarballType].NameInFile))
+
+	matches := reLine.FindAllStringSubmatch(text, -1)
 	if len(matches) == 0 {
 		if common.IsEnvSet("SBDEBUG") {
 			fmt.Printf("With user agent '%s'\n", userAgent)
@@ -221,6 +228,7 @@ func GetRemoteTarballList(tarballType TarballType, version, OS string, withSize,
 		return nil, fmt.Errorf("no %s tarballs found for %s", tarballType, version)
 	}
 
+	var otherSeries []string
 	for _, m := range matches {
 		versionList := reVersions.FindAllStringSubmatch(m[1], 1)
 		if len(versionList) == 0 || len(versionList[0]) < 2 {
@@ -228,6 +236,12 @@ func GetRemoteTarballList(tarballType TarballType, version, OS string, withSize,
 		}
 		longVersion := versionList[0][1]
 		shortVersion := versionList[0][2]
+		if shortVersion != version {
+			if !slices.Contains(otherSeries, shortVersion) {
+				otherSeries = append(otherSeries, shortVersion)
+			}
+			continue
+		}
 
 		tbd := TarballDescription{
 			Name:            m[1],
@@ -248,14 +262,19 @@ func GetRemoteTarballList(tarballType TarballType, version, OS string, withSize,
 		result = append(result, tbd)
 	}
 	if len(result) == 0 {
-		return nil, fmt.Errorf("no tarballs found")
+		return nil, fmt.Errorf("no %s tarballs found for release series %s: the download site lists only %v", tarballType, version, otherSeries)
 	}
 	return result, nil
 }
 
+// archNormalize converts the architecture found in a tarball name into the
+// form used by the registry, which is matched against runtime.GOARCH.
 func archNormalize(s string) string {
-	if s == "x86_64" {
+	switch s {
+	case "x86_64", "x86-64":
 		return "amd64"
+	case "aarch64", "arm-64":
+		return "arm64"
 	}
 	return s
 }

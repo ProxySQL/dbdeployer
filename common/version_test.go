@@ -140,13 +140,13 @@ func TestVersionToList(t *testing.T) {
 func TestGreaterOrEqualVersion(t *testing.T) {
 
 	// `GreaterOrEqualVersion` is a flavor-blind heuristic. It deliberately
-	// returns false for any version whose major >= 10 — that range is
-	// reserved for MariaDB (10.x, 11.x, ...), which has diverged from the
+	// returns false for any version whose major is between 10 and 25 — that
+	// range is reserved for MariaDB (10.x, 11.x, ...), which has diverged from the
 	// MySQL version line that the *MinimumVersion* constants in globals/
-	// were derived against. MySQL has not shipped a 10.x or 11.x major
-	// line; if it ever does, callers should already have migrated to
-	// `common.HasCapability(flavor, feature, version)`, which is the
-	// flavor-aware replacement.
+	// were derived against. MySQL never shipped a major from 10 to 25; from
+	// 26.x it uses calendar versions, which are compared as MySQL versions.
+	// `common.HasCapability(flavor, feature, version)` is the flavor-aware
+	// replacement.
 	var versions = []versionPair{
 		{"5.0.0", []int{5, 6, 0}, false},
 		{"8.0.0", []int{5, 6, 0}, true},
@@ -157,8 +157,15 @@ func TestGreaterOrEqualVersion(t *testing.T) {
 		{"12.3.3", []int{8, 0, 23}, false},  // issue #139
 		{"13.0.2", []int{8, 0, 23}, false},  // issue #140
 		{"13.0.2", []int{8, 4, 0}, false},
-		{"22.0.0", []int{22, 0, 0}, false}, // major >= 10 is treated as MariaDB
+		{"22.0.0", []int{22, 0, 0}, false}, // majors 10 to 25 are treated as MariaDB
 		{"22.10.2", []int{22, 10, 2}, false},
+		{"25.1.0", []int{8, 0, 23}, false},
+		// MySQL calendar versions (26.x and later) are MySQL
+		{"26.7.0", []int{8, 0, 23}, true},
+		{"26.7.0", []int{8, 4, 0}, true},
+		{"26.7.0", []int{26, 7, 0}, true},
+		{"26.7.0", []int{26, 7, 1}, false},
+		{"27.1.0", []int{26, 7, 0}, true},
 	}
 	for _, v := range versions {
 		result, err := GreaterOrEqualVersion(v.version, v.versionList)
