@@ -30,6 +30,11 @@
 * `add-remote` registers ARM and MySQL Shell tarballs with the architecture
   names used by the registry (`arm64`, `amd64`), so they are found by
   `get-by-version` on those platforms (they were `aarch64`, `x86-64`, `arm-64`).
+* The `start` script of a ProxySQL sandbox now waits until the admin
+  interface accepts connections (up to 30 seconds), instead of returning
+  2 seconds after the PID file appears. On a slow host the admin port could
+  still be closed when `deploy proxysql` returned, so the first `use`
+  failed with `ERROR 2003 ... (111)`.
 
 ## NEW FEATURES
 
