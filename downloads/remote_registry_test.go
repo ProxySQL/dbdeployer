@@ -142,7 +142,7 @@ func TestFindOrGuessTarballByVersionFlavorOS(t *testing.T) {
 }
 
 func TestNewMySQLVersionsRecognized(t *testing.T) {
-	versions := []string{"8.4", "9.0", "9.1", "9.2", "9.3", "9.4", "9.5", "9.7", "26.7"}
+	versions := []string{"8.4", "9.0", "9.1", "9.2", "9.3", "9.4", "9.5", "9.6", "9.7", "26.7"}
 	for _, v := range versions {
 		result := isAllowedForGuessing(v)
 		compare.OkEqualBool(fmt.Sprintf("version %s allowed for guessing", v), result, true, t)
@@ -172,6 +172,46 @@ func TestRegistryNewestMySQLSeries(t *testing.T) {
 		}
 		if tb.Name != tc.expected {
 			t.Errorf("%s %s/%s: expected %s, got %s", tc.shortVersion, tc.OS, tc.arch, tc.expected, tb.Name)
+		}
+	}
+}
+
+// Every MySQL 9.x innovation series and 26.7 resolves to its release in the
+// embedded registry. Retired series are no longer listed by the download
+// site, so the registry is the only way to get them.
+func TestRegistryMySQLInnovationSeries(t *testing.T) {
+	expected := map[string]string{
+		"9.0":  "9.0.1",
+		"9.1":  "9.1.0",
+		"9.2":  "9.2.0",
+		"9.3":  "9.3.0",
+		"9.4":  "9.4.0",
+		"9.5":  "9.5.0",
+		"9.6":  "9.6.0",
+		"9.7":  "9.7.2",
+		"26.7": "26.7.0",
+	}
+	for series, version := range expected {
+		for _, tc := range []struct {
+			OS, arch string
+			minimal  bool
+		}{
+			{"linux", "amd64", true},
+			{"linux", "arm64", false},
+			{"darwin", "arm64", false},
+			{"darwin", "amd64", false},
+		} {
+			tb, err := FindOrGuessTarballByVersionFlavorOS(series, "mysql", tc.OS, tc.arch, tc.minimal, true, false)
+			if err != nil {
+				t.Errorf("%s %s/%s: %v", series, tc.OS, tc.arch, err)
+				continue
+			}
+			if tb.Version != version || tb.ShortVersion != series {
+				t.Errorf("%s %s/%s: expected %s, got %s (%s)", series, tc.OS, tc.arch, version, tb.Version, tb.Name)
+			}
+			if tb.Checksum == "" {
+				t.Errorf("%s: no checksum", tb.Name)
+			}
 		}
 	}
 }

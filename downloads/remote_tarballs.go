@@ -262,9 +262,29 @@ func parseRemoteTarballPage(tarballType TarballType, version, OS, text, userAgen
 		result = append(result, tbd)
 	}
 	if len(result) == 0 {
-		return nil, fmt.Errorf("no %s tarballs found for release series %s: the download site lists only %v", tarballType, version, otherSeries)
+		err := fmt.Errorf("no %s tarballs found for release series %s: the download site lists only %v", tarballType, version, otherSeries)
+		// Retired series are no longer listed by the download site, but the
+		// registry may already have their releases.
+		known := registrySeriesVersions(downloadsSettings[tarballType].Flavor, version)
+		if len(known) > 0 {
+			err = fmt.Errorf("%s. The tarball registry already has %s %v: use 'dbdeployer downloads get-by-version %s'",
+				err, tarballType, known, version)
+		}
+		return nil, err
 	}
 	return result, nil
+}
+
+// registrySeriesVersions returns the versions of a release series found in
+// the tarball registry for the given flavor.
+func registrySeriesVersions(flavor, series string) []string {
+	var versions []string
+	for _, tb := range DefaultTarballRegistry.Tarballs {
+		if tb.Flavor == flavor && tb.ShortVersion == series && !slices.Contains(versions, tb.Version) {
+			versions = append(versions, tb.Version)
+		}
+	}
+	return versions
 }
 
 // archNormalize converts the architecture found in a tarball name into the

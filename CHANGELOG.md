@@ -39,6 +39,10 @@
 ## NEW FEATURES
 
 * Tarball registry: MySQL 9.7.2 and 26.7.0 (Linux x86_64 and aarch64, macOS).
+* Tarball registry: MySQL 9.6.0 (Linux x86_64 and aarch64, macOS), with
+  SHA256 checksums. Every 9.x innovation series is now in the registry.
+* `add-remote` for a retired series that the download site no longer lists
+  (e.g. 9.3) points to `get-by-version` when the registry has its release.
 * CI deploys MySQL 9.7.2 and 26.7.0 (single, replication, group replication,
   fan-in, all-masters, get-by-version), and 26.7.0 with InnoDB Cluster and
   ProxySQL.
