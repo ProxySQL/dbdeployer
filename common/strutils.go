@@ -219,15 +219,13 @@ func SortVersionsSubset(versions []string, wanted string) (sorted []string) {
 		}
 	}
 	sort.Slice(vlist, func(a, b int) bool {
-		majA := vlist[a].majMinRev[0]
-		minA := vlist[a].majMinRev[1]
-		revA := vlist[a].majMinRev[2]
-		majB := vlist[b].majMinRev[0]
-		minB := vlist[b].majMinRev[1]
-		revB := vlist[b].majMinRev[2]
-		return majA < majB ||
-			(majA == majB && minA < minB) ||
-			(majA == majB && minA == minB && revA < revB)
+		left, right := vlist[a].majMinRev, vlist[b].majMinRev
+		for i := 0; i < len(left) && i < len(right); i++ {
+			if left[i] != right[i] {
+				return left[i] < right[i]
+			}
+		}
+		return len(left) < len(right)
 	})
 	for _, v := range vlist {
 		sorted = append(sorted, v.text)
@@ -366,11 +364,11 @@ func LatestVersion(searchDir, pattern string) string {
 	files, err := os.ReadDir(searchDir)
 	ErrCheckExitf(err, 1, "ERROR reading directory %s: %s", searchDir, err)
 	var matchingList []string
-	validPattern := regexp.MustCompile(`\d+\.\d+$`)
+	validPattern := regexp.MustCompile(`^\d+\.\d+$`)
 	if !validPattern.MatchString(pattern) {
 		Exit(1, "Invalid pattern. Must be '#.#'")
 	}
-	re := regexp.MustCompile(fmt.Sprintf(`^%s\.\d+$`, pattern))
+	re := regexp.MustCompile(fmt.Sprintf(`^%s\.\d+(?:\.\d+)?$`, regexp.QuoteMeta(pattern)))
 	for _, f := range files {
 		if f.IsDir() && re.MatchString(f.Name()) {
 			matchingList = append(matchingList, f.Name())

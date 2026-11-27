@@ -54,7 +54,7 @@ func TestVersionToPort(t *testing.T) {
 		{"5096", -1},          // FAIL: No separators
 		{"50.96", -1},         // FAIL: Not enough separators
 		{"dummy", -1},         // FAIL: Not numbers
-		{"5.0.96.2", -1},      // FAIL: Too many components
+		{"5.0.96.2", 5096},    // OK: fourth component leaves base port unchanged
 		{"5.0.96", 5096},      // OK: 5.0
 		{"5.1.72", 5172},      // OK: 5.1
 		{"5.5.55", 5555},      // OK: 5.5
@@ -111,7 +111,7 @@ func TestVersionToList(t *testing.T) {
 		{"5096", []int{-1}},             // FAIL: No separators
 		{"50.96", []int{-1}},            // FAIL: Not enough separators
 		{"dummy", []int{-1}},            // FAIL: Not numbers
-		{"5.0.96.2", []int{-1}},         // FAIL: Too many components
+		{"5.0.96.2.3", []int{-1}},       // FAIL: Too many components
 		{"5.0.96", []int{5, 0, 96}},     // OK: 5.0
 		{"5.1.72", []int{5, 1, 72}},     // OK: 5.1
 		{"5.5.55", []int{5, 5, 55}},     // OK: 5.5
@@ -124,6 +124,8 @@ func TestVersionToList(t *testing.T) {
 		{"ma10.10.1", []int{10, 10, 1}}, // OK: 10.10 with prefix
 		{"ma15.15.1", []int{15, 15, 1}}, // OK: 15.15 with prefix
 		{"22.12.2", []int{22, 12, 2}},   // OK: 12.12
+
+		{"8.4.13.1", []int{8, 4, 13, 1}}, // OK: fourth component
 	}
 	for _, vl := range versions {
 		version := vl.version
@@ -270,4 +272,11 @@ func TestSortVersions(t *testing.T) {
 	for _, sd := range sortData {
 		checkSortVersion(t, sd)
 	}
+}
+
+func TestSortFourComponentVersions(t *testing.T) {
+	checkSortVersion(t, sortVersionData{
+		data:     []string{"8.4.13.10", "8.4.14", "8.4.13.2", "8.4.13"},
+		expected: []expectedData{{0, "8.4.13"}, {1, "8.4.13.2"}, {2, "8.4.13.10"}, {3, "8.4.14"}},
+	})
 }

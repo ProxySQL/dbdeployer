@@ -577,38 +577,24 @@ func IsIPV4(ip string) bool {
 	return true
 }
 
-// Gets three integers for a version string
-// Converts "1.2.3" into []int{1, 2, 3}
-func VersionToList(version string) ([]int, error) {
-	// A valid version must be made of 3 integers
-	re1 := regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)$`)
-	// Also valid version is 3 numbers with a prefix
-	re2 := regexp.MustCompile(`^[^.0-9-]+(\d+)\.(\d+)\.(\d+)$`)
-	verList1 := re1.FindAllStringSubmatch(version, -1)
-	verList2 := re2.FindAllStringSubmatch(version, -1)
-	verList := verList1
-	//CondPrintf("%#v\n", verList)
-	if verList == nil {
-		verList = verList2
-	}
-	if verList == nil {
-		return []int{-1}, fmt.Errorf("required version format: x.x.xx - Got '%s'", version)
-	}
+var fullVersionPattern = regexp.MustCompile(`^(?:[^.0-9-]+)?(\d+\.\d+\.\d+(?:\.\d+)?)$`)
 
-	var intList = make([]int, 3)
-	newCount := 0
-	for N, item := range verList[0] {
-		if N == 0 {
-			continue
-		}
-		intVal, err := strconv.Atoi(item)
-		if err != nil {
-			return []int{-1}, fmt.Errorf("(%d) error converting %s (list: %+v) [%s] ", N, version, verList, err)
-		}
-		intList[newCount] = intVal
-		newCount++
+// VersionToList parses a version with an optional prefix and fourth component.
+func VersionToList(version string) ([]int, error) {
+	match := fullVersionPattern.FindStringSubmatch(version)
+	if match == nil {
+		return []int{-1}, fmt.Errorf("required version format: x.y.z or x.y.z.w - Got '%s'", version)
 	}
-	return intList, nil
+	parts := strings.Split(match[1], ".")
+	numbers := make([]int, len(parts))
+	for i, part := range parts {
+		value, err := strconv.Atoi(part)
+		if err != nil {
+			return []int{-1}, fmt.Errorf("invalid version component %q in %q: %w", part, version, err)
+		}
+		numbers[i] = value
+	}
+	return numbers, nil
 }
 
 // Converts a version string into a name.
@@ -620,7 +606,7 @@ func VersionToName(version string) string {
 }
 
 // VersionToPort converts a version string into a port number
-// e.g. "5.6.33" -> 5633
+// e.g. "5.6.33" -> 5633. A fourth component does not change the base port.
 // Note that if the conversion exceeds the maximum port (65,535), such as 10.10.x,
 // the actual number will be reduced by 60,000
 func VersionToPort(version string) (int, error) {
