@@ -1205,7 +1205,9 @@ jobs:
       matrix:
         short-version:
           - '8.4'
+          - '9.3'   # retired series: only in the registry
           - '9.5'
+          - '9.6'
           - '9.7'
           - '26.7'
     env:

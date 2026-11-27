@@ -114,6 +114,24 @@ func TestArchNormalize(t *testing.T) {
 	}
 }
 
+// A retired series is no longer listed by the download site: when the
+// registry has it, the error points to get-by-version.
+func TestParseRemoteTarballPageRetiredSeriesHint(t *testing.T) {
+	_, err := parseRemoteTarballPage(TtMysql, "9.3", OsLinux, sampleMysqlPage, "", false)
+	if err == nil {
+		t.Fatalf("expected an error for series 9.3")
+	}
+	for _, want := range []string{"[9.7]", "registry already has mysql [9.3.0]", "get-by-version 9.3"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error should contain %q: %v", want, err)
+		}
+	}
+	_, err = parseRemoteTarballPage(TtMysql, "99.9", OsLinux, sampleMysqlPage, "", false)
+	if err == nil || strings.Contains(err.Error(), "registry") {
+		t.Errorf("series 99.9 is not in the registry: %v", err)
+	}
+}
+
 func TestParseRemoteTarballPageNoMatches(t *testing.T) {
 	if _, err := parseRemoteTarballPage(TtMysql, "9.7", OsLinux, "nothing to see here", "", false); err == nil {
 		t.Fatalf("expected an error for a page without tarballs")
