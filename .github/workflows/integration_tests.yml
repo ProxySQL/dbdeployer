@@ -245,9 +245,9 @@ jobs:
       fail-fast: false
       matrix:
         mariadb-version:
-          - '10.11.9'
-          - '11.4.13'  # #141: guards the #82 fix against a real 11.4
-          - '12.3.3'   # #139
+          - '10.11.20'
+          - '11.4.14'  # #141: guards the #82 fix against a real 11.4
+          - '12.3.4'   # #139
           - '13.0.2'   # #140
     env:
       GO111MODULE: on
@@ -271,7 +271,7 @@ jobs:
       - name: Download and unpack MariaDB
         run: |
           TARBALL="mariadb-${MARIADB_VERSION}-linux-systemd-x86_64.tar.gz"
-          URL="https://archive.mariadb.org/mariadb-${MARIADB_VERSION}/bintar-linux-systemd-x86_64/${TARBALL}"
+          URL="https://mirror.mariadb.org/mariadb-${MARIADB_VERSION}/bintar-linux-systemd-x86_64/${TARBALL}"
           echo "Downloading MariaDB ${MARIADB_VERSION}..."
           mkdir -p "$SANDBOX_BINARY"
           curl -L -f -o "/tmp/$TARBALL" "$URL"
@@ -880,7 +880,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, macos-15]
+        os: [macos-15, macos-latest]
     env:
       GO111MODULE: on
     steps:
