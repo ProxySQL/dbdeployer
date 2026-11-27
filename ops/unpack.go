@@ -47,14 +47,9 @@ func UnpackTarball(options UnpackOptions) error {
 		return fmt.Errorf(globals.ErrDirectoryNotFound, Basedir)
 	}
 	tarball := options.TarballName
-	reVersion := regexp.MustCompile(`(\d+\.\d+\.\d+)`)
-	verList := reVersion.FindAllStringSubmatch(tarball, -1)
-
-	detectedVersion := ""
-	if verList != nil {
-		detectedVersion = verList[0][0]
-	}
-	// common.CondPrintf(">> %#v %s\n",verList, detected_version)
+	// Versioned download directories are unrelated to the archive's version.
+	reVersion := regexp.MustCompile(`\d+\.\d+\.\d+(?:\.\d+)*`)
+	detectedVersion := reVersion.FindString(common.BaseName(tarball))
 
 	isShell := options.IsShell
 	target := options.TargetServer
@@ -80,8 +75,7 @@ func UnpackTarball(options UnpackOptions) error {
 		return fmt.Errorf("unpack: No version was detected from tarball name. " +
 			"Flag --unpack-version becomes mandatory")
 	}
-	// This call used to ensure that the port provided is in the right format
-	_, err := common.VersionToPort(Version)
+	_, err := common.VersionToList(Version)
 	if err != nil {
 		return fmt.Errorf("version %s not in the required format", Version)
 	}
